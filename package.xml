@@ -3,11 +3,23 @@
 <package format="3">
   <name>visual_control_pkg</name>
   <version>0.0.0</version>
-  <description>TODO: Package description</description>
-  <maintainer email="sherif252525@gmail.com">sherif</maintainer>
-  <license>TODO: License declaration</license>
+  <description>
+    Controllers and accompanying utilites for vision-based control of robotic manipulators
+  </description>
 
+  <author>Sherif Samy</author>
+  <maintainer email="sherif252525@gmail.com">Sherif Samy</maintainer>
+  <license file="LICENSE">GNU General Public License</license>
+
+  <url type="bugtracker">https://github.com/Sherif-Sameh/visual_control_pkg/issues</url>
+  <url type="repository">https://github.com/Sherif-Sameh/visual_control_pkg</url>
+  
   <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <exec_depend>launch</exec_depend>
+  <exec_depend>launch_ros</exec_depend>
+  <exec_depend>rviz2</exec_depend>
+  <exec_depend>ur_description</exec_depend>
 
   <test_depend>ament_lint_auto</test_depend>
   <test_depend>ament_lint_common</test_depend>

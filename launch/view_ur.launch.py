@@ -137,7 +137,7 @@ def generate_launch_description():
         ),
     }
     rviz_config_file = PathJoinSubstitution(
-        [FindPackageShare(description_package), "rviz", "view_robot.rviz"]
+        [FindPackageShare("visual_control_pkg"), "rviz", "view_robot_ur.rviz"]
     )
 
     robot_state_publisher_node = Node(
