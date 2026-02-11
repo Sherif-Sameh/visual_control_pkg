@@ -19,6 +19,14 @@
   
   <depend>rclcpp</depend>
   <depend>rclpy</depend>
+  <depend>std_msgs</depend>
+  <depend>sensor_msgs</depend>
+  <depend>geometry_msgs</depend>
+  <depend>trajectory_msgs</depend>
+  
+  <depend>eigen</depend>
+  <depend>visp</depend>
+  <depend>orocos_kdl_vendor</depend>
 
   <exec_depend>launch</exec_depend>
   <exec_depend>launch_ros</exec_depend>

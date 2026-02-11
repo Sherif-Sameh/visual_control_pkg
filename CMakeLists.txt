@@ -16,9 +16,18 @@ find_package(ament_cmake REQUIRED)
 find_package(ament_cmake_python REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(rclpy REQUIRED)
+find_package(std_msgs REQUIRED) 
+find_package(sensor_msgs REQUIRED)
+find_package(geometry_msgs REQUIRED)
+find_package(trajectory_msgs REQUIRED)
+
+find_package(Eigen3 REQUIRED)
+find_package(VISP COMPONENTS core robot vision vs REQUIRED)
+find_package(orocos_kdl_vendor REQUIRED)
 
 # Include C++ "include" directory
 include_directories(include)
+include_directories(${VISP_INCLUDE_DIRS})
 
 # Create C++ executables
 # add_executable(cpp_executable src/cpp_node.cpp)

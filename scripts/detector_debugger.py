@@ -134,6 +134,7 @@ class DetectorDebugger(Node):
         # Publish modified image if input image is available
         if self._img is not None:
             self._publish_tag_image(msg)
+            self._img = None  # reset stored image after publishing
 
 
 def main(args=None):
