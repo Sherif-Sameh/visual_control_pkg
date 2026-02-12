@@ -24,10 +24,23 @@ find_package(trajectory_msgs REQUIRED)
 find_package(Eigen3 REQUIRED)
 find_package(VISP COMPONENTS core robot vision vs REQUIRED)
 find_package(orocos_kdl_vendor REQUIRED)
+find_package(kdl_parser REQUIRED)
 
 # Include C++ "include" directory
-include_directories(include)
+include_directories(include/visual_control_pkg)
 include_directories(${VISP_INCLUDE_DIRS})
+
+## Declare a C++ library
+add_library(vc_lib STATIC 
+  lib/kdlIkSolverVel_wdls.cpp 
+  lib/vpRobotRos.cpp
+)
+
+ament_target_dependencies(vc_lib 
+  VISP 
+  orocos_kdl_vendor 
+  kdl_parser
+)
 
 # Create C++ executables
 # add_executable(cpp_executable src/cpp_node.cpp)
