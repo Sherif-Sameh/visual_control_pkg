@@ -4,18 +4,36 @@ namespace vc
 {
     namespace ik
     {
-        kdlIkSolVel_wlds::kdlIkSolVel_wlds(const bool verbose, const std::string &chain_root,
-                                           const std::string &chain_tip, const double eps,
-                                           const int max_iters, const double lambda,
-                                           const Eigen::MatrixXd &weight_js)
+        KdlIkSolVel_wlds::KdlIkSolVel_wlds(const bool verbose, const std::string &chain_root,
+                                           const std::string &chain_tip,
+                                           const IkSolverParams &solver_params)
             : m_is_init(false), m_verbose(verbose), m_chain_root(chain_root),
-              m_chain_tip(chain_tip), m_solver_eps(eps), m_solver_max_iters(max_iters),
-              m_solver_lambda(lambda), m_solver_weight_js(weight_js)
+              m_chain_tip(chain_tip), m_solver_params(solver_params)
         {
-            assert(m_solver_weight_js.rows() == m_solver_weight_js.cols());
+            assert(m_solver_params.weight_js.rows() == m_solver_params.weight_js.cols());
         }
 
-        void kdlIkSolVel_wlds::initIkSolver(const std::string &urdf_description)
+        KdlIkSolVel_wlds::KdlIkSolVel_wlds(const bool verbose, const std::string &chain_root,
+                                           const std::string &chain_tip, const double eps,
+                                           const double lambda, const int max_iters,
+                                           const Eigen::MatrixXd &weight_js)
+            : KdlIkSolVel_wlds(verbose, chain_root, chain_tip, {eps, lambda, max_iters, weight_js})
+        {
+        }
+
+        bool KdlIkSolVel_wlds::isInitialized() const { return m_is_init; }
+
+        int KdlIkSolVel_wlds::getNumJoints() const
+        {
+            assert(m_is_init);
+            if (m_is_init)
+            {
+                return m_chain.getNrOfJoints();
+            }
+            return 0;
+        }
+
+        void KdlIkSolVel_wlds::initIkSolver(const std::string &urdf_description)
         {
             // Construct KDL tree from URDF description string
             kdl_parser::treeFromString(urdf_description, m_tree);
@@ -30,7 +48,7 @@ namespace vc
 
             // Extract target kinematic chain from tree
             m_tree.getChain(m_chain_root, m_chain_tip, m_chain);
-            assert(m_solver_weight_js.rows() == m_chain.getNrOfJoints());
+            assert(m_solver_params.weight_js.rows() == m_chain.getNrOfJoints());
             if (m_verbose)
             {
                 std::cout << "Kinematic Chain Information:" << std::endl;
@@ -42,33 +60,23 @@ namespace vc
 
             // Initialize solver
             m_is_init = true;
-            m_solver = std::make_unique<KDL::ChainIkSolverVel_wdls>(m_chain, m_solver_eps,
-                                                                    m_solver_max_iters);
-            m_solver->setLambda(m_solver_lambda);
-            m_solver->setWeightJS(m_solver_weight_js);
+            m_solver = std::make_unique<KDL::ChainIkSolverVel_wdls>(m_chain, m_solver_params.eps,
+                                                                    m_solver_params.max_iters);
+            m_solver->setLambda(m_solver_params.lambda);
+            m_solver->setWeightJS(m_solver_params.weight_js);
             if (m_verbose)
             {
                 std::cout << "Inverse Velocity Kinematics Solver (WDLS) Initialized" << std::endl;
                 std::cout << "IK Solver Information:" << std::endl;
-                std::cout << "eps:              " << m_solver_eps << std::endl;
-                std::cout << "max_iters:        " << m_solver_max_iters << std::endl;
-                std::cout << "lambda:           " << m_solver_lambda << std::endl;
-                std::cout << "weight_js:        " << m_solver_weight_js << std::endl;
+                std::cout << "eps:              " << m_solver_params.eps << std::endl;
+                std::cout << "max_iters:        " << m_solver_params.max_iters << std::endl;
+                std::cout << "lambda:           " << m_solver_params.lambda << std::endl;
+                std::cout << "weight_js:        " << m_solver_params.weight_js << std::endl;
             }
         }
 
-        int kdlIkSolVel_wlds::getNumJoints() const
-        {
-            assert(m_is_init);
-            if (m_is_init)
-            {
-                return m_chain.getNrOfJoints();
-            }
-            return 0;
-        }
-
-        void kdlIkSolVel_wlds::solveIk(const std::vector<double> &q, const std::vector<double> &v,
-                                       std::vector<double> &qdot)
+        void KdlIkSolVel_wlds::solveIk(const std::vector<double> &q, const std::vector<double> &v,
+                                       std::vector<double> &qdot) const
         {
             assert(m_is_init);
             assert(q.size() == m_chain.getNrOfJoints());

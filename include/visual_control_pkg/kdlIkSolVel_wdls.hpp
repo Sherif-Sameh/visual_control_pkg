@@ -27,16 +27,27 @@ namespace vc
 {
     namespace ik
     {
-        class kdlIkSolVel_wlds
+        class KdlIkSolVel_wlds
         {
         public:
-            kdlIkSolVel_wlds(const bool verbose, const std::string &chain_root,
-                             const std::string &chain_tip, const double eps, const int max_iters,
-                             const double lambda, const Eigen::MatrixXd &weight_js);
-            void initIkSolver(const std::string &urdf_description);
+            struct IkSolverParams
+            {
+                double eps;                // Singular value threshold for solver
+                double lambda;             // Lambda value for weighted DLS solver
+                int max_iters;             // Maximum iterations for the SVD calculation
+                Eigen::MatrixXd weight_js; // Joint space weighting symmetric matrix for WDLS
+            };
+
+            KdlIkSolVel_wlds(const bool verbose, const std::string &chain_root,
+                             const std::string &chain_tip, const IkSolverParams &solver_params);
+            KdlIkSolVel_wlds(const bool verbose, const std::string &chain_root,
+                             const std::string &chain_tip, const double eps, const double lambda,
+                             const int max_iters, const Eigen::MatrixXd &weight_js);
+            bool isInitialized() const;
             int getNumJoints() const;
+            void initIkSolver(const std::string &urdf_description);
             void solveIk(const std::vector<double> &q, const std::vector<double> &v,
-                         std::vector<double> &qdot);
+                         std::vector<double> &qdot) const;
 
         private:
             // General Attributes
@@ -47,12 +58,8 @@ namespace vc
             KDL::Tree m_tree;               // Kinematic tree to load from URDF robot description
             KDL::Chain m_chain; // Kinematic chain to solve inverse velocity kinematics over
 
-            // IK Solver Attributes
-            const double m_solver_eps;    // Singular value threshold for solver
-            const int m_solver_max_iters; // Maximum iterations for the SVD calculation
-            const double m_solver_lambda; // Lambda value for weighted DLS solver.
-            const Eigen::MatrixXd
-                m_solver_weight_js; // Joint space weighting symmetric matrix for WDLS
+            // IK Solver and Parameters
+            const IkSolverParams m_solver_params; // Parameters for the IK solver
             std::unique_ptr<KDL::ChainIkSolverVel_wdls>
                 m_solver; // Solver based on weighted DLS method
         };
