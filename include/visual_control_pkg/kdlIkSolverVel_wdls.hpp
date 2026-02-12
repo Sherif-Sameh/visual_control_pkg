@@ -4,10 +4,9 @@
  * For more, check out the OROCOS KDL project: https://github.com/orocos/orocos_kinematics_dynamics
  */
 
-#ifndef KDL_IK_SOL_VEL_WDLS
-#define KDL_IK_SOL_VEL_WDLS
+#ifndef KDL_IK_SOLVER_VEL_WDLS
+#define KDL_IK_SOLVER_VEL_WDLS
 
-#include <algorithm>
 #include <cassert>
 #include <iostream>
 #include <memory>
@@ -23,11 +22,13 @@
 #include <kdl/tree.hpp>
 #include <kdl_parser/kdl_parser.hpp>
 
+#include <visp3/core/vpException.h>
+
 namespace vc
 {
-    namespace ik
+    namespace solver
     {
-        class KdlIkSolVel_wlds
+        class KdlIkSolverVel_wlds
         {
         public:
             struct IkSolverParams
@@ -38,16 +39,16 @@ namespace vc
                 Eigen::MatrixXd weight_js; // Joint space weighting symmetric matrix for WDLS
             };
 
-            KdlIkSolVel_wlds(const bool verbose, const std::string &chain_root,
-                             const std::string &chain_tip, const IkSolverParams &solver_params);
-            KdlIkSolVel_wlds(const bool verbose, const std::string &chain_root,
-                             const std::string &chain_tip, const double eps, const double lambda,
-                             const int max_iters, const Eigen::MatrixXd &weight_js);
+            KdlIkSolverVel_wlds(const bool verbose, const std::string &chain_root,
+                                const std::string &chain_tip, const IkSolverParams &solver_params);
+            KdlIkSolverVel_wlds(const bool verbose, const std::string &chain_root,
+                                const std::string &chain_tip, const double eps, const double lambda,
+                                const int max_iters, const Eigen::MatrixXd &weight_js);
+            KdlIkSolverVel_wlds(const KdlIkSolverVel_wlds &solver);
             bool isInitialized() const;
             int getNumJoints() const;
             void initIkSolver(const std::string &urdf_description);
-            void solveIk(const std::vector<double> &q, const std::vector<double> &v,
-                         std::vector<double> &qdot) const;
+            void solveIk(const KDL::JntArray &q, const KDL::Twist &v, KDL::JntArray &qdot) const;
 
         private:
             // General Attributes
@@ -63,7 +64,7 @@ namespace vc
             std::unique_ptr<KDL::ChainIkSolverVel_wdls>
                 m_solver; // Solver based on weighted DLS method
         };
-    } // namespace ik
+    } // namespace solver
 } // namespace vc
 
 #endif

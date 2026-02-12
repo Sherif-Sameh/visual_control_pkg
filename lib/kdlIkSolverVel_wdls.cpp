@@ -1,0 +1,111 @@
+#include "kdlIkSolverVel_wdls.hpp"
+
+namespace vc
+{
+    namespace solver
+    {
+        KdlIkSolverVel_wlds::KdlIkSolverVel_wlds(const bool verbose, const std::string &chain_root,
+                                                 const std::string &chain_tip,
+                                                 const IkSolverParams &solver_params)
+            : m_is_init(false), m_verbose(verbose), m_chain_root(chain_root),
+              m_chain_tip(chain_tip), m_solver_params(solver_params)
+        {
+            if (m_solver_params.weight_js.rows() != m_solver_params.weight_js.cols())
+            {
+                throw(vpException(vpException::dimensionError,
+                                  "Solver weight matrix for joint states must be square."));
+            }
+        }
+
+        KdlIkSolverVel_wlds::KdlIkSolverVel_wlds(const bool verbose, const std::string &chain_root,
+                                                 const std::string &chain_tip, const double eps,
+                                                 const double lambda, const int max_iters,
+                                                 const Eigen::MatrixXd &weight_js)
+            : KdlIkSolverVel_wlds(verbose, chain_root, chain_tip,
+                                  {eps, lambda, max_iters, weight_js})
+        {
+        }
+
+        KdlIkSolverVel_wlds::KdlIkSolverVel_wlds(const KdlIkSolverVel_wlds &solver)
+            : KdlIkSolverVel_wlds(solver.m_verbose, solver.m_chain_root, solver.m_chain_tip,
+                                  solver.m_solver_params)
+        {
+        }
+
+        bool KdlIkSolverVel_wlds::isInitialized() const { return m_is_init; }
+
+        int KdlIkSolverVel_wlds::getNumJoints() const
+        {
+            if (!m_is_init)
+            {
+                throw(vpException(vpException::notInitialized,
+                                  "Solver has not yet been initialized."));
+            }
+            return m_chain.getNrOfJoints();
+        }
+
+        void KdlIkSolverVel_wlds::initIkSolver(const std::string &urdf_description)
+        {
+            // Construct KDL tree from URDF description string
+            kdl_parser::treeFromString(urdf_description, m_tree);
+            if (m_verbose)
+            {
+                // Print basic information about the tree
+                std::cout << "Kinematic Tree Information:" << std::endl;
+                std::cout << "nb joints:        " << m_tree.getNrOfJoints() << std::endl;
+                std::cout << "nb segments:      " << m_tree.getNrOfSegments() << std::endl;
+                std::cout << "root segment:     " << m_tree.getRootSegment()->first << std::endl;
+            }
+
+            // Extract target kinematic chain from tree
+            m_tree.getChain(m_chain_root, m_chain_tip, m_chain);
+            if (m_solver_params.weight_js.rows() != m_chain.getNrOfJoints())
+            {
+                throw(vpException(vpException::dimensionError,
+                                  "Dimension of solver weight matrix for joint states does not "
+                                  "match number of joints in kinematic chain."));
+            }
+            if (m_verbose)
+            {
+                std::cout << "Kinematic Chain Information:" << std::endl;
+                std::cout << "nb joints:        " << m_chain.getNrOfJoints() << std::endl;
+                std::cout << "nb segments:      " << m_chain.getNrOfSegments() << std::endl;
+                std::cout << "root segment:     " << m_chain_root << std::endl;
+                std::cout << "tip segment:      " << m_chain_tip << std::endl;
+            }
+
+            // Initialize solver
+            m_is_init = true;
+            m_solver = std::make_unique<KDL::ChainIkSolverVel_wdls>(m_chain, m_solver_params.eps,
+                                                                    m_solver_params.max_iters);
+            m_solver->setLambda(m_solver_params.lambda);
+            m_solver->setWeightJS(m_solver_params.weight_js);
+            if (m_verbose)
+            {
+                std::cout << "Inverse Velocity Kinematics Solver (WDLS) Initialized" << std::endl;
+                std::cout << "IK Solver Information:" << std::endl;
+                std::cout << "eps:              " << m_solver_params.eps << std::endl;
+                std::cout << "max_iters:        " << m_solver_params.max_iters << std::endl;
+                std::cout << "lambda:           " << m_solver_params.lambda << std::endl;
+                std::cout << "weight_js:        " << m_solver_params.weight_js << std::endl;
+            }
+        }
+
+        void KdlIkSolverVel_wlds::solveIk(const KDL::JntArray &q, const KDL::Twist &v,
+                                          KDL::JntArray &qdot) const
+        {
+            assert(m_is_init);
+            assert(q.data.size() == m_chain.getNrOfJoints());
+            assert(q.data.size() == qdot.data.size());
+
+            // Invoke solver with inputs
+            int error = m_solver->CartToJnt(q, v, qdot);
+            if (error != KDL::SolverI::E_NOERROR)
+            {
+                // Ignore any computed velocities in case of failure
+                KDL::SetToZero(qdot);
+                std::cerr << "Failure: Solver failed due to error number: " << error << std::endl;
+            }
+        }
+    } // namespace solver
+} // namespace vc
