@@ -1,10 +1,9 @@
 cmake_minimum_required(VERSION 3.8)
 project(visual_control_pkg)
 
-# Default to C++14
-if(NOT CMAKE_CXX_STANDARD)
-  set(CMAKE_CXX_STANDARD 14)
-endif()
+# Set C++ standard to C++17
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # C++ Compiler options
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
@@ -19,10 +18,13 @@ find_package(rclpy REQUIRED)
 find_package(std_msgs REQUIRED) 
 find_package(sensor_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
+find_package(tf2 REQUIRED)
+find_package(tf2_ros REQUIRED)
 find_package(trajectory_msgs REQUIRED)
 
+find_package(isaac_ros_apriltag)
 find_package(Eigen3 REQUIRED)
-find_package(VISP COMPONENTS core robot vision vs REQUIRED)
+find_package(VISP COMPONENTS core robot visual_features vs REQUIRED)
 find_package(orocos_kdl_vendor REQUIRED)
 find_package(kdl_parser REQUIRED)
 
@@ -43,14 +45,24 @@ ament_target_dependencies(vc_lib
 )
 
 # Create C++ executables
-# add_executable(cpp_executable src/cpp_node.cpp)
-# ament_target_dependencies(cpp_executable rclcpp)
+add_executable(pbvs_controller src/pbvs_controller.cpp)
+target_link_libraries(pbvs_controller vc_lib)
+ament_target_dependencies(pbvs_controller 
+  rclcpp
+  geometry_msgs
+  sensor_msgs
+  tf2
+  tf2_ros
+  trajectory_msgs
+  isaac_ros_apriltag
+  VISP
+)
 
 # Install C++ executables
-# install(TARGETS
-#   cpp_executable
-#   DESTINATION lib/${PROJECT_NAME}
-# )
+install(TARGETS
+  pbvs_controller
+  DESTINATION lib/${PROJECT_NAME}
+)
 
 # Install Python modules
 ament_python_install_package(${PROJECT_NAME})
