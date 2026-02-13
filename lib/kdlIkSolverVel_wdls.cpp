@@ -85,10 +85,11 @@ namespace vc
             if (m_verbose)
             {
                 // Print basic information about the tree
-                std::cout << "Kinematic Tree Information:" << std::endl;
-                std::cout << "nb joints:        " << m_tree.getNrOfJoints() << std::endl;
-                std::cout << "nb segments:      " << m_tree.getNrOfSegments() << std::endl;
-                std::cout << "root segment:     " << m_tree.getRootSegment()->first << std::endl;
+                std::cout << "Kinematic Tree Information:\n";
+                std::cout << "nb joints:        " << m_tree.getNrOfJoints() << "\n";
+                std::cout << "nb segments:      " << m_tree.getNrOfSegments() << "\n";
+                std::cout << "root segment:     " << m_tree.getRootSegment()->first << "\n";
+                std::cout << std::endl;
             }
 
             // Extract target kinematic chain from tree
@@ -101,11 +102,12 @@ namespace vc
             }
             if (m_verbose)
             {
-                std::cout << "Kinematic Chain Information:" << std::endl;
-                std::cout << "nb joints:        " << m_chain.getNrOfJoints() << std::endl;
-                std::cout << "nb segments:      " << m_chain.getNrOfSegments() << std::endl;
-                std::cout << "root segment:     " << m_chain_root << std::endl;
-                std::cout << "tip segment:      " << m_chain_tip << std::endl;
+                std::cout << "Kinematic Chain Information:\n";
+                std::cout << "nb joints:        " << m_chain.getNrOfJoints() << "\n";
+                std::cout << "nb segments:      " << m_chain.getNrOfSegments() << "\n";
+                std::cout << "root segment:     " << m_chain_root << "\n";
+                std::cout << "tip segment:      " << m_chain_tip << "\n";
+                std::cout << std::endl;
             }
 
             // Initialize solver
@@ -116,12 +118,13 @@ namespace vc
             m_solver->setWeightJS(m_solver_params.weight_js);
             if (m_verbose)
             {
-                std::cout << "Inverse Velocity Kinematics Solver (WDLS) Initialized" << std::endl;
-                std::cout << "IK Solver Information:" << std::endl;
-                std::cout << "eps:              " << m_solver_params.eps << std::endl;
-                std::cout << "max_iters:        " << m_solver_params.max_iters << std::endl;
-                std::cout << "lambda:           " << m_solver_params.lambda << std::endl;
-                std::cout << "weight_js:        " << m_solver_params.weight_js << std::endl;
+                std::cout << "Inverse Velocity Kinematics Solver (WDLS) Initialized.\n";
+                std::cout << "IK Solver Information:\n";
+                std::cout << "eps:              " << m_solver_params.eps << "\n";
+                std::cout << "max_iters:        " << m_solver_params.max_iters << "\n";
+                std::cout << "lambda:           " << m_solver_params.lambda << "\n";
+                std::cout << "weight_js:        " << "\n" << m_solver_params.weight_js << "\n";
+                std::cout << std::endl;
             }
         }
 
