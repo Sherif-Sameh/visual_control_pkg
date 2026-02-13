@@ -4,11 +4,17 @@ namespace vc
 {
     namespace solver
     {
+        KdlIkSolverVel_wlds::KdlIkSolverVel_wlds()
+            : m_is_init(false), m_verbose(false), m_chain_root("root"), m_chain_tip("tip"),
+              m_solver_params{1e-5, 0.0, 50, Eigen::MatrixXd::Identity(6, 6)}, m_solver(nullptr)
+        {
+        }
+
         KdlIkSolverVel_wlds::KdlIkSolverVel_wlds(const bool verbose, const std::string &chain_root,
                                                  const std::string &chain_tip,
                                                  const IkSolverParams &solver_params)
             : m_is_init(false), m_verbose(verbose), m_chain_root(chain_root),
-              m_chain_tip(chain_tip), m_solver_params(solver_params)
+              m_chain_tip(chain_tip), m_solver_params(solver_params), m_solver(nullptr)
         {
             if (m_solver_params.weight_js.rows() != m_solver_params.weight_js.cols())
             {
@@ -32,6 +38,17 @@ namespace vc
         {
         }
 
+        KdlIkSolverVel_wlds &KdlIkSolverVel_wlds::operator=(const KdlIkSolverVel_wlds &other)
+        {
+            m_is_init = false; // must be re-initialized due to unique_ptr
+            m_verbose = other.m_verbose;
+            m_chain_root = other.m_chain_root;
+            m_chain_tip = other.m_chain_tip;
+            m_solver_params = other.m_solver_params;
+            m_solver = nullptr;
+            return *this;
+        }
+
         bool KdlIkSolverVel_wlds::isInitialized() const { return m_is_init; }
 
         int KdlIkSolverVel_wlds::getNumJoints() const
@@ -42,6 +59,23 @@ namespace vc
                                   "Solver has not yet been initialized."));
             }
             return m_chain.getNrOfJoints();
+        }
+
+        void KdlIkSolverVel_wlds::setVerbose(const bool verbose) { m_verbose = verbose; }
+
+        void KdlIkSolverVel_wlds::setChainRoot(const std::string &chain_root)
+        {
+            m_chain_root = chain_root;
+        }
+
+        void KdlIkSolverVel_wlds::setChainTip(const std::string &chain_tip)
+        {
+            m_chain_tip = chain_tip;
+        }
+
+        void KdlIkSolverVel_wlds::setSolverParams(const IkSolverParams &solver_params)
+        {
+            m_solver_params = solver_params;
         }
 
         void KdlIkSolverVel_wlds::initIkSolver(const std::string &urdf_description)
@@ -104,7 +138,11 @@ namespace vc
             {
                 // Ignore any computed velocities in case of failure
                 KDL::SetToZero(qdot);
-                std::cerr << "Failure: Solver failed due to error number: " << error << std::endl;
+                if (m_verbose)
+                {
+                    std::cerr << "Failure: Solver failed due to error number: " << error
+                              << std::endl;
+                }
             }
         }
     } // namespace solver

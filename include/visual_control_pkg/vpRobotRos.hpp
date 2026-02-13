@@ -31,8 +31,7 @@
 #include <string>
 #include <vector>
 
-#include <visp3/core/vpThetaUVector.h>
-#include <visp3/core/vpTranslationVector.h>
+#include <visp3/core/vpHomogeneousMatrix.h>
 #include <visp3/core/vpVelocityTwistMatrix.h>
 #include <visp3/robot/vpRobot.h>
 #include <visp3/robot/vpRobotException.h>
@@ -46,36 +45,44 @@ namespace vc
         class vpRobotRos : public vpRobot
         {
         public:
+            vpRobotRos();
             vpRobotRos(const bool verbose, const double max_tvel, const double max_rvel,
                        const vpColVector &max_qdot, const solver::KdlIkSolverVel_wlds &solver);
-
-            virtual ~vpRobotRos();
+            ~vpRobotRos() override;
 
             void init() override;
             void init(const std::string &urdf_description);
-            void set_eMc(const vpTranslationVector &t, const vpThetaUVector &thetau);
+            bool isInitialized() const;
+
             void get_eJe(vpMatrix &_eJe) override;
             void get_fJe(vpMatrix &_fJe) override;
             void getDisplacement(const vpRobot::vpControlFrameType frame, vpColVector &q) override;
             void getPosition(const vpRobot::vpControlFrameType frame, vpColVector &q) override;
+            int getNumDofs() const;
+
+            void set_eMc(const vpHomogeneousMatrix &eMc);
             void setPosition(const vpRobot::vpControlFrameType frame,
                              const vpColVector &q) override;
             void setMaxVelocitySF(const double max_vel_sf);
-            std::vector<double> getJointVelocity(const vpTranslationVector &t_fMe,
-                                                 const vpThetaUVector &thetau_fMe,
-                                                 const vpColVector &q, const vpColVector &vel);
+            void setMaxVelocity(const double max_tvel, const double max_rvel);
+            void setMaxJointVelocity(const vpColVector &max_qdot);
+            void setIkSolver(const solver::KdlIkSolverVel_wlds &solver);
+            void setJointPosition(const std::vector<double> &q);
+
+            std::vector<double> computeJointVelocity(const vpHomogeneousMatrix &fMe,
+                                                     const vpColVector &vel);
 
         protected:
             void setVelocity(const vpRobot::vpControlFrameType frame,
                              const vpColVector &vel) override;
 
         protected:
-            bool m_is_init;               // Whether the robot has been initialized yet or not
-            double m_max_vel_sf;          // Scale factor for maximum twist velocities.
-            KDL::JntArray m_q_kdl;        // Latest joint positions stored in a KDL JntArray
-            vpColVector m_qdot;           // Latest computed joint velocity command
-            const vpColVector m_max_qdot; // Maximum absolute joint velocity for each joint
-            const vpColVector m_max_vel;  // Maximum absolute twist vector for desired motion
+            bool m_is_init;         // Whether the robot has been initialized yet or not
+            double m_max_vel_sf;    // Scale factor for maximum twist velocities.
+            KDL::JntArray m_q_kdl;  // Latest joint positions stored in a KDL JntArray
+            vpColVector m_qdot;     // Latest computed joint velocity command
+            vpColVector m_max_qdot; // Maximum absolute joint velocity for each joint
+            vpColVector m_max_vel;  // Maximum absolute twist vector for desired motion
             vpVelocityTwistMatrix
                 m_fVe; // Twist conversion matrix from end-effector frame to base frame
             vpVelocityTwistMatrix

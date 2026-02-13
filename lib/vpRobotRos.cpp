@@ -4,6 +4,10 @@ namespace vc
 {
     namespace visp
     {
+        vpRobotRos::vpRobotRos() : vpRobot(), m_is_init(false), m_max_vel_sf(1.0), m_max_vel(6, 0.5)
+        {
+        }
+
         vpRobotRos::vpRobotRos(const bool verbose, const double max_tvel, const double max_rvel,
                                const vpColVector &max_qdot,
                                const solver::KdlIkSolverVel_wlds &solver)
@@ -42,6 +46,8 @@ namespace vc
             }
         }
 
+        vpRobotRos::~vpRobotRos() {}
+
         void vpRobotRos::init()
         {
             throw(vpRobotException(vpRobotException::notImplementedError,
@@ -67,17 +73,7 @@ namespace vc
             }
         }
 
-        void vpRobotRos::set_eMc(const vpTranslationVector &t, const vpThetaUVector &thetau)
-        {
-            // Compute velocity twist matrix from eMc
-            m_eVc.buildFrom(t, thetau);
-
-            // Update initialized status
-            if (m_solver.isInitialized())
-            {
-                m_is_init = true;
-            }
-        }
+        bool vpRobotRos::isInitialized() const { return m_is_init; }
 
         void vpRobotRos::get_eJe(vpMatrix &_eJe)
         {
@@ -115,6 +111,20 @@ namespace vc
                                    "kinematics and relies on TF transformations instead."));
         }
 
+        int vpRobotRos::getNumDofs() const { return m_solver.getNumJoints(); }
+
+        void vpRobotRos::set_eMc(const vpHomogeneousMatrix &eMc)
+        {
+            // Compute velocity twist matrix from eMc
+            m_eVc.buildFrom(eMc);
+
+            // Update initialized status
+            if (m_solver.isInitialized())
+            {
+                m_is_init = true;
+            }
+        }
+
         void vpRobotRos::setPosition(const vpRobot::vpControlFrameType frame, const vpColVector &q)
         {
             (void)frame;
@@ -129,28 +139,66 @@ namespace vc
             assert(max_vel_sf > 0.0 && max_vel_sf <= 1.0);
             if (max_vel_sf <= 0.0 || max_vel_sf > 1.0)
             {
-                std::cerr << "Warning: Scale factor for maximum velocity must be in the interval "
-                             "(0, 1]. Got sf ="
-                          << max_vel_sf << std::endl;
+                if (verbose_)
+                {
+                    std::cerr
+                        << "Warning: Scale factor for maximum velocity must be in the interval "
+                           "(0, 1]. Got sf ="
+                        << max_vel_sf << std::endl;
+                }
                 return;
             }
             m_max_vel_sf = max_vel_sf;
         }
 
-        std::vector<double> vpRobotRos::getJointVelocity(const vpTranslationVector &t_fMe,
-                                                         const vpThetaUVector &thetau_fMe,
-                                                         const vpColVector &q,
-                                                         const vpColVector &vel)
+        void vpRobotRos::setMaxVelocity(const double max_tvel, const double max_rvel)
         {
-            // Update velocity twist matrix for end-effector to body fram from fMe
-            m_fVe.buildFrom(t_fMe, thetau_fMe);
+            assert(max_tvel > 0.0);
+            assert(max_rvel > 0.0);
+            if (max_tvel <= 0.0 || max_rvel <= 0.0)
+            {
+                if (verbose_)
+                {
+                    std::cerr << "Warning: Maximum linear and rotation velocities must be > 0. Got "
+                              << max_tvel << " and " << max_rvel << std::endl;
+                }
+                return;
+            }
+            m_max_vel[0] = m_max_vel[1] = m_max_vel[2] = max_tvel;
+            m_max_vel[3] = m_max_vel[4] = m_max_vel[5] = max_rvel;
+        }
 
+        void vpRobotRos::setMaxJointVelocity(const vpColVector &max_qdot)
+        {
+            for (std::size_t i = 0; i < max_qdot.size(); i++)
+            {
+                assert(max_qdot[i] > 0.0);
+            }
+            m_q_kdl.resize(max_qdot.size());
+            m_qdot.resize(max_qdot.size());
+            m_max_qdot = max_qdot;
+        }
+
+        void vpRobotRos::setIkSolver(const solver::KdlIkSolverVel_wlds &solver)
+        {
+            m_solver = solver;
+        }
+
+        void vpRobotRos::setJointPosition(const std::vector<double> &q)
+        {
             // Update joint configuration in KDL JntArray format
-            assert(q.size() == m_q_kdl.data.size());
+            assert(q.size() == static_cast<std::size_t>(m_q_kdl.data.size()));
             for (int i = 0; i < nDof; i++)
             {
                 m_q_kdl(i) = q[i];
             }
+        }
+
+        std::vector<double> vpRobotRos::computeJointVelocity(const vpHomogeneousMatrix &fMe,
+                                                             const vpColVector &vel)
+        {
+            // Update velocity twist matrix for end-effector to body fram from fMe
+            m_fVe.buildFrom(fMe);
 
             // Apply setVelocity function to update desired joint velocities
             setVelocity(vpRobot::vpControlFrameType::CAMERA_FRAME, vel);
@@ -160,14 +208,16 @@ namespace vc
         void vpRobotRos::setVelocity(const vpRobot::vpControlFrameType frame,
                                      const vpColVector &vel)
         {
+            (void)frame;
+
             // Initialization and robot state checks
             assert(m_is_init);
             assert(getRobotState() == vpRobot::vpRobotStateType::STATE_VELOCITY_CONTROL);
             assert(frame == vpRobot::vpControlFrameType::CAMERA_FRAME);
 
             // Convert velocities to base frame and apply twist saturation limits
-            vpColVector vel_base =
-                m_fVe * vpRobot::saturateVelocities(m_eVc * vel, m_max_vel, verbose_);
+            vpColVector vel_base = m_fVe * vpRobot::saturateVelocities(
+                                               m_eVc * vel, m_max_vel * m_max_vel_sf, verbose_);
 
             // Convert to joint velocities using IK solver
             KDL::Twist vel_base_kdl;

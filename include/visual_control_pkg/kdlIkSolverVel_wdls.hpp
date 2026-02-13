@@ -39,28 +39,36 @@ namespace vc
                 Eigen::MatrixXd weight_js; // Joint space weighting symmetric matrix for WDLS
             };
 
+            KdlIkSolverVel_wlds();
             KdlIkSolverVel_wlds(const bool verbose, const std::string &chain_root,
                                 const std::string &chain_tip, const IkSolverParams &solver_params);
             KdlIkSolverVel_wlds(const bool verbose, const std::string &chain_root,
                                 const std::string &chain_tip, const double eps, const double lambda,
                                 const int max_iters, const Eigen::MatrixXd &weight_js);
             KdlIkSolverVel_wlds(const KdlIkSolverVel_wlds &solver);
+
+            KdlIkSolverVel_wlds &operator=(const KdlIkSolverVel_wlds &other);
+
             bool isInitialized() const;
             int getNumJoints() const;
+            void setVerbose(const bool verbose);
+            void setChainRoot(const std::string &chain_root);
+            void setChainTip(const std::string &chain_tip);
+            void setSolverParams(const IkSolverParams &solver_params);
             void initIkSolver(const std::string &urdf_description);
             void solveIk(const KDL::JntArray &q, const KDL::Twist &v, KDL::JntArray &qdot) const;
 
         private:
             // General Attributes
-            bool m_is_init;                 // Whether the solver has been initialized yet or not
-            const bool m_verbose;           // Enable verbose output
-            const std::string m_chain_root; // Name of the base frame for inverse kinematics
-            const std::string m_chain_tip;  // Name of the target frame for inverse kinematics
-            KDL::Tree m_tree;               // Kinematic tree to load from URDF robot description
-            KDL::Chain m_chain; // Kinematic chain to solve inverse velocity kinematics over
+            bool m_is_init;           // Whether the solver has been initialized yet or not
+            bool m_verbose;           // Enable verbose output
+            std::string m_chain_root; // Name of the base frame for inverse kinematics
+            std::string m_chain_tip;  // Name of the target frame for inverse kinematics
+            KDL::Tree m_tree;         // Kinematic tree to load from URDF robot description
+            KDL::Chain m_chain;       // Kinematic chain to solve inverse velocity kinematics over
 
             // IK Solver and Parameters
-            const IkSolverParams m_solver_params; // Parameters for the IK solver
+            IkSolverParams m_solver_params; // Parameters for the IK solver
             std::unique_ptr<KDL::ChainIkSolverVel_wdls>
                 m_solver; // Solver based on weighted DLS method
         };
