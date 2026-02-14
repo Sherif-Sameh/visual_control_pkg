@@ -5,29 +5,9 @@ from launch_ros.actions import ComposableNodeContainer, Node
 from launch_ros.descriptions import ComposableNode
 
 
-def launch_setup(context):
-    use_debugger = LaunchConfiguration("use_debugger").perform(context)
-    image_topic_name = LaunchConfiguration("image_topic_name")
-
-    # Launch node based on argument value
-    if use_debugger == "true":
-        return [
-            Node(
-                package="visual_control_pkg",
-                executable="detector_debugger.py",
-                output="screen",
-                remappings=[
-                    ("/image", image_topic_name),
-                    ("/detections", "/detector/tag_detections"),
-                ],
-            )
-        ]
-
-    return []
-
-
-def generate_launch_description():
+def declare_arguments() -> list[DeclareLaunchArgument]:
     declared_arguments = []
+
     # Isaac ROS Apriltag detector arguments
     declared_arguments.append(
         DeclareLaunchArgument(
@@ -84,6 +64,7 @@ def generate_launch_description():
             ],
         )
     )
+
     # Detector debugger arguments
     declared_arguments.append(
         DeclareLaunchArgument(
@@ -93,7 +74,8 @@ def generate_launch_description():
             " additional visualizations. Default value is false.",
         )
     )
-    # Topic name arguments
+
+    # General arguments
     declared_arguments.append(
         DeclareLaunchArgument(
             "image_topic_name",
@@ -108,19 +90,45 @@ def generate_launch_description():
             description="Camera info (sensor_msgs/CameraInfo) topic name to use for detector.",
         )
     )
+    return declared_arguments
+
+
+def launch_setup(context) -> list[Node]:
+    use_debugger = LaunchConfiguration("use_debugger").perform(context)
+    image_topic_name = LaunchConfiguration("image_topic_name")
+
+    # Launch node based on argument value
+    if use_debugger == "true":
+        return [
+            Node(
+                package="visual_control_pkg",
+                executable="detector_debugger.py",
+                output="screen",
+                remappings=[
+                    ("/image", image_topic_name),
+                    ("/detections", "/detector/tag_detections"),
+                ],
+            )
+        ]
+
+    return []
+
+
+def generate_launch_description() -> LaunchDescription:
+    # Declare arguments
+    declared_arguments = declare_arguments()
 
     # Initialize Arguments
-    # Isaac ROS Apriltag detector arguments
     size = LaunchConfiguration("size")
     max_tags = LaunchConfiguration("max_tags")
     tile_size = LaunchConfiguration("tile_size")
     tag_family = LaunchConfiguration("tag_family")
     backends = LaunchConfiguration("backends")
-    # Topic name arguments
+
     image_topic_name = LaunchConfiguration("image_topic_name")
     camera_info_topic_name = LaunchConfiguration("camera_info_topic_name")
 
-    # Apriltag node and node container
+    # Initialize nodes to start
     apriltag_node = ComposableNode(
         package="isaac_ros_apriltag",
         plugin="nvidia::isaac_ros::apriltag::AprilTagNode",
@@ -152,8 +160,10 @@ def generate_launch_description():
         output="screen",
     )
 
+    nodes_to_start = [apriltag_container]
+
     # Combine opaque function with launch description
     op_func = OpaqueFunction(function=launch_setup)
-    ld = LaunchDescription(declared_arguments + [apriltag_container])
+    ld = LaunchDescription(declared_arguments + nodes_to_start)
     ld.add_action(op_func)
     return ld

@@ -1,5 +1,5 @@
 ### Modifed launch file from the original launch file in the ur_description package.
-### Original file at: https://github.com/UniversalRobots/Universal_Robots_ROS2_Description/blob/rolling/launch/view_ur.launch.py
+### Original file: https://github.com/UniversalRobots/Universal_Robots_ROS2_Description/blob/rolling/launch/view_ur.launch.py
 
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument
@@ -14,8 +14,9 @@ from launch_ros.parameter_descriptions import ParameterValue
 from launch_ros.substitutions import FindPackageShare
 
 
-def generate_launch_description():
+def declare_arguments() -> list[DeclareLaunchArgument]:
     declared_arguments = []
+
     # UR specific arguments
     declared_arguments.append(
         DeclareLaunchArgument(
@@ -60,7 +61,6 @@ def generate_launch_description():
             description="k-position factor in the safety controller.",
         )
     )
-    # General arguments
     declared_arguments.append(
         DeclareLaunchArgument(
             "description_package",
@@ -85,6 +85,15 @@ def generate_launch_description():
             "have to be updated.",
         )
     )
+
+    # General arguments
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "rviz_config",
+            default_value="ur.rviz",
+            description="File name for the .rviz configuration file to load. Defaults to ur.rviz.",
+        )
+    )
     declared_arguments.append(
         DeclareLaunchArgument(
             "joint_states_topic_name",
@@ -92,18 +101,26 @@ def generate_launch_description():
             description="Joint states (sensor_msgs/JointState) topic name to use for robot state publisher.",
         )
     )
+    return declared_arguments
+
+
+def generate_launch_description() -> LaunchDescription:
+    # Declare arguments
+    declared_arguments = declare_arguments()
 
     # Initialize Arguments
     ur_type = LaunchConfiguration("ur_type")
     safety_limits = LaunchConfiguration("safety_limits")
     safety_pos_margin = LaunchConfiguration("safety_pos_margin")
     safety_k_position = LaunchConfiguration("safety_k_position")
-    # General arguments
     description_package = LaunchConfiguration("description_package")
     description_file = LaunchConfiguration("description_file")
     tf_prefix = LaunchConfiguration("tf_prefix")
+
+    rviz_config = LaunchConfiguration("rviz_config")
     joint_states_topic_name = LaunchConfiguration("joint_states_topic_name")
 
+    # Initialize robot_description parameter
     robot_description_content = Command(
         [
             PathJoinSubstitution([FindExecutable(name="xacro")]),
@@ -131,21 +148,19 @@ def generate_launch_description():
             tf_prefix,
         ]
     )
-    robot_description = {
-        "robot_description": ParameterValue(
-            value=robot_description_content, value_type=str
-        ),
-    }
-    rviz_config_file = PathJoinSubstitution(
-        [FindPackageShare("visual_control_pkg"), "rviz", "view_robot_isaac.rviz"]
-    )
+    robot_description = ParameterValue(value=robot_description_content, value_type=str)
 
+    # Initialize nodes to start
     robot_state_publisher_node = Node(
         package="robot_state_publisher",
         executable="robot_state_publisher",
         output="both",
+        parameters=[{"robot_description": robot_description}],
         remappings=[("/joint_states", joint_states_topic_name)],
-        parameters=[robot_description],
+    )
+
+    rviz_config_file = PathJoinSubstitution(
+        [FindPackageShare("visual_control_pkg"), "rviz", rviz_config]
     )
     rviz_node = Node(
         package="rviz2",
@@ -155,9 +170,5 @@ def generate_launch_description():
         arguments=["-d", rviz_config_file],
     )
 
-    nodes_to_start = [
-        robot_state_publisher_node,
-        rviz_node,
-    ]
-
+    nodes_to_start = [robot_state_publisher_node, rviz_node]
     return LaunchDescription(declared_arguments + nodes_to_start)

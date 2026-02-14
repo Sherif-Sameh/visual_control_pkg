@@ -116,14 +116,14 @@ def declare_arguments() -> list[DeclareLaunchArgument]:
     )
     declared_arguments.append(
         DeclareLaunchArgument(
-            "tag_tag_family",
+            "tag_family",
             default_value="tag36h11",
             description="Tag family to use for tracking. Default value is tag36h11.",
         )
     )
     declared_arguments.append(
         DeclareLaunchArgument(
-            "tag_tag_ids",
+            "tag_ids",
             default_value="[0]",
             description="Tag IDS to use for tracking. Default value is [0].",
         )
@@ -157,7 +157,7 @@ def declare_arguments() -> list[DeclareLaunchArgument]:
     return declared_arguments
 
 
-def generate_launch_description():
+def generate_launch_description() -> LaunchDescription:
     # Declare arguments
     declared_arguments = declare_arguments()
 
@@ -174,8 +174,8 @@ def generate_launch_description():
     base_frame = LaunchConfiguration("base_frame")
     ee_frame = LaunchConfiguration("ee_frame")
     cam_frame = LaunchConfiguration("cam_frame")
-    tag_tag_family = LaunchConfiguration("tag_tag_family")
-    tag_tag_ids = LaunchConfiguration("tag_tag_ids")
+    tag_family = LaunchConfiguration("tag_family")
+    tag_ids = LaunchConfiguration("tag_ids")
 
     joint_trajectory_topic_name = LaunchConfiguration("joint_trajectory_topic_name")
     joint_states_topic_name = LaunchConfiguration("joint_states_topic_name")
@@ -223,8 +223,8 @@ def generate_launch_description():
                 "frame/base_frame": base_frame,
                 "frame/ee_frame": ee_frame,
                 "frame/cam_frame": cam_frame,
-                "tag/tag_family": tag_tag_family,
-                "tag/tag_ids": tag_tag_ids,
+                "tag/tag_family": tag_family,
+                "tag/tag_ids": tag_ids,
                 "ik/eps": 1e-4,
                 "ik/lambda": 0.0,
                 "ik/max_iters": 50,
