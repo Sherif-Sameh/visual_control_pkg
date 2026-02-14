@@ -10,8 +10,8 @@ PbvsController::PbvsController()
     this->declare_parameter("frame/base_frame", rclcpp::PARAMETER_STRING);
     this->declare_parameter("frame/ee_frame", rclcpp::PARAMETER_STRING);
     this->declare_parameter("frame/cam_frame", rclcpp::PARAMETER_STRING);
-    this->declare_parameter("tag/tag_family", rclcpp::PARAMETER_STRING);
     this->declare_parameter("tag/tag_ids", rclcpp::PARAMETER_INTEGER_ARRAY);
+    this->declare_parameter("tag/tag_frames", rclcpp::PARAMETER_STRING_ARRAY);
     this->declare_parameter("ik/eps", rclcpp::PARAMETER_DOUBLE);
     this->declare_parameter("ik/lambda", rclcpp::PARAMETER_DOUBLE);
     this->declare_parameter("ik/max_iters", rclcpp::PARAMETER_INTEGER);
@@ -26,16 +26,15 @@ PbvsController::PbvsController()
     m_base_frame = this->get_parameter("frame/base_frame").as_string();
     m_ee_frame = this->get_parameter("frame/ee_frame").as_string();
     m_cam_frame = this->get_parameter("frame/cam_frame").as_string();
-    m_tag_family = this->get_parameter("tag/tag_family").as_string();
+    m_tag_frames = this->get_parameter("tag/tag_frames").as_string_array();
     std::vector<int64_t> tag_ids = this->get_parameter("tag/tag_ids").as_integer_array();
-    std::transform(tag_ids.begin(), tag_ids.end(), std::back_inserter(m_tag_family),
+    std::transform(tag_ids.begin(), tag_ids.end(), std::back_inserter(m_tag_ids),
                    [](int64_t id) { return static_cast<int>(id); });
     for (const int id : m_tag_ids)
     {
         m_t.insert({id, vpFeatureTranslation(vpFeatureTranslation::cdMc)});
         m_tu.insert({id, vpFeatureThetaU(vpFeatureThetaU::cdRc)});
     }
-    init_robot_and_controller();
     callback_timer(); // TODO: Remove once callback is properly implemented
 
     // Initialize ROS attributes
@@ -63,7 +62,10 @@ void PbvsController::publish_traj(const std::vector<double> &qdot)
     msg.joint_names = m_joint_names;
 
     trajectory_msgs::msg::JointTrajectoryPoint pt;
+    pt.positions = std::vector<double>(qdot.size(), 0.0);
     pt.velocities = qdot;
+    pt.accelerations = std::vector<double>(qdot.size(), 0.0);
+    pt.effort = std::vector<double>(qdot.size(), 0.0);
     pt.time_from_start = rclcpp::Duration::from_seconds(0);
 
     msg.points.push_back(pt);
@@ -72,12 +74,21 @@ void PbvsController::publish_traj(const std::vector<double> &qdot)
 
 void PbvsController::callback_js(const sensor_msgs::msg::JointState::SharedPtr msg)
 {
+    if (!m_robot.isInitialized())
+    {
+        init_robot_and_controller();
+    }
     m_joint_names = msg->name;
     m_robot.setJointPosition(msg->position);
 }
 
 void PbvsController::callback_tag(const AprilTagDetectionArray::SharedPtr msg)
 {
+    if (!m_robot.isInitialized())
+    {
+        init_robot_and_controller();
+    }
+
     // Update tag transformations
     for (int const id : m_tag_ids)
     {
@@ -94,19 +105,11 @@ void PbvsController::callback_tag(const AprilTagDetectionArray::SharedPtr msg)
     }
 
     // Get end-effector pose relative to robot base from TF Tree
-    geometry_msgs::msg::TransformStamped t;
-    try
+    vpHomogeneousMatrix fMe;
+    if (!lookup_transform(m_base_frame, m_ee_frame, fMe))
     {
-        t = m_tf_buffer->lookupTransform(m_base_frame, m_ee_frame, tf2::TimePointZero);
-    }
-    catch (const tf2::TransformException &ex)
-    {
-        RCLCPP_WARN_STREAM(this->get_logger(), "Could not transform " << m_ee_frame << " to "
-                                                                      << m_base_frame << ": "
-                                                                      << ex.what());
         return;
     }
-    vpHomogeneousMatrix fMe = gm_transform_to_vp_hmatrix(t.transform);
 
     // Compute camera velocity and convert to joint velocities
     vpColVector v_c = m_controller.computeControlLaw();
@@ -127,6 +130,25 @@ void PbvsController::callback_timer()
     {
         m_cdMo.insert({id, cdMo_tmp});
     }
+}
+
+bool PbvsController::lookup_transform(const std::string &target_frame,
+                                      const std::string &source_frame, vpHomogeneousMatrix &t)
+{
+    geometry_msgs::msg::TransformStamped t_gm;
+    try
+    {
+        t_gm = m_tf_buffer->lookupTransform(target_frame, source_frame, tf2::TimePointZero);
+    }
+    catch (const tf2::TransformException &ex)
+    {
+        RCLCPP_WARN_STREAM(this->get_logger(), "Could not transform " << target_frame << " to "
+                                                                      << source_frame << ": "
+                                                                      << ex.what());
+        return false;
+    }
+    t = gm_transform_to_vp_hmatrix(t_gm.transform);
+    return true;
 }
 
 void PbvsController::init_robot_and_controller()
@@ -152,12 +174,18 @@ void PbvsController::init_robot_and_controller()
     double robot_max_rvel = this->get_parameter("robot/max_rvel").as_double();
     double robot_max_vel_sf = this->get_parameter("robot/max_vel_sf").as_double();
     std::vector<double> robot_max_qdot = this->get_parameter("robot/max_qdot").as_double_array();
+    vpHomogeneousMatrix eMc;
+    if (!lookup_transform(m_ee_frame, m_cam_frame, eMc))
+    {
+        rclcpp::shutdown(nullptr, "Robot initialization failed.");
+    }
     m_robot.setVerbose(verbose);
     m_robot.setMaxVelocity(robot_max_tvel, robot_max_rvel);
     m_robot.setMaxVelocitySF(robot_max_vel_sf);
     m_robot.setMaxJointVelocity(vpColVector(robot_max_qdot));
     m_robot.setIkSolver(solver);
     m_robot.init(robot_description);
+    m_robot.set_eMc(eMc);
 
     // Initialize controller
     double ctrl_lambda = this->get_parameter("ctrl/lambda").as_double();

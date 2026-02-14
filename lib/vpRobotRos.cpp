@@ -197,7 +197,7 @@ namespace vc
         std::vector<double> vpRobotRos::computeJointVelocity(const vpHomogeneousMatrix &fMe,
                                                              const vpColVector &vel)
         {
-            // Update velocity twist matrix for end-effector to body fram from fMe
+            // Update velocity twist matrix for end-effector to body frame from fMe
             m_fVe.buildFrom(fMe);
 
             // Apply setVelocity function to update desired joint velocities

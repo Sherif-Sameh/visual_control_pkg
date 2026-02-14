@@ -40,6 +40,8 @@ private:
     void callback_js(const sensor_msgs::msg::JointState::SharedPtr msg);
     void callback_tag(const AprilTagDetectionArray::SharedPtr msg);
     void callback_timer();
+    bool lookup_transform(const std::string &target_frame, const std::string &source_frame,
+                          vpHomogeneousMatrix &t);
     void init_robot_and_controller();
 
 private:
@@ -47,8 +49,8 @@ private:
     std::string m_base_frame;
     std::string m_ee_frame;
     std::string m_cam_frame;
-    std::string m_tag_family;
     std::vector<std::string> m_joint_names;
+    std::vector<std::string> m_tag_frames;
     std::vector<int> m_tag_ids;
 
     // ViSP Attributes

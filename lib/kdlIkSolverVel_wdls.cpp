@@ -143,8 +143,8 @@ namespace vc
                 KDL::SetToZero(qdot);
                 if (m_verbose)
                 {
-                    std::cerr << "Failure: Solver failed due to error number: " << error
-                              << std::endl;
+                    std::cerr << "Failure: Solver failed due to error: "
+                              << m_solver->strError(error) << std::endl;
                 }
             }
         }
