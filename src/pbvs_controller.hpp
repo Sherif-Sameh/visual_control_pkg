@@ -34,6 +34,7 @@ class PbvsController : public rclcpp::Node
 public:
     PbvsController();
     ~PbvsController();
+    void post_init();
 
 private:
     void publish_traj(const std::vector<double> &qdot);

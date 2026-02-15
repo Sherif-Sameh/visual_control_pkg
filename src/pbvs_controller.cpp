@@ -35,6 +35,7 @@ PbvsController::PbvsController()
         m_t.insert({id, vpFeatureTranslation(vpFeatureTranslation::cdMc)});
         m_tu.insert({id, vpFeatureThetaU(vpFeatureThetaU::cdRc)});
     }
+    init_robot_and_controller();
     callback_timer(); // TODO: Remove once callback is properly implemented
 
     // Initialize ROS attributes
@@ -53,6 +54,24 @@ PbvsController::~PbvsController()
 {
     std::vector<double> qdot_zero(m_robot.getNumDofs(), 0.0);
     publish_traj(qdot_zero);
+}
+
+void PbvsController::post_init()
+{
+    constexpr int max_trials = 10;
+    constexpr auto sleep_duration = std::chrono::duration_cast<std::chrono::nanoseconds>(0.5s);
+    vpHomogeneousMatrix eMc;
+    for (int i = 0; i < max_trials; i++)
+    {
+        if (lookup_transform(m_ee_frame, m_cam_frame, eMc))
+        {
+            m_robot.set_eMc(eMc);
+            return;
+        }
+        RCLCPP_WARN_STREAM(this->get_logger(), "Retrying in 0.5s");
+        rclcpp::sleep_for(sleep_duration);
+    }
+    rclcpp::shutdown(nullptr, "Robot initialization failed.");
 }
 
 void PbvsController::publish_traj(const std::vector<double> &qdot)
@@ -74,21 +93,12 @@ void PbvsController::publish_traj(const std::vector<double> &qdot)
 
 void PbvsController::callback_js(const sensor_msgs::msg::JointState::SharedPtr msg)
 {
-    if (!m_robot.isInitialized())
-    {
-        init_robot_and_controller();
-    }
     m_joint_names = msg->name;
     m_robot.setJointPosition(msg->position);
 }
 
 void PbvsController::callback_tag(const AprilTagDetectionArray::SharedPtr msg)
 {
-    if (!m_robot.isInitialized())
-    {
-        init_robot_and_controller();
-    }
-
     // Update tag transformations
     for (int const id : m_tag_ids)
     {
@@ -174,18 +184,12 @@ void PbvsController::init_robot_and_controller()
     double robot_max_rvel = this->get_parameter("robot/max_rvel").as_double();
     double robot_max_vel_sf = this->get_parameter("robot/max_vel_sf").as_double();
     std::vector<double> robot_max_qdot = this->get_parameter("robot/max_qdot").as_double_array();
-    vpHomogeneousMatrix eMc;
-    if (!lookup_transform(m_ee_frame, m_cam_frame, eMc))
-    {
-        rclcpp::shutdown(nullptr, "Robot initialization failed.");
-    }
     m_robot.setVerbose(verbose);
     m_robot.setMaxVelocity(robot_max_tvel, robot_max_rvel);
     m_robot.setMaxVelocitySF(robot_max_vel_sf);
     m_robot.setMaxJointVelocity(vpColVector(robot_max_qdot));
     m_robot.setIkSolver(solver);
     m_robot.init(robot_description);
-    m_robot.set_eMc(eMc);
 
     // Initialize controller
     double ctrl_lambda = this->get_parameter("ctrl/lambda").as_double();
@@ -202,7 +206,9 @@ void PbvsController::init_robot_and_controller()
 int main(int argc, char *argv[])
 {
     rclcpp::init(argc, argv);
-    rclcpp::spin(std::make_shared<PbvsController>());
+    auto pbvs_controller = std::make_shared<PbvsController>();
+    pbvs_controller->post_init();
+    rclcpp::spin(pbvs_controller);
     rclcpp::shutdown();
     return 0;
 }
