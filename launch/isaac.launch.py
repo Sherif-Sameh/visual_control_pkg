@@ -37,9 +37,9 @@ def declare_arguments() -> list[DeclareLaunchArgument]:
     declared_arguments.append(
         DeclareLaunchArgument(
             "size",
-            default_value="0.1",
+            default_value="0.08",
             description="The tag edge size in meters, assuming square markers."
-            " Default value is 0.1.",
+            " Default value is 0.08.",
         )
     )
     declared_arguments.append(
@@ -74,16 +74,16 @@ def declare_arguments() -> list[DeclareLaunchArgument]:
     declared_arguments.append(
         DeclareLaunchArgument(
             "tag_ids",
-            default_value="[1]",
-            description="Tag IDS to use for tracking. Default value is [1].",
+            default_value="[0]",
+            description="Tag IDS to use for tracking. Default value is [0].",
         )
     )
     declared_arguments.append(
         DeclareLaunchArgument(
             "tag_frames",
-            default_value="['tag36h11:1_d']",
+            default_value="['tag36h11:0_d']",
             description="Desired tag frames to use for tracking."
-            " Default value is ['tag36h11:1_d'].",
+            " Default value is ['tag36h11:0_d'].",
         )
     )
 

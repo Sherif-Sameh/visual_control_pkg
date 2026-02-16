@@ -12,9 +12,9 @@ def declare_arguments() -> list[DeclareLaunchArgument]:
     declared_arguments.append(
         DeclareLaunchArgument(
             "size",
-            default_value="0.1",
+            default_value="0.08",
             description="The tag edge size in meters, assuming square markers."
-            " Default value is 0.1.",
+            " Default value is 0.08.",
         )
     )
     declared_arguments.append(
