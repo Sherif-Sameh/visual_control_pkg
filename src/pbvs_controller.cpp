@@ -20,6 +20,8 @@ PbvsController::PbvsController()
     this->declare_parameter("robot/max_rvel", rclcpp::PARAMETER_DOUBLE);
     this->declare_parameter("robot/max_vel_sf", rclcpp::PARAMETER_DOUBLE);
     this->declare_parameter("robot/max_qdot", rclcpp::PARAMETER_DOUBLE_ARRAY);
+    this->declare_parameter("ctrl/conv_ttol", rclcpp::PARAMETER_DOUBLE);
+    this->declare_parameter("ctrl/conv_rtol", rclcpp::PARAMETER_DOUBLE);
     this->declare_parameter("ctrl/lambda", rclcpp::PARAMETER_DOUBLE_ARRAY);
 
     // Initialize non-ROS class attributes
@@ -39,6 +41,8 @@ PbvsController::PbvsController()
     callback_timer(); // TODO: Remove once callback is properly implemented
 
     // Initialize ROS attributes
+    m_pub_perr =
+        this->create_publisher<geometry_msgs::msg::PoseArray>("/pbvs_controller/pose_error", 10);
     m_pub_traj = this->create_publisher<trajectory_msgs::msg::JointTrajectory>(
         "/joint_trajectory_controller/joint_trajectory", 0);
     m_sub_js = this->create_subscription<sensor_msgs::msg::JointState>(
@@ -72,6 +76,25 @@ void PbvsController::post_init()
         rclcpp::sleep_for(sleep_duration);
     }
     rclcpp::shutdown(nullptr, "Robot initialization failed.");
+}
+
+void PbvsController::publish_perr(const std::vector<double> &perr)
+{
+    geometry_msgs::msg::PoseArray msg;
+    msg.header.stamp = this->get_clock()->now();
+
+    std::size_t n_poses = perr.size() / 6;
+    msg.poses.resize(n_poses);
+    for (std::size_t i = 0; i < n_poses; i++)
+    {
+        msg.poses[i].position.x = perr[6 * i];
+        msg.poses[i].position.y = perr[6 * i + 1];
+        msg.poses[i].position.z = perr[6 * i + 2];
+
+        msg.poses[i].orientation =
+            xyz_aa_to_gm_quat(perr[6 * i + 3], perr[6 * i + 4], perr[6 * i + 5]);
+    }
+    m_pub_perr->publish(msg);
 }
 
 void PbvsController::publish_traj(const std::vector<double> &qdot)
@@ -108,7 +131,10 @@ void PbvsController::callback_tag(const AprilTagDetectionArray::SharedPtr msg)
         if (it != msg->detections.cend())
         {
             vpHomogeneousMatrix cMo = gm_pose_to_vp_hmatrix((*it).pose.pose.pose);
-            cdMc = m_cdMo[id] * cMo.inverse();
+            vpHomogeneousMatrix cdMc_tmp = m_cdMo[id] * cMo.inverse();
+            if (cdMc_tmp.getTranslationVector().sumSquare() > m_conv_eps.first ||
+                cdMc_tmp.getThetaUVector().sumSquare() > m_conv_eps.second)
+                cdMc = cdMc_tmp;
         }
         m_t[id].buildFrom(cdMc);
         m_tu[id].buildFrom(cdMc);
@@ -126,7 +152,9 @@ void PbvsController::callback_tag(const AprilTagDetectionArray::SharedPtr msg)
     std::vector<double> qdot = m_robot.computeJointVelocity(fMe, v_c);
     publish_traj(qdot);
 
-    // TODO: Add error logging and tolerance for control activation
+    // Log task (pose) tracking errors
+    vpColVector perr = m_controller.getError();
+    publish_perr(perr.toStdVector());
 }
 
 void PbvsController::callback_timer()
@@ -192,6 +220,8 @@ void PbvsController::init_robot_and_controller()
     m_robot.init(robot_description);
 
     // Initialize controller
+    m_conv_eps.first = std::pow(this->get_parameter("ctrl/conv_ttol").as_double(), 2);
+    m_conv_eps.second = std::pow(this->get_parameter("ctrl/conv_rtol").as_double(), 2);
     m_lambda = this->get_parameter("ctrl/lambda").as_double_array();
     m_controller.setLambda(1.0);
     m_controller.setServo(vpServo::EYEINHAND_CAMERA);

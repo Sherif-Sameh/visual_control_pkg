@@ -4,12 +4,14 @@
 #include <memory>
 #include <string>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
 #include <visp3/visual_features/vpFeatureThetaU.h>
 #include <visp3/visual_features/vpFeatureTranslation.h>
 #include <visp3/vs/vpServo.h>
 
+#include "geometry_msgs/msg/pose_array.hpp"
 #include "geometry_msgs/msg/transform_stamped.hpp"
 #include "isaac_ros_apriltag_interfaces/msg/april_tag_detection.hpp"
 #include "isaac_ros_apriltag_interfaces/msg/april_tag_detection_array.hpp"
@@ -37,6 +39,7 @@ public:
     void post_init();
 
 private:
+    void publish_perr(const std::vector<double> &perr);
     void publish_traj(const std::vector<double> &qdot);
     void callback_js(const sensor_msgs::msg::JointState::SharedPtr msg);
     void callback_tag(const AprilTagDetectionArray::SharedPtr msg);
@@ -59,11 +62,13 @@ private:
     std::unordered_map<int, vpFeatureThetaU> m_tu;
     std::unordered_map<int, vpHomogeneousMatrix> m_cdMo;
     const vpHomogeneousMatrix cdMo_tmp; // TODO: Remove fixed desired transformation
+    std::pair<double, double> m_conv_eps;
     vpColVector m_lambda;
     vpRobotRos m_robot;
     vpServo m_controller;
 
     // ROS Attributes
+    rclcpp::Publisher<geometry_msgs::msg::PoseArray>::SharedPtr m_pub_perr{nullptr};
     rclcpp::Publisher<trajectory_msgs::msg::JointTrajectory>::SharedPtr m_pub_traj{nullptr};
     rclcpp::Subscription<sensor_msgs::msg::JointState>::SharedPtr m_sub_js{nullptr};
     rclcpp::Subscription<AprilTagDetectionArray>::SharedPtr m_sub_tag{nullptr};

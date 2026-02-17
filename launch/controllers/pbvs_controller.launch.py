@@ -234,6 +234,8 @@ def generate_launch_description() -> LaunchDescription:
                 "robot/max_rvel": 0.5,
                 "robot/max_vel_sf": 1.0,
                 "robot/max_qdot": [120 * np.pi / 180] * 2 + [180 * np.pi / 180] * 4,
+                "ctrl/conv_ttol": 0.005,
+                "ctrl/conv_rtol": 0.005,
                 "ctrl/lambda": [0.75, 0.75, 0.375, 0.75, 0.75, 0.375],
             }
         ],
