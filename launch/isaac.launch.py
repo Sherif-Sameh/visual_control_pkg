@@ -73,17 +73,16 @@ def declare_arguments() -> list[DeclareLaunchArgument]:
     )
     declared_arguments.append(
         DeclareLaunchArgument(
-            "tag_ids",
-            default_value="[0]",
-            description="Tag IDS to use for tracking. Default value is [0].",
+            "tag_family",
+            default_value="tag36h11",
+            description="Tag family to use for tracking. Default value is tag36h11.",
         )
     )
     declared_arguments.append(
         DeclareLaunchArgument(
-            "tag_frames",
-            default_value="['tag36h11:0_d']",
-            description="Desired tag frames to use for tracking."
-            " Default value is ['tag36h11:0_d'].",
+            "tag_ids",
+            default_value="[0, 1]",
+            description="Tag IDS to use for tracking. Default value is [0, 1].",
         )
     )
 
@@ -115,7 +114,7 @@ def generate_launch_description() -> LaunchDescription:
     EE_FRAME = "wrist_3_link"
     CAM_FRAME = "camera_color_optical_frame"
     tag_ids = LaunchConfiguration("tag_ids")
-    tag_frames = LaunchConfiguration("tag_frames")
+    tag_family = LaunchConfiguration("tag_family")
 
     rviz_config = LaunchConfiguration("rviz_config")
     CAMERA_INFO_TOPIC_NAME = "/isaaclab/camera/camera_info"
@@ -182,8 +181,8 @@ def generate_launch_description() -> LaunchDescription:
             "base_frame": BASE_FRAME,
             "ee_frame": EE_FRAME,
             "cam_frame": CAM_FRAME,
+            "tag_family": tag_family,
             "tag_ids": tag_ids,
-            "tag_frames": tag_frames,
             "joint_trajectory_topic_name": JOINT_TRAJECTORY_TOPIC_NAME,
             "joint_states_topic_name": JOINT_STATES_TOPIC_NAME,
             "detections_topic_name": DETECTIONS_TOPIC_NAME,

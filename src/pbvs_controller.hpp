@@ -43,7 +43,7 @@ private:
     void publish_traj(const std::vector<double> &qdot);
     void callback_js(const sensor_msgs::msg::JointState::SharedPtr msg);
     void callback_tag(const AprilTagDetectionArray::SharedPtr msg);
-    void callback_timer();
+    void get_desired_poses();
     bool lookup_transform(const std::string &target_frame, const std::string &source_frame,
                           vpHomogeneousMatrix &t);
     void init_robot_and_controller();
@@ -53,15 +53,14 @@ private:
     std::string m_base_frame;
     std::string m_ee_frame;
     std::string m_cam_frame;
-    std::vector<std::string> m_joint_names;
-    std::vector<std::string> m_tag_frames;
+    std::string m_tag_family;
     std::vector<int> m_tag_ids;
+    std::vector<std::string> m_joint_names;
 
     // ViSP Attributes
     std::unordered_map<int, vpFeatureTranslation> m_t;
     std::unordered_map<int, vpFeatureThetaU> m_tu;
     std::unordered_map<int, vpHomogeneousMatrix> m_cdMo;
-    const vpHomogeneousMatrix cdMo_tmp; // TODO: Remove fixed desired transformation
     std::pair<double, double> m_conv_eps;
     vpColVector m_lambda;
     vpRobotRos m_robot;
@@ -72,7 +71,6 @@ private:
     rclcpp::Publisher<trajectory_msgs::msg::JointTrajectory>::SharedPtr m_pub_traj{nullptr};
     rclcpp::Subscription<sensor_msgs::msg::JointState>::SharedPtr m_sub_js{nullptr};
     rclcpp::Subscription<AprilTagDetectionArray>::SharedPtr m_sub_tag{nullptr};
-    rclcpp::TimerBase::SharedPtr m_timer{nullptr};
     std::shared_ptr<tf2_ros::TransformListener> m_tf_listener{nullptr};
     std::unique_ptr<tf2_ros::Buffer> m_tf_buffer;
 };

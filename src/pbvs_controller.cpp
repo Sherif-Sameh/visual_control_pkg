@@ -1,8 +1,6 @@
 #include "pbvs_controller.hpp"
 
-PbvsController::PbvsController()
-    : Node("pbvs_controller"),
-      cdMo_tmp(vpTranslationVector(0.0, 0.0, 0.5), vpQuaternionVector(0.0, 0.0, 0.0, 1.0))
+PbvsController::PbvsController() : Node("pbvs_controller")
 {
     // Declare ROS parameters
     this->declare_parameter("verbose", rclcpp::PARAMETER_BOOL);
@@ -10,8 +8,8 @@ PbvsController::PbvsController()
     this->declare_parameter("frame/base_frame", rclcpp::PARAMETER_STRING);
     this->declare_parameter("frame/ee_frame", rclcpp::PARAMETER_STRING);
     this->declare_parameter("frame/cam_frame", rclcpp::PARAMETER_STRING);
+    this->declare_parameter("tag/tag_family", rclcpp::PARAMETER_STRING);
     this->declare_parameter("tag/tag_ids", rclcpp::PARAMETER_INTEGER_ARRAY);
-    this->declare_parameter("tag/tag_frames", rclcpp::PARAMETER_STRING_ARRAY);
     this->declare_parameter("ik/eps", rclcpp::PARAMETER_DOUBLE);
     this->declare_parameter("ik/lambda", rclcpp::PARAMETER_DOUBLE);
     this->declare_parameter("ik/max_iters", rclcpp::PARAMETER_INTEGER);
@@ -28,7 +26,7 @@ PbvsController::PbvsController()
     m_base_frame = this->get_parameter("frame/base_frame").as_string();
     m_ee_frame = this->get_parameter("frame/ee_frame").as_string();
     m_cam_frame = this->get_parameter("frame/cam_frame").as_string();
-    m_tag_frames = this->get_parameter("tag/tag_frames").as_string_array();
+    m_tag_family = this->get_parameter("tag/tag_family").as_string();
     std::vector<int64_t> tag_ids = this->get_parameter("tag/tag_ids").as_integer_array();
     std::transform(tag_ids.begin(), tag_ids.end(), std::back_inserter(m_tag_ids),
                    [](int64_t id) { return static_cast<int>(id); });
@@ -36,9 +34,10 @@ PbvsController::PbvsController()
     {
         m_t.insert({id, vpFeatureTranslation(vpFeatureTranslation::cdMc)});
         m_tu.insert({id, vpFeatureThetaU(vpFeatureThetaU::cdRc)});
+        m_t[id].buildFrom(vpHomogeneousMatrix());  // set error to zero
+        m_tu[id].buildFrom(vpHomogeneousMatrix()); // set error to zero
     }
     init_robot_and_controller();
-    callback_timer(); // TODO: Remove once callback is properly implemented
 
     // Initialize ROS attributes
     m_pub_perr =
@@ -49,7 +48,6 @@ PbvsController::PbvsController()
         "/joint_states", 0, std::bind(&PbvsController::callback_js, this, _1));
     m_sub_tag = this->create_subscription<AprilTagDetectionArray>(
         "/detections", 0, std::bind(&PbvsController::callback_tag, this, _1));
-    m_timer = this->create_wall_timer(1s, std::bind(&PbvsController::callback_timer, this));
     m_tf_buffer = std::make_unique<tf2_ros::Buffer>(this->get_clock());
     m_tf_listener = std::make_shared<tf2_ros::TransformListener>(*m_tf_buffer);
 }
@@ -122,51 +120,58 @@ void PbvsController::callback_js(const sensor_msgs::msg::JointState::SharedPtr m
 
 void PbvsController::callback_tag(const AprilTagDetectionArray::SharedPtr msg)
 {
-    // Update tag transformations
-    for (int const id : m_tag_ids)
+    if (m_cdMo.size() > 0)
     {
-        vpHomogeneousMatrix cdMc; // set error to identity
-        auto it = std::find_if(msg->detections.cbegin(), msg->detections.cend(),
-                               [id](const AprilTagDetection &dtn) { return dtn.id == id; });
-        if (it != msg->detections.cend())
+        // Update tag transformations
+        for (auto const &tag : m_cdMo)
         {
-            vpHomogeneousMatrix cMo = gm_pose_to_vp_hmatrix((*it).pose.pose.pose);
-            vpHomogeneousMatrix cdMc_tmp = m_cdMo[id] * cMo.inverse();
-            if (cdMc_tmp.getTranslationVector().sumSquare() > m_conv_eps.first ||
-                cdMc_tmp.getThetaUVector().sumSquare() > m_conv_eps.second)
-                cdMc = cdMc_tmp;
+            const int id = tag.first;
+            vpHomogeneousMatrix cdMc; // set error to identity
+            auto it = std::find_if(msg->detections.cbegin(), msg->detections.cend(),
+                                   [id](const AprilTagDetection &dtn) { return dtn.id == id; });
+            if (it != msg->detections.cend())
+            {
+                vpHomogeneousMatrix cMo = gm_pose_to_vp_hmatrix((*it).pose.pose.pose);
+                vpHomogeneousMatrix cdMc_tmp = tag.second * cMo.inverse();
+                if (cdMc_tmp.getTranslationVector().sumSquare() > m_conv_eps.first ||
+                    cdMc_tmp.getThetaUVector().sumSquare() > m_conv_eps.second)
+                    cdMc = cdMc_tmp;
+            }
+            m_t[id].buildFrom(cdMc);
+            m_tu[id].buildFrom(cdMc);
         }
-        m_t[id].buildFrom(cdMc);
-        m_tu[id].buildFrom(cdMc);
+
+        // Get end-effector pose relative to robot base from TF Tree
+        vpHomogeneousMatrix fMe;
+        if (!lookup_transform(m_base_frame, m_ee_frame, fMe))
+        {
+            return;
+        }
+
+        // Compute camera velocity and convert to joint velocities
+        vpColVector v_c = m_lambda.hadamard(m_controller.computeControlLaw());
+        std::vector<double> qdot = m_robot.computeJointVelocity(fMe, v_c);
+        publish_traj(qdot);
+        publish_perr(m_controller.getError().toStdVector()); // log errors
     }
 
-    // Get end-effector pose relative to robot base from TF Tree
-    vpHomogeneousMatrix fMe;
-    if (!lookup_transform(m_base_frame, m_ee_frame, fMe))
-    {
-        return;
-    }
-
-    // Compute camera velocity and convert to joint velocities
-    vpColVector v_c = m_lambda.hadamard(m_controller.computeControlLaw());
-    std::vector<double> qdot = m_robot.computeJointVelocity(fMe, v_c);
-    publish_traj(qdot);
-
-    // Log task (pose) tracking errors
-    vpColVector perr = m_controller.getError();
-    publish_perr(perr.toStdVector());
+    // Check for desired pose updates
+    get_desired_poses();
 }
 
-void PbvsController::callback_timer()
+void PbvsController::get_desired_poses()
 {
-    // TODO:
     // Query transforms for tag transforms relative to desired camera frame
     // and update the corresponding homogeneous transforms
-
-    // TODO: Remove when dynamic target transforms are implemented
     for (const int id : m_tag_ids)
     {
-        m_cdMo.insert({id, cdMo_tmp});
+        std::string tag_id_frame = m_tag_family + ":" + std::to_string(id);
+        std::string cam_d_frame = m_cam_frame + ":" + std::to_string(id);
+        vpHomogeneousMatrix cdMo_id;
+        if (lookup_transform(cam_d_frame, tag_id_frame, cdMo_id))
+        {
+            m_cdMo[id] = cdMo_id;
+        }
     }
 }
 
