@@ -20,7 +20,7 @@ PbvsController::PbvsController()
     this->declare_parameter("robot/max_rvel", rclcpp::PARAMETER_DOUBLE);
     this->declare_parameter("robot/max_vel_sf", rclcpp::PARAMETER_DOUBLE);
     this->declare_parameter("robot/max_qdot", rclcpp::PARAMETER_DOUBLE_ARRAY);
-    this->declare_parameter("ctrl/lambda", rclcpp::PARAMETER_DOUBLE);
+    this->declare_parameter("ctrl/lambda", rclcpp::PARAMETER_DOUBLE_ARRAY);
 
     // Initialize non-ROS class attributes
     m_base_frame = this->get_parameter("frame/base_frame").as_string();
@@ -122,7 +122,7 @@ void PbvsController::callback_tag(const AprilTagDetectionArray::SharedPtr msg)
     }
 
     // Compute camera velocity and convert to joint velocities
-    vpColVector v_c = m_controller.computeControlLaw();
+    vpColVector v_c = m_lambda.hadamard(m_controller.computeControlLaw());
     std::vector<double> qdot = m_robot.computeJointVelocity(fMe, v_c);
     publish_traj(qdot);
 
@@ -192,8 +192,8 @@ void PbvsController::init_robot_and_controller()
     m_robot.init(robot_description);
 
     // Initialize controller
-    double ctrl_lambda = this->get_parameter("ctrl/lambda").as_double();
-    m_controller.setLambda(ctrl_lambda);
+    m_lambda = this->get_parameter("ctrl/lambda").as_double_array();
+    m_controller.setLambda(1.0);
     m_controller.setServo(vpServo::EYEINHAND_CAMERA);
     m_controller.setInteractionMatrixType(vpServo::CURRENT);
     for (const int id : m_tag_ids)

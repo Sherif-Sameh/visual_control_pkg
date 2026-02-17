@@ -59,6 +59,7 @@ private:
     std::unordered_map<int, vpFeatureThetaU> m_tu;
     std::unordered_map<int, vpHomogeneousMatrix> m_cdMo;
     const vpHomogeneousMatrix cdMo_tmp; // TODO: Remove fixed desired transformation
+    vpColVector m_lambda;
     vpRobotRos m_robot;
     vpServo m_controller;
 

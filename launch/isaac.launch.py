@@ -45,8 +45,8 @@ def declare_arguments() -> list[DeclareLaunchArgument]:
     declared_arguments.append(
         DeclareLaunchArgument(
             "backends",
-            default_value="CUDA",
-            description="Backend to perform detection with. Default value is CUDA.",
+            default_value="CPU",
+            description="Backend to perform detection with. Default value is CPU.",
             choices=[
                 "CUDA",
                 "CPU",
