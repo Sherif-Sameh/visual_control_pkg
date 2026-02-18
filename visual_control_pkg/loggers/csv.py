@@ -23,7 +23,7 @@ class CSVLogger(Logger):
         n_log: int = 1,
         n_flush: int = 1,
         filter: str | None = None,
-        path: str | Path = Path(__file__).parents[2] / "logs/log.csv",
+        path: str | Path,
     ):
         super().__init__(n_log=n_log, n_flush=n_flush, filter=filter)
         self._path = Path(path) if isinstance(path, str) else path

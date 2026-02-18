@@ -5,6 +5,7 @@ import pandas as pd
 import pytest
 from visual_control_pkg.loggers import ConsoleLogger
 from visual_control_pkg.loggers.csv import CSVLogger
+from visual_control_pkg.loggers.wandb import WandBLogger
 from visual_control_pkg.metrics import AccumulatorMetric, ComposeMetric
 
 
@@ -110,3 +111,54 @@ def test_csv_logger():
         assert f"{metric2.name}_{i}" in df.columns
     assert df.shape[0] == 3
     csv_path.unlink()  # Clean up test CSV file
+
+
+@pytest.mark.unit
+def test_wandb_logger(capsys: pytest.CaptureFixture):
+    with capsys.disabled():
+        # Initialize some metrics to log
+        metric1 = AccumulatorMetric(name="PosError", argname="pos", red="mean")
+        metric2 = AccumulatorMetric(name="RotError", argname="rot", red="mean")
+        metrics = ComposeMetric(metrics=[metric1, metric2])
+
+        # Update metrics with synthetic data
+        pos = np.random.normal(0, 1, size=(10, 3))
+        rot = np.random.normal(0, 1, size=(10, 4))
+        metrics.update(pos=pos, rot=rot)
+
+        # Initialize and test WandB logger
+        logger = WandBLogger(
+            n_log=1,
+            n_flush=1,
+            filter=None,
+            config=WandBLogger.WandBConfig(
+                entity="u1999168-girona",
+                project="visual_control|PBVS",
+                group="Test",
+                dir=Path(__file__).parent,
+                config={
+                    "test_attr1": 1,
+                    "test_attr2": 0.5,
+                    "test_attr3": {"a": 1, "b": 2, "c": 3},
+                },
+            ),
+        )
+        logger.log(step=0.0, metrics=metrics.compute())
+        assert logger._log == {}
+
+        # Attempt to append more logs with different steps
+        metrics.reset()
+        pos = np.random.normal(0, 1, size=(2, 3))
+        rot = np.random.normal(0, 1, size=(2, 4))
+        metrics.update(pos=pos, rot=rot)
+        metrics_dict = metrics.compute()
+        logger.log(step=0.05, metrics={"PosError": metrics_dict["PosError"]})
+        logger.log(step=0.10, metrics={"RotError": metrics_dict["RotError"]})
+        assert logger._log == {}
+
+        # Attempt to add a new metric and log it
+        metric3 = AccumulatorMetric(name="VelError", argname="vel", red="mean")
+        vel = np.random.normal(0, 1, size=(10, 3))
+        metric3.update(vel=vel)
+        logger.log(step=0.10, metrics={"VelError": metric3.compute()})
+        assert logger._log == {}
