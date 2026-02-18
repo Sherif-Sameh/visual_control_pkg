@@ -1,0 +1,112 @@
+from pathlib import Path
+
+import numpy as np
+import pandas as pd
+import pytest
+from visual_control_pkg.loggers import ConsoleLogger
+from visual_control_pkg.loggers.csv import CSVLogger
+from visual_control_pkg.metrics import AccumulatorMetric, ComposeMetric
+
+
+@pytest.mark.unit
+def test_console_logger(capsys: pytest.CaptureFixture) -> None:
+    with capsys.disabled():
+        print("\n")
+        # Initialize some metrics to log
+        metric1 = AccumulatorMetric(name="PosError", argname="pos", red="mean")
+        metric2 = AccumulatorMetric(name="RotError", argname="rot", red="mean")
+        metrics = ComposeMetric(metrics=[metric1, metric2])
+
+        # Update metrics with synthetic data
+        pos = np.random.normal(0, 1, size=(10, 3))
+        rot = np.random.normal(0, 1, size=(10, 4))
+        metrics.update(pos=pos, rot=rot)
+
+        # Initialize and test standard console logger
+        print("Console Logger (n_log=1, n_flush=1, filter=None, config=Default)")
+        logger = ConsoleLogger(n_log=1, n_flush=1, filter=None)
+        logger.log(step=0.0, metrics=metrics.compute())
+        print("\n")
+        assert logger._log == {}
+
+        # Initialize and test console logger with n_log and n_flush != 1
+        n_log, n_flush = 2, 4
+        print(
+            f"Console Logger (n_log={n_log}, n_flush={n_flush}, filter=None, config=Default)"
+        )
+        logger = ConsoleLogger(n_log=n_log, n_flush=n_flush, filter=None)
+        for i in range(n_flush):
+            metrics.reset()
+            pos = np.random.normal(0, 1, size=(2, 3))
+            rot = np.random.normal(0, 1, size=(2, 4))
+            metrics.update(pos=pos, rot=rot)
+            logger.log(step=0.1 * i, metrics=metrics.compute())
+            if i >= (n_log - 1) and i != (n_flush - 1):
+                assert logger._log != {}
+        assert logger._log == {}
+        print("\n")
+
+        # Initialize and test console logger with filter
+        print("Console Logger (n_log=1, n_flush=1, filter=Pos, config=Default)")
+        logger = ConsoleLogger(n_log=1, n_flush=1, filter="Pos")
+        metrics.update(pos=pos, rot=rot)
+        logger.log(step=0.0, metrics=metrics.compute())
+        assert logger._log == {}
+        print("\n")
+
+        # Initialize and test console logger with filter
+        print(
+            "Console Logger (n_log=1, n_flush=1, filter=None, config=(precision=2, sign='-'))"
+        )
+        logger = ConsoleLogger(
+            n_log=1,
+            n_flush=1,
+            filter=None,
+            config=ConsoleLogger.ArrayPrintOptions(precision=2, sign="-"),
+        )
+        metrics.update(pos=pos, rot=rot)
+        logger.log(step=0.0, metrics=metrics.compute())
+        assert logger._log == {}
+        print("\n")
+
+
+@pytest.mark.unit
+def test_csv_logger():
+    # Initialize some metrics to log
+    metric1 = AccumulatorMetric(name="PosError", argname="pos", red="mean")
+    metric2 = AccumulatorMetric(name="RotError", argname="rot", red="mean")
+    metrics = ComposeMetric(metrics=[metric1, metric2])
+
+    # Update metrics with synthetic data
+    pos = np.random.normal(0, 1, size=(10, 3))
+    rot = np.random.normal(0, 1, size=(10, 4))
+    metrics.update(pos=pos, rot=rot)
+
+    # Initialize and test standard CSV logger
+    csv_path = Path(__file__).parent / "test.csv"
+    if csv_path.exists():
+        csv_path.unlink()
+    logger = CSVLogger(n_log=1, n_flush=1, filter=None, path=csv_path)
+    logger.log(step=0.0, metrics=metrics.compute())
+    assert logger._log == {}
+    df = pd.read_csv(csv_path, index_col=0)
+    for i in range(pos.shape[-1]):
+        assert f"{metric1.name}_{i}" in df.columns
+    for i in range(rot.shape[-1]):
+        assert f"{metric2.name}_{i}" in df.columns
+    assert df.shape[0] == 1
+
+    # Attempt to append more logs to the same CSV file
+    for i in range(1, 3):
+        metrics.reset()
+        pos = np.random.normal(0, 1, size=(2, 3))
+        rot = np.random.normal(0, 1, size=(2, 4))
+        metrics.update(pos=pos, rot=rot)
+        logger.log(step=i * 0.05, metrics=metrics.compute())
+    df = pd.read_csv(csv_path, index_col=0)
+    for i in range(pos.shape[-1]):
+        assert f"{metric1.name}_{i}" in df.columns
+    for i in range(rot.shape[-1]):
+        assert f"{metric2.name}_{i}" in df.columns
+    assert df.shape[0] == 3
+    csv_path.unlink()  # Clean up test CSV file

@@ -21,6 +21,9 @@ class Logger(ABC):
         assert n_log <= n_flush, (
             "Logging interval must be less than or equal to interval for flushing logger."
         )
+        assert n_flush % n_log == 0, (
+            "Flushing interval must be a multiple of the logging interval."
+        )
         self._n_log = n_log
         self._n_flush = n_flush
         self._filter = filter
@@ -42,7 +45,7 @@ class Logger(ABC):
             metrics: Dictionary mapping metric names to their ndarray values.
         """
         self._count += 1
-        if self._count & self._n_log == 0:
+        if self._count % self._n_log == 0:
             self._log[round(step, 3)] = self.filter(metrics)
         if self._count % self._n_flush == 0:
             self.flush()
