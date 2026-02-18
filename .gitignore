@@ -15,3 +15,20 @@ __pycache__/
 # OS
 .DS_Store
 
+# PyTorch models
+*.pth
+*.pt
+
+# CSV files
+*.csv
+
+# Datasets
+data/*
+
+# Videos
+*.avi
+*.mkv
+*.mov
+*.mp4
+*.webm
+*.wmv
