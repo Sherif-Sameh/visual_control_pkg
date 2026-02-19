@@ -14,10 +14,12 @@ class Logger(ABC):
     Args:
         n_log: Interval for logging in steps. Defaults to 1 (i.e. log everything).
         n_flush: Interval for flushing logger in steps. Defaults to 1 (i.e. flush instantly).
-        filter: Optional filter string to filter metrics for logging.
+        filter: Optional filter strings to filter metrics for logging.
     """
 
-    def __init__(self, *, n_log: int = 1, n_flush: int = 1, filter: str | None = None):
+    def __init__(
+        self, *, n_log: int = 1, n_flush: int = 1, filter: str | list[str] | None = None
+    ):
         assert n_log <= n_flush, (
             "Logging interval must be less than or equal to interval for flushing logger."
         )
@@ -26,7 +28,7 @@ class Logger(ABC):
         )
         self._n_log = n_log
         self._n_flush = n_flush
-        self._filter = filter
+        self._filter = [filter] if isinstance(filter, str) else filter
         self._log = defaultdict(dict)
         self._count = 0
 
@@ -52,7 +54,7 @@ class Logger(ABC):
             self._count = 0
 
     def filter(self, metrics: dict[str, NDArray]) -> dict[str, NDArray]:
-        """Filters the provided metrics based on the logger's filter string.
+        """Filters the provided metrics based on the logger's filter strings.
 
         Args:
             metrics: Dictionary mapping metric names to their ndarray values.
@@ -62,7 +64,7 @@ class Logger(ABC):
         """
         if self._filter is None:
             return metrics
-        return {k: v for k, v in metrics.items() if self._filter in k}
+        return {k: v for k, v in metrics.items() if any(f in k for f in self._filter)}
 
     def restart(self) -> None:
         """Restart the logger without reinitialization.

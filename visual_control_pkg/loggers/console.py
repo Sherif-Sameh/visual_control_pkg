@@ -12,7 +12,7 @@ class ConsoleLogger(Logger):
     Args:
         n_log: Interval for logging in steps. Defaults to 1 (i.e. log everything).
         n_flush: Interval for flushing logger in steps. Defaults to 1 (i.e. flush instantly).
-        filter: Optional filter string to filter metrics for logging.
+        filter: Optional filter strings to filter metrics for logging.
         config: Optioanl configuration for printing NumPy arrays to the console.
     """
 
@@ -32,7 +32,7 @@ class ConsoleLogger(Logger):
         *,
         n_log: int = 1,
         n_flush: int = 1,
-        filter: str | None = None,
+        filter: str | list[str] | None = None,
         config: ArrayPrintOptions = ArrayPrintOptions(),
     ):
         super().__init__(n_log=n_log, n_flush=n_flush, filter=filter)

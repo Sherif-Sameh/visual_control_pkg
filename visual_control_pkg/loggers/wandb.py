@@ -14,7 +14,7 @@ class WandBLogger(Logger):
     Args:
         n_log: Interval for logging in steps. Defaults to 1 (i.e. log everything).
         n_flush: Interval for flushing logger in steps. Defaults to 1 (i.e. flush instantly).
-        path: Path to the CSV file where logs will be saved.
+        filter: Optional filter strings to filter metrics for logging.
         config: WandB configuration.
     """
 
@@ -31,7 +31,7 @@ class WandBLogger(Logger):
         *,
         n_log: int = 1,
         n_flush: int = 1,
-        filter: str | None = None,
+        filter: str | list[str] | None = None,
         config: WandBConfig,
     ):
         super().__init__(n_log=n_log, n_flush=n_flush, filter=filter)
