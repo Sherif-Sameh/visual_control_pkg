@@ -42,3 +42,8 @@ class ComposeLogger(Logger):
         """
         for logger in self._loggers:
             logger.log(step, metrics)
+
+    def restart(self) -> None:
+        """Restart all composed loggers."""
+        for logger in self._loggers:
+            logger.restart()

@@ -84,17 +84,15 @@ def test_csv_logger():
     metrics.update(pos=pos, rot=rot)
 
     # Initialize and test standard CSV logger
-    csv_path = Path(__file__).parent / "test.csv"
-    if csv_path.exists():
-        csv_path.unlink()
-    logger = CSVLogger(n_log=1, n_flush=1, filter=None, path=csv_path)
+    log_dir = Path(__file__).parent
+    logger = CSVLogger(n_log=1, n_flush=1, filter=None, dir=log_dir)
     logger.log(step=0.0, metrics=metrics.compute())
     assert logger._log == {}
-    df = pd.read_csv(csv_path, index_col=0)
+    df = pd.read_csv(logger._path, index_col=0)
     for i in range(pos.shape[-1]):
-        assert f"{metric1.name}_{i}" in df.columns
+        assert f"{metric1.name}/{i}" in df.columns
     for i in range(rot.shape[-1]):
-        assert f"{metric2.name}_{i}" in df.columns
+        assert f"{metric2.name}/{i}" in df.columns
     assert df.shape[0] == 1
 
     # Attempt to append more logs to the same CSV file
@@ -104,13 +102,13 @@ def test_csv_logger():
         rot = np.random.normal(0, 1, size=(2, 4))
         metrics.update(pos=pos, rot=rot)
         logger.log(step=i * 0.05, metrics=metrics.compute())
-    df = pd.read_csv(csv_path, index_col=0)
+    df = pd.read_csv(logger._path, index_col=0)
     for i in range(pos.shape[-1]):
-        assert f"{metric1.name}_{i}" in df.columns
+        assert f"{metric1.name}/{i}" in df.columns
     for i in range(rot.shape[-1]):
-        assert f"{metric2.name}_{i}" in df.columns
+        assert f"{metric2.name}/{i}" in df.columns
     assert df.shape[0] == 3
-    csv_path.unlink()  # Clean up test CSV file
+    logger._path.unlink()  # Clean up test CSV file
 
 
 @pytest.mark.unit

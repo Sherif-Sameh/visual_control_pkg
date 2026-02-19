@@ -24,7 +24,6 @@ class WandBLogger(Logger):
         project: str
         group: str
         dir: str | Path
-
         config: dict[str, Any] = field(default_factory=lambda: {})
 
     def __init__(
@@ -36,6 +35,7 @@ class WandBLogger(Logger):
         config: WandBConfig,
     ):
         super().__init__(n_log=n_log, n_flush=n_flush, filter=filter)
+        self._config = config
         self._metric_names = []
 
         # Find WandB API environment variable
@@ -49,16 +49,11 @@ class WandBLogger(Logger):
 
         # Initialize WandB run
         wandb.login(key=wandb_api_key)
-        self._run = wandb.init(
-            entity=config.entity,
-            project=config.project,
-            group=config.group,
-            dir=config.dir,
-            config=config.config,
-        )
+        self.restart()
 
     def __del__(self):
-        self._run.finish()
+        if self._run:
+            self._run.finish()
 
     def flush(self) -> None:
         """Saves stored logs to WandB project and run."""
@@ -84,3 +79,18 @@ class WandBLogger(Logger):
             self._run.log(self._log[step], commit=False)
         self._run.log({}, commit=True)
         self._log.clear()
+
+    def restart(self) -> None:
+        """Restart the logger without reinitialization.
+
+        Flushes all existing logs and finishes current WandB run before starting a new run.
+        """
+        self.flush()
+        self._run = wandb.init(
+            entity=self._config.entity,
+            project=self._config.project,
+            group=self._config.group,
+            dir=self._config.dir,
+            config=self._config.config,
+            reinit="finish_previous",
+        )
