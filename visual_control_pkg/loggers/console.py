@@ -48,8 +48,11 @@ class ConsoleLogger(Logger):
 
     def flush(self) -> None:
         """Prints stored logs to the console."""
+        if not self._log:
+            return
         for step, metrics in self._log.items():
-            print(f"\nStep {step:.2f}:")
+            print(f"\nStep {step:.2f}:", flush=False)
             for name, value in metrics.items():
-                print(f"\t{name}: {self._arr2str(value)}")
+                print(f"\t{name}: {self._arr2str(value)}", flush=False)
+        print(flush=True)
         self._log.clear()

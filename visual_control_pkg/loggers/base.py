@@ -32,6 +32,9 @@ class Logger(ABC):
         self._log = defaultdict(dict)
         self._count = 0
 
+    def __del__(self):
+        self.flush()
+
     @abstractmethod
     def flush(self) -> None:
         """Flushes stored logs to the logging output destination."""
@@ -48,7 +51,9 @@ class Logger(ABC):
         """
         self._count += 1
         if self._count % self._n_log == 0:
-            self._log[round(step, 3)] = self.filter(metrics)
+            filtered_metrics = self.filter(metrics)
+            if filtered_metrics:
+                self._log[round(step, 3)] = filtered_metrics
         if self._count % self._n_flush == 0:
             self.flush()
             self._count = 0

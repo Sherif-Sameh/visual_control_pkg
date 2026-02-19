@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
-from warnings import warn
 
 from .base import Logger
 
@@ -21,15 +20,9 @@ class ComposeLogger(Logger):
         self._loggers = loggers
 
     def flush(self) -> None:
-        """Does nothing.
-
-        Should not be called as flushing is managed by each logger individually according to its
-        configuration
-        """
-        warn(
-            "flush() method of ComposeLogger should not be called. Flushing is managed by each"
-            " logger individually according to its own configuration."
-        )
+        """Flushes all composed loggers."""
+        for logger in self._loggers:
+            logger.flush()
 
     def log(self, step: float, metrics: dict[str, NDArray]) -> None:
         """Logs all tracked metrics for all composed loggers at the given step.

@@ -53,10 +53,10 @@ class AccumulatorMetric(Metric):
     def update(self, **kwargs) -> None:
         """Updates the internal state and count with the provided value.
 
-        **Important**: The provided value can only be 2D. It is reduced with `.sum(axis=0)` before
-        being added to the existing state. Once the internal state is initialized with the first
-        input array, shapes of inputs from following updates must be broadcastable to the internal
-        state's shape.
+        **Important**: The provided value must be extendable to 2D. It is reduced with
+        `.sum(axis=0)` before being added to the existing state. Once the internal state is
+        initialized with the first input array, shapes of inputs from following updates must be
+        broadcastable to the internal state's shape.
 
         Args:
             **kwargs: Keyword arguments containing input ndarray data to update metric with.
@@ -64,7 +64,7 @@ class AccumulatorMetric(Metric):
         value: NDArray | None = kwargs.get(self._argname)
         if value is None:
             return  # There's nothing to update.
-        assert value.ndim == 2, f"Input array ndim must be 2. Got ndim = {value.ndim}"
+        value = np.atleast_2d(value)
         if self._state is None:
             self._state = np.zeros(value.shape[1])
         self._state += value.sum(axis=0)

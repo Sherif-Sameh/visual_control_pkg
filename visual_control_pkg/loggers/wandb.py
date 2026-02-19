@@ -52,6 +52,7 @@ class WandBLogger(Logger):
         self.restart()
 
     def __del__(self):
+        self.flush()
         if self._run:
             self._run.finish()
 
