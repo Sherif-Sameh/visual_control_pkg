@@ -5,29 +5,29 @@ PbvsController::PbvsController() : Node("pbvs_controller")
     // Declare ROS parameters
     this->declare_parameter("verbose", rclcpp::PARAMETER_BOOL);
     this->declare_parameter("robot_description", rclcpp::PARAMETER_STRING);
-    this->declare_parameter("frame/base_frame", rclcpp::PARAMETER_STRING);
-    this->declare_parameter("frame/ee_frame", rclcpp::PARAMETER_STRING);
-    this->declare_parameter("frame/cam_frame", rclcpp::PARAMETER_STRING);
-    this->declare_parameter("tag/tag_family", rclcpp::PARAMETER_STRING);
-    this->declare_parameter("tag/tag_ids", rclcpp::PARAMETER_INTEGER_ARRAY);
-    this->declare_parameter("ik/eps", rclcpp::PARAMETER_DOUBLE);
-    this->declare_parameter("ik/lambda", rclcpp::PARAMETER_DOUBLE);
-    this->declare_parameter("ik/max_iters", rclcpp::PARAMETER_INTEGER);
-    this->declare_parameter("ik/weight_js", rclcpp::PARAMETER_DOUBLE_ARRAY);
-    this->declare_parameter("robot/max_tvel", rclcpp::PARAMETER_DOUBLE);
-    this->declare_parameter("robot/max_rvel", rclcpp::PARAMETER_DOUBLE);
-    this->declare_parameter("robot/max_vel_sf", rclcpp::PARAMETER_DOUBLE);
-    this->declare_parameter("robot/max_qdot", rclcpp::PARAMETER_DOUBLE_ARRAY);
-    this->declare_parameter("ctrl/conv_ttol", rclcpp::PARAMETER_DOUBLE);
-    this->declare_parameter("ctrl/conv_rtol", rclcpp::PARAMETER_DOUBLE);
-    this->declare_parameter("ctrl/lambda", rclcpp::PARAMETER_DOUBLE_ARRAY);
+    this->declare_parameter("frame.base_frame", rclcpp::PARAMETER_STRING);
+    this->declare_parameter("frame.ee_frame", rclcpp::PARAMETER_STRING);
+    this->declare_parameter("frame.cam_frame", rclcpp::PARAMETER_STRING);
+    this->declare_parameter("tag.tag_family", rclcpp::PARAMETER_STRING);
+    this->declare_parameter("tag.tag_ids", rclcpp::PARAMETER_INTEGER_ARRAY);
+    this->declare_parameter("ik.eps", rclcpp::PARAMETER_DOUBLE);
+    this->declare_parameter("ik.lambda", rclcpp::PARAMETER_DOUBLE);
+    this->declare_parameter("ik.max_iters", rclcpp::PARAMETER_INTEGER);
+    this->declare_parameter("ik.weight_js", rclcpp::PARAMETER_DOUBLE_ARRAY);
+    this->declare_parameter("robot.max_tvel", rclcpp::PARAMETER_DOUBLE);
+    this->declare_parameter("robot.max_rvel", rclcpp::PARAMETER_DOUBLE);
+    this->declare_parameter("robot.max_vel_sf", rclcpp::PARAMETER_DOUBLE);
+    this->declare_parameter("robot.max_qdot", rclcpp::PARAMETER_DOUBLE_ARRAY);
+    this->declare_parameter("ctrl.conv_ttol", rclcpp::PARAMETER_DOUBLE);
+    this->declare_parameter("ctrl.conv_rtol", rclcpp::PARAMETER_DOUBLE);
+    this->declare_parameter("ctrl.lambda", rclcpp::PARAMETER_DOUBLE_ARRAY);
 
     // Initialize non-ROS class attributes
-    m_base_frame = this->get_parameter("frame/base_frame").as_string();
-    m_ee_frame = this->get_parameter("frame/ee_frame").as_string();
-    m_cam_frame = this->get_parameter("frame/cam_frame").as_string();
-    m_tag_family = this->get_parameter("tag/tag_family").as_string();
-    std::vector<int64_t> tag_ids = this->get_parameter("tag/tag_ids").as_integer_array();
+    m_base_frame = this->get_parameter("frame.base_frame").as_string();
+    m_ee_frame = this->get_parameter("frame.ee_frame").as_string();
+    m_cam_frame = this->get_parameter("frame.cam_frame").as_string();
+    m_tag_family = this->get_parameter("tag.tag_family").as_string();
+    std::vector<int64_t> tag_ids = this->get_parameter("tag.tag_ids").as_integer_array();
     std::transform(tag_ids.begin(), tag_ids.end(), std::back_inserter(m_tag_ids),
                    [](int64_t id) { return static_cast<int>(id); });
     for (const int id : m_tag_ids)
@@ -200,10 +200,10 @@ void PbvsController::init_robot_and_controller()
     std::string robot_description = this->get_parameter("robot_description").as_string();
 
     // Initialize IK solver
-    double ik_eps = this->get_parameter("ik/eps").as_double();
-    double ik_lambda = this->get_parameter("ik/lambda").as_double();
-    int ik_max_iters = static_cast<int>(this->get_parameter("ik/max_iters").as_int());
-    std::vector<double> ik_weight_js_vec = this->get_parameter("ik/weight_js").as_double_array();
+    double ik_eps = this->get_parameter("ik.eps").as_double();
+    double ik_lambda = this->get_parameter("ik.lambda").as_double();
+    int ik_max_iters = static_cast<int>(this->get_parameter("ik.max_iters").as_int());
+    std::vector<double> ik_weight_js_vec = this->get_parameter("ik.weight_js").as_double_array();
 
     int js_size = static_cast<int>(std::sqrt(static_cast<double>(ik_weight_js_vec.size())));
     Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> map(
@@ -213,10 +213,10 @@ void PbvsController::init_robot_and_controller()
                                            ik_max_iters, ik_weight_js);
 
     // Initialize robot
-    double robot_max_tvel = this->get_parameter("robot/max_tvel").as_double();
-    double robot_max_rvel = this->get_parameter("robot/max_rvel").as_double();
-    double robot_max_vel_sf = this->get_parameter("robot/max_vel_sf").as_double();
-    std::vector<double> robot_max_qdot = this->get_parameter("robot/max_qdot").as_double_array();
+    double robot_max_tvel = this->get_parameter("robot.max_tvel").as_double();
+    double robot_max_rvel = this->get_parameter("robot.max_rvel").as_double();
+    double robot_max_vel_sf = this->get_parameter("robot.max_vel_sf").as_double();
+    std::vector<double> robot_max_qdot = this->get_parameter("robot.max_qdot").as_double_array();
     m_robot.setVerbose(verbose);
     m_robot.setMaxVelocity(robot_max_tvel, robot_max_rvel);
     m_robot.setMaxVelocitySF(robot_max_vel_sf);
@@ -225,9 +225,9 @@ void PbvsController::init_robot_and_controller()
     m_robot.init(robot_description);
 
     // Initialize controller
-    m_conv_eps.first = std::pow(this->get_parameter("ctrl/conv_ttol").as_double(), 2);
-    m_conv_eps.second = std::pow(this->get_parameter("ctrl/conv_rtol").as_double(), 2);
-    m_lambda = this->get_parameter("ctrl/lambda").as_double_array();
+    m_conv_eps.first = std::pow(this->get_parameter("ctrl.conv_ttol").as_double(), 2);
+    m_conv_eps.second = std::pow(this->get_parameter("ctrl.conv_rtol").as_double(), 2);
+    m_lambda = this->get_parameter("ctrl.lambda").as_double_array();
     m_controller.setLambda(1.0);
     m_controller.setServo(vpServo::EYEINHAND_CAMERA);
     m_controller.setInteractionMatrixType(vpServo::CURRENT);
