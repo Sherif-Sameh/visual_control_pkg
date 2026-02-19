@@ -24,20 +24,41 @@ class DetectorDebugger(Node):
     def __init__(self):
         super().__init__("detector_debugger")
 
-        # Publishers
-        self._pub_img = self.create_publisher(Image, "/detector_debugger/image", 0)
-
-        # Subscribers
-        self._sub_img = self.create_subscription(
-            Image, "/image", self.image_callback, 0
-        )
-        self._sub_dtn = self.create_subscription(
-            AprilTagDetectionArray, "/detections", self.detection_callback, 0
-        )
-
-        # Other attributes
+        # Initialize non-ROS class attributes
         self._bridge = CvBridge()
         self._img = None
+
+        # Initialize ROS attributes
+        self._pub_img = self.create_publisher(Image, "/detector_debugger/image", 0)
+        self._sub_img = self.create_subscription(
+            Image, "/image", self.callback_image, 0
+        )
+        self._sub_dtn = self.create_subscription(
+            AprilTagDetectionArray, "/detections", self.callback_detection, 0
+        )
+
+    def callback_image(self, msg: Image) -> None:
+        """Callback function for input image.
+
+        Stores input image for use in detection callback.
+
+        Args:
+            msg: sensor_msgs/Image input messsage.
+        """
+        self._img = self._bridge.imgmsg_to_cv2(msg, desired_encoding="rgb8")
+
+    def callback_detection(self, msg: AprilTagDetectionArray) -> None:
+        """Callback function for the Apriltag detections.
+
+        Publishes modified version of stored input image with tags overlayed on top of it.
+
+        Args:
+            msg: AprilTagDetectionArray message containing the relative poses of each tag.
+        """
+        # Publish modified image if input image is available
+        if self._img is not None:
+            self._publish_tag_image(msg)
+            self._img = None  # reset stored image after publishing
 
     def _publish_tag_image(self, msg: AprilTagDetectionArray) -> None:
         """Publish stored input image with tags overlayed on top.
@@ -113,39 +134,11 @@ class DetectorDebugger(Node):
         msg.header.stamp = self.get_clock().now().to_msg()
         self._pub_img.publish(msg)
 
-    def image_callback(self, msg: Image) -> None:
-        """Callback function for input image.
-
-        Stores input image for use in detection callback.
-
-        Args:
-            msg: sensor_msgs/Image input messsage.
-        """
-        self._img = self._bridge.imgmsg_to_cv2(msg, desired_encoding="rgb8")
-
-    def detection_callback(self, msg: AprilTagDetectionArray) -> None:
-        """Callback function for the Apriltag detections.
-
-        Publishes modified version of stored input image with tags overlayed on top of it.
-
-        Args:
-            msg: AprilTagDetectionArray message containing the relative poses of each tag.
-        """
-        # Publish modified image if input image is available
-        if self._img is not None:
-            self._publish_tag_image(msg)
-            self._img = None  # reset stored image after publishing
-
 
 def main(args=None):
-    # Initialize ROS
     rclpy.init(args=args)
-
-    # Create node and spin indefinitely
     detector_debugger = DetectorDebugger()
     rclpy.spin(detector_debugger)
-
-    # Destroy node explicitly
     detector_debugger.destroy_node()
     rclpy.shutdown()
 

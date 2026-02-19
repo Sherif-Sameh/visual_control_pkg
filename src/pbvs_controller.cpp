@@ -102,10 +102,7 @@ void PbvsController::publish_traj(const std::vector<double> &qdot)
     msg.joint_names = m_joint_names;
 
     trajectory_msgs::msg::JointTrajectoryPoint pt;
-    pt.positions = std::vector<double>(qdot.size(), 0.0);
     pt.velocities = qdot;
-    pt.accelerations = std::vector<double>(qdot.size(), 0.0);
-    pt.effort = std::vector<double>(qdot.size(), 0.0);
     pt.time_from_start = rclcpp::Duration::from_seconds(0);
 
     msg.points.push_back(pt);
