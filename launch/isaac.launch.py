@@ -89,6 +89,13 @@ def declare_arguments() -> list[DeclareLaunchArgument]:
     # General arguments
     declared_arguments.append(
         DeclareLaunchArgument(
+            "rviz",
+            default_value="true",
+            description="Launch RViz. Defaults to true.",
+        )
+    )
+    declared_arguments.append(
+        DeclareLaunchArgument(
             "rviz_config",
             default_value="isaac.rviz",
             description="File name for the .rviz configuration file to load."
@@ -116,6 +123,7 @@ def generate_launch_description() -> LaunchDescription:
     tag_ids = LaunchConfiguration("tag_ids")
     tag_family = LaunchConfiguration("tag_family")
 
+    rviz = LaunchConfiguration("rviz")
     rviz_config = LaunchConfiguration("rviz_config")
     CAMERA_INFO_TOPIC_NAME = "/isaaclab/camera/camera_info"
     DETECTIONS_TOPIC_NAME = "/detector/tag_detections"
@@ -139,6 +147,7 @@ def generate_launch_description() -> LaunchDescription:
         ),
         launch_arguments={
             "ur_type": ur_type,
+            "rviz": rviz,
             "rviz_config": rviz_config,
             "joint_states_topic_name": "/joint_states",
         }.items(),

@@ -2,7 +2,7 @@
 ### Original file: https://github.com/UniversalRobots/Universal_Robots_ROS2_Description/blob/rolling/launch/view_ur.launch.py
 
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument
+from launch.actions import DeclareLaunchArgument, OpaqueFunction
 from launch.substitutions import (
     Command,
     FindExecutable,
@@ -89,6 +89,13 @@ def declare_arguments() -> list[DeclareLaunchArgument]:
     # General arguments
     declared_arguments.append(
         DeclareLaunchArgument(
+            "rviz",
+            default_value="true",
+            description="Launch RViz. Defaults to true.",
+        )
+    )
+    declared_arguments.append(
+        DeclareLaunchArgument(
             "rviz_config",
             default_value="ur.rviz",
             description="File name for the .rviz configuration file to load. Defaults to ur.rviz.",
@@ -104,6 +111,28 @@ def declare_arguments() -> list[DeclareLaunchArgument]:
     return declared_arguments
 
 
+def launch_setup(context) -> list[Node]:
+    rviz = LaunchConfiguration("rviz").perform(context)
+    rviz_config = LaunchConfiguration("rviz_config")
+
+    # Launch node based on argument value
+    if rviz == "true":
+        rviz_config_file = PathJoinSubstitution(
+            [FindPackageShare("visual_control_pkg"), "rviz", rviz_config]
+        )
+        return [
+            Node(
+                package="rviz2",
+                executable="rviz2",
+                name="rviz2",
+                output="log",
+                arguments=["-d", rviz_config_file],
+            )
+        ]
+
+    return []
+
+
 def generate_launch_description() -> LaunchDescription:
     # Declare arguments
     declared_arguments = declare_arguments()
@@ -117,7 +146,6 @@ def generate_launch_description() -> LaunchDescription:
     description_file = LaunchConfiguration("description_file")
     tf_prefix = LaunchConfiguration("tf_prefix")
 
-    rviz_config = LaunchConfiguration("rviz_config")
     joint_states_topic_name = LaunchConfiguration("joint_states_topic_name")
 
     # Initialize robot_description parameter
@@ -159,16 +187,10 @@ def generate_launch_description() -> LaunchDescription:
         remappings=[("/joint_states", joint_states_topic_name)],
     )
 
-    rviz_config_file = PathJoinSubstitution(
-        [FindPackageShare("visual_control_pkg"), "rviz", rviz_config]
-    )
-    rviz_node = Node(
-        package="rviz2",
-        executable="rviz2",
-        name="rviz2",
-        output="log",
-        arguments=["-d", rviz_config_file],
-    )
+    nodes_to_start = [robot_state_publisher_node]
 
-    nodes_to_start = [robot_state_publisher_node, rviz_node]
-    return LaunchDescription(declared_arguments + nodes_to_start)
+    # Combine opaque function with launch description
+    op_func = OpaqueFunction(function=launch_setup)
+    ld = LaunchDescription(declared_arguments + nodes_to_start)
+    ld.add_action(op_func)
+    return ld

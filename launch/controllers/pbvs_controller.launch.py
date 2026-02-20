@@ -235,7 +235,7 @@ def generate_launch_description() -> LaunchDescription:
                 "robot.max_qdot": [120 * np.pi / 180] * 2 + [180 * np.pi / 180] * 4,
                 "ctrl.conv_ttol": 0.005,
                 "ctrl.conv_rtol": 0.005,
-                "ctrl.lambda": [1, 1, 0.5, 1, 1, 0.5],
+                "ctrl.lambda": [1, 1, 0.7, 1, 1, 0.5],
             }
         ],
         remappings=[
