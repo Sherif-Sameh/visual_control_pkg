@@ -34,14 +34,13 @@ class CSVLogger(Logger):
         """Saves stored logs to a CSV file."""
         if not self._log:
             return
-        # Separate the individual entries of arrays
-        for step in self._log.keys():
-            step_exp = {}
-            for name, value in self._log[step].items():
-                step_exp.update({f"{name}/{i}": v for (i, v) in enumerate(value)})
-            self._log[step] = step_exp
-        df = pd.DataFrame.from_dict(self._log, orient="index")
-        df.to_csv(self._path, mode="a", header=not self._path.exists())
+        # Convert nested dict structure to per-row records
+        records = []
+        for step, metrics in self._log.items():
+            for name, value in metrics.items():
+                records.append({"name": name, "step": step, "value": value.tolist()})
+        df = pd.DataFrame(records, copy=False)
+        df.to_csv(self._path, index=False, mode="a", header=not self._path.exists())
         self._log.clear()
 
     def restart(self) -> None:

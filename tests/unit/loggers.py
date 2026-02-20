@@ -1,4 +1,5 @@
 from pathlib import Path
+from ast import literal_eval
 
 import numpy as np
 import pandas as pd
@@ -88,12 +89,12 @@ def test_csv_logger():
     logger = CSVLogger(n_log=1, n_flush=1, filter=None, dir=log_dir)
     logger.log(step=0.0, metrics=metrics.compute())
     assert logger._log == {}
-    df = pd.read_csv(logger._path, index_col=0)
-    for i in range(pos.shape[-1]):
-        assert f"{metric1.name}/{i}" in df.columns
-    for i in range(rot.shape[-1]):
-        assert f"{metric2.name}/{i}" in df.columns
-    assert df.shape[0] == 1
+    df = pd.read_csv(logger._path)
+    df.value = df.value.apply(literal_eval)
+    df.set_index("name", inplace=True)
+    assert df.loc[metric1.name] is not None
+    assert df.loc[metric2.name] is not None
+    assert df.shape[0] == 2
 
     # Attempt to append more logs to the same CSV file
     for i in range(1, 3):
@@ -102,12 +103,12 @@ def test_csv_logger():
         rot = np.random.normal(0, 1, size=(2, 4))
         metrics.update(pos=pos, rot=rot)
         logger.log(step=i * 0.05, metrics=metrics.compute())
-    df = pd.read_csv(logger._path, index_col=0)
-    for i in range(pos.shape[-1]):
-        assert f"{metric1.name}/{i}" in df.columns
-    for i in range(rot.shape[-1]):
-        assert f"{metric2.name}/{i}" in df.columns
-    assert df.shape[0] == 3
+    df = pd.read_csv(logger._path)
+    df.value = df.value.apply(literal_eval)
+    df.set_index("name", inplace=True)
+    assert df.loc[metric1.name] is not None
+    assert df.loc[metric2.name] is not None
+    assert df.shape[0] == 6
     logger._path.unlink()  # Clean up test CSV file
 
 
