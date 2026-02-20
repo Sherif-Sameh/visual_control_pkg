@@ -67,9 +67,9 @@ def declare_arguments() -> list[DeclareLaunchArgument]:
     declared_arguments.append(
         DeclareLaunchArgument(
             "csv_n_flush",
-            default_value="10",
+            default_value="4",
             description="Flushing interval for CSV logger relative to logging period."
-            " Default is 10.",
+            " Default is 4.",
         )
     )
     declared_arguments.append(
@@ -83,9 +83,9 @@ def declare_arguments() -> list[DeclareLaunchArgument]:
     declared_arguments.append(
         DeclareLaunchArgument(
             "wandb_n_flush",
-            default_value="12",
+            default_value="10",
             description="Flushing interval for WandB logger relative to logging period."
-            " Default is 12.",
+            " Default is 10.",
         )
     )
     return declared_arguments
@@ -153,7 +153,7 @@ def generate_launch_description() -> LaunchDescription:
                 "log.wandb": wandb,
                 "console.n_log": console_n_log,
                 "console.n_flush": console_n_flush,
-                "console.filter": ["PE", "SE"],
+                "console.filter": ["JT", "PE"],
                 "console.config.precision": 3,
                 "console.config.separator": "  ",
                 "console.config.sign": "+",
@@ -163,7 +163,7 @@ def generate_launch_description() -> LaunchDescription:
                 "csv.dir": csv_dir,
                 "wandb.n_log": wandb_n_log,
                 "wandb.n_flush": wandb_n_flush,
-                "wandb.filter": [""],
+                "wandb.filter": ["JS", "PE"],
                 "wandb.config.entity": "u1999168-girona",
                 "wandb.config.project": "visual_control|PBVS",
                 "wandb.config.group": "test",

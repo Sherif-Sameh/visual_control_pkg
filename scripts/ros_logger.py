@@ -130,7 +130,6 @@ class ROSLogger(Node):
     def callback_timer(self) -> None:
         for step, metric in self._metrics.values():
             self._loggers.log(step, metric.compute())
-            self._loggers
 
     def callback_js(self, msg: JointState) -> None:
         if "js" not in self._metrics:
@@ -187,6 +186,10 @@ class ROSLogger(Node):
 
     def callback_rst(self, msg: Empty) -> None:
         self._loggers.restart()
+        for _, metric in self._metrics.values():
+            metric.reset()
+        self._start_time = self.get_clock().now().nanoseconds * 1e-9
+        self.get_logger().info("Restarted ROS logger.")
 
     def _get_timestep(self, header: Header) -> float:
         """Get the current timestep for the provided header since the node's initialization."""
@@ -220,7 +223,7 @@ class ROSLogger(Node):
             logger=CSVLogger(
                 n_log=params["n_log"],
                 n_flush=params["n_flush"],
-                filter=params["filter"] if params["filter"][0] == "" else None,
+                filter=params["filter"] if params["filter"][0] != "" else None,
                 dir=params["dir"],
             ),
         )
@@ -256,7 +259,7 @@ class ROSLogger(Node):
             logger=WandBLogger(
                 n_log=params["n_log"],
                 n_flush=params["n_flush"],
-                filter=params["filter"] if params["filter"][0] == "" else None,
+                filter=params["filter"] if params["filter"][0] != "" else None,
                 config=WandBLogger.WandBConfig(
                     entity=params["config.entity"],
                     project=params["config.project"],

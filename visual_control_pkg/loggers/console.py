@@ -54,5 +54,5 @@ class ConsoleLogger(Logger):
             print(f"\nStep {step:.2f}:", flush=False)
             for name, value in metrics.items():
                 print(f"\t{name}: {self._arr2str(value)}", flush=False)
-        print(flush=True)
+        print(end="", flush=True)
         self._log.clear()

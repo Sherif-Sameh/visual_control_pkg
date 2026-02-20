@@ -10,12 +10,12 @@ if TYPE_CHECKING:
 class ROSWrapperLogger(Logger):
     """ROS wrapper for loggers.
 
-    Wraps the given logger to allow multiple `log()` calls without incrementing the logger's
-    internal counter. This is needed as with ROS-based logging, calls to `log()` have to be made
-    multiple times with different metrics due to the asynchronous nature of ROS.
+    Wraps the given logger to allow multiple `log()` calls without changing the value of the
+    logger's internal counter. This is needed as with ROS-based logging, calls to `log()` have to
+    be made multiple times with different metrics due to the asynchronous nature of ROS.
 
     Args:
-        n_hold: Interval for incrementing the wrapped logger's counter.
+        n_hold: Interval for allowing updates to the wrapped logger's counter.
         logger: Logger instance to wrap.
     """
 
@@ -31,19 +31,20 @@ class ROSWrapperLogger(Logger):
     def log(self, step: float, metrics: dict[str, NDArray]) -> None:
         """Logs all tracked metrics at the given step.
 
-        Will hold the wrapped logger's counter from incrementing for n_hold steps.
+        Will hold the wrapped logger's counter from changing for (n_hold - 1) steps.
 
         Args:
             step: Current step for logging metrics. Gets rounded to 3 digits.
             metrics: Dictionary mapping metric names to their ndarray values.
         """
         self._count += 1
+        logger_count_pre = self._logger._count
         self._logger.log(step, metrics)
         if self._count % self._n_hold == 0:
             self._count = 0
         else:
-            self._logger._count -= 1
+            self._logger._count = logger_count_pre
 
     def restart(self) -> None:
         """Restarts the wrapped logger."""
-        self._logger.flush()
+        self._logger.restart()
