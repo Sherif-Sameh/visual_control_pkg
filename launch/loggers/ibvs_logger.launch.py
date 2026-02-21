@@ -91,8 +91,8 @@ def declare_arguments() -> list[DeclareLaunchArgument]:
     declared_arguments.append(
         DeclareLaunchArgument(
             "wandb_group",
-            default_value="PBVS",
-            description="Group name for run to use for WandB logger. Default is PBVS.",
+            default_value="IBVS",
+            description="Group name for run to use for WandB logger. Default is IBVS.",
         )
     )
     return declared_arguments
@@ -130,22 +130,21 @@ def generate_launch_description() -> LaunchDescription:
         "apriltag/size",
         "apriltag/tile_size",
         "apriltag/backends",
-        "pbvs_controller/tag.tag_ids",
-        "pbvs_controller/ik.eps",
-        "pbvs_controller/ik.lambda",
-        "pbvs_controller/ik.max_iters",
-        "pbvs_controller/ik.weight_js",
-        "pbvs_controller/robot.max_tvel",
-        "pbvs_controller/robot.max_rvel",
-        "pbvs_controller/robot.max_vel_sf",
-        "pbvs_controller/robot.max_qdot",
-        "pbvs_controller/ctrl.conv_ttol",
-        "pbvs_controller/ctrl.conv_rtol",
-        "pbvs_controller/ctrl.lambda",
+        "ibvs_controller/tag.tag_ids",
+        "ibvs_controller/ik.eps",
+        "ibvs_controller/ik.lambda",
+        "ibvs_controller/ik.max_iters",
+        "ibvs_controller/ik.weight_js",
+        "ibvs_controller/robot.max_tvel",
+        "ibvs_controller/robot.max_rvel",
+        "ibvs_controller/robot.max_vel_sf",
+        "ibvs_controller/robot.max_qdot",
+        "ibvs_controller/ctrl.conv_ttol",
+        "ibvs_controller/ctrl.lambda",
     ]
 
     # Initialize nodes to start
-    pbvs_logger_node = Node(
+    ibvs_logger_node = Node(
         package="visual_control_pkg",
         executable="ros_logger.py",
         output="screen",
@@ -154,7 +153,7 @@ def generate_launch_description() -> LaunchDescription:
                 "timer_period": period,
                 "param_servers": [
                     "apriltag/get_parameters",
-                    "pbvs_controller/get_parameters",
+                    "ibvs_controller/get_parameters",
                 ],
                 "log.console": console,
                 "log.csv": csv,
@@ -167,7 +166,7 @@ def generate_launch_description() -> LaunchDescription:
                 "console.config.sign": "+",
                 "csv.n_log": csv_n_log,
                 "csv.n_flush": csv_n_flush,
-                "csv.filter": [""],
+                "csv.filter": ["JS", "JT", "PE", "Position"],
                 "csv.dir": csv_dir,
                 "wandb.n_log": wandb_n_log,
                 "wandb.n_flush": wandb_n_flush,
@@ -186,10 +185,10 @@ def generate_launch_description() -> LaunchDescription:
                 "/isaaclab/joint_trajectory_controller/joint_trajectory",
             ),
             ("/pose_error", "/isaaclab/pose_error"),
-            ("/setpoint_error", "/pbvs_controller/pose_error"),
+            ("/setpoint_error", "/ibvs_controller/pose_error"),
             ("/ros_logger/restart", "/isaaclab/reset"),
         ],
     )
 
-    nodes_to_start = [pbvs_logger_node]
+    nodes_to_start = [ibvs_logger_node]
     return LaunchDescription(declared_arguments + nodes_to_start)
