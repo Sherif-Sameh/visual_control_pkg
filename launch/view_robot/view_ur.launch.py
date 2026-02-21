@@ -189,8 +189,6 @@ def generate_launch_description() -> LaunchDescription:
 
     nodes_to_start = [robot_state_publisher_node]
 
-    # Combine opaque function with launch description
-    op_func = OpaqueFunction(function=launch_setup)
-    ld = LaunchDescription(declared_arguments + nodes_to_start)
-    ld.add_action(op_func)
-    return ld
+    # Add opaque functions
+    opaque_functions = [OpaqueFunction(function=launch_setup)]
+    return LaunchDescription(declared_arguments + nodes_to_start + opaque_functions)
