@@ -22,7 +22,8 @@
 #include "tf2_ros/transform_listener.hpp"
 #include "trajectory_msgs/msg/joint_trajectory.hpp"
 
-#include "utils/geometry.hpp"
+#include "utils/conversions/geometry.hpp"
+#include "utils/conversions/mappings.hpp"
 #include "vpRobotRos.hpp"
 
 using isaac_ros_apriltag_interfaces::msg::AprilTagDetection;
@@ -39,14 +40,17 @@ public:
     void post_init();
 
 private:
-    void publish_perr(const std::vector<double> &perr);
     void publish_traj(const std::vector<double> &qdot);
+    void publish_perr(const std::vector<double> &perr);
     void callback_js(const sensor_msgs::msg::JointState::SharedPtr msg);
     void callback_tag(const AprilTagDetectionArray::SharedPtr msg);
-    void get_desired_poses();
+    void init_robot();
+    void init_controller();
+    void update_desired_features();
+    void update_features(const std::vector<AprilTagDetection> &detections,
+                         std::vector<int> &valid_ids, std::vector<int> &invalid_ids);
     bool lookup_transform(const std::string &target_frame, const std::string &source_frame,
                           vpHomogeneousMatrix &t);
-    void init_robot_and_controller();
 
 private:
     // General Attributes
