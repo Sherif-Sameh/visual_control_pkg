@@ -37,6 +37,7 @@
 #include <visp3/robot/vpRobotException.h>
 
 #include "kdlIkSolverVel_wdls.hpp"
+#include "utils/conversions/mappings.hpp"
 
 namespace vc
 {

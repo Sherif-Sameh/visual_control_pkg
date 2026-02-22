@@ -3,6 +3,9 @@
  * Utility functions for converting between different geometrical pose representations.
  */
 
+#ifndef UTILS_CONVERSIONS_GEOMETRY
+#define UTILS_CONVERSIONS_GEOMETRY
+
 #include <cassert>
 #include <vector>
 
@@ -25,7 +28,7 @@ namespace geometry
      * @param pose Input pose to initialize vpHomogeneousMatrix from.
      * @return vpHomogeneousMatrix
      */
-    vpHomogeneousMatrix gm_pose_to_vp_hmatrix(const geometry_msgs::msg::Pose &pose)
+    inline vpHomogeneousMatrix gm_pose_to_vp_hmatrix(const geometry_msgs::msg::Pose &pose)
     {
         return vpHomogeneousMatrix(
             vpTranslationVector(pose.position.x, pose.position.y, pose.position.z),
@@ -39,7 +42,8 @@ namespace geometry
      * @param transform Input transform to initialize vpHomogeneousMatrix from.
      * @return vpHomogeneousMatrix
      */
-    vpHomogeneousMatrix gm_transform_to_vp_hmatrix(const geometry_msgs::msg::Transform &transform)
+    inline vpHomogeneousMatrix
+    gm_transform_to_vp_hmatrix(const geometry_msgs::msg::Transform &transform)
     {
         return vpHomogeneousMatrix(vpTranslationVector(transform.translation.x,
                                                        transform.translation.y,
@@ -56,7 +60,8 @@ namespace geometry
      * @param z z-component of the axis-angle representation.
      * @return geometry_msgs::msg::Quaternion
      */
-    geometry_msgs::msg::Quaternion xyz_aa_to_gm_quat(const double x, const double y, const double z)
+    inline geometry_msgs::msg::Quaternion xyz_aa_to_gm_quat(const double x, const double y,
+                                                            const double z)
     {
         constexpr double angle_threshold = 1e-6;
 
@@ -77,3 +82,5 @@ namespace geometry
         return tf2::toMsg(tf2_quat);
     }
 } // namespace geometry
+
+#endif

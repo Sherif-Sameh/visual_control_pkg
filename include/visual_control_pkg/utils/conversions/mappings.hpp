@@ -3,10 +3,14 @@
  * Utility functions for mapping data between different equivalent memory format.
  */
 
+#ifndef UTILS_CONVERSIONS_MAPPINGS
+#define UTILS_CONVERSIONS_MAPPINGS
+
 #include <cassert>
 #include <vector>
 
 #include <Eigen/Core>
+#include <kdl/frames.hpp>
 #include <kdl/jntarray.hpp>
 #include <visp3/core/vpColVector.h>
 
@@ -53,9 +57,9 @@ namespace mappings
      * @brief Convert a vector to a KDL::JntArray
      *
      * @param vec Vector to read data from.
-     * @param jntarray Output joint array of the same size as the input vector.
+     * @param jntarray Output KDL::JntArray of the same size as the input vector.
      */
-    void vec_to_kdl_jntarray(const std::vector<double> &vec, KDL::JntArray &jntarray)
+    inline void vec_to_kdl_jntarray(const std::vector<double> &vec, KDL::JntArray &jntarray)
     {
         assert(vec.size() == static_cast<std::size_t>(jntarray.data.size()));
         for (std::size_t i = 0; i < vec.size(); i++)
@@ -68,9 +72,10 @@ namespace mappings
      * @brief Convert a visp vpColVector to a KDL::JntArray
      *
      * @param vpcolvector vpColVector to read data from.
-     * @param jntarray Output joint array of the same size as the input vpColVector.
+     * @param jntarray Output KDL::JntArray of the same size as the input vpColVector.
      */
-    void visp_vpcolvector_to_kdl_jntarray(const vpColVector &vpcolvector, KDL::JntArray &jntarray)
+    inline void visp_vpcolvector_to_kdl_jntarray(const vpColVector &vpcolvector,
+                                                 KDL::JntArray &jntarray)
     {
         assert(vpcolvector.size() == static_cast<std::size_t>(jntarray.data.size()));
         for (std::size_t i = 0; i < vpcolvector.size(); i++)
@@ -80,12 +85,29 @@ namespace mappings
     }
 
     /**
+     * @brief Convert a visp vpColVector to a KDL::Twist
+     *
+     * @param vpcolvector vpColVector to read data from whose size = 6.
+     * @param twist Output KDL::Twist.
+     */
+    inline void visp_vpcolvector_to_kdl_twist(const vpColVector &vpcolvector, KDL::Twist &twist)
+    {
+        assert(vpcolvector.size() == 6);
+        for (std::size_t i = 0; i < 3; i++)
+        {
+            twist.vel.data[i] = vpcolvector[i];
+            twist.rot.data[i] = vpcolvector[i + 3];
+        }
+    }
+
+    /**
      * @brief Convert a KDL::JntArray to a visp vpColVector
      *
      * @param jntarray KDL::JntArray to read data from.
      * @param vpcolvector Output vpColVector of the same size as the input KDL::JntArray.
      */
-    void kdl_jntarray_to_visp_vpcolvector(const KDL::JntArray &jntarray, vpColVector &vpcolvector)
+    inline void kdl_jntarray_to_visp_vpcolvector(const KDL::JntArray &jntarray,
+                                                 vpColVector &vpcolvector)
     {
         assert(vpcolvector.size() == static_cast<std::size_t>(jntarray.data.size()));
         for (std::size_t i = 0; i < vpcolvector.size(); i++)
@@ -94,3 +116,5 @@ namespace mappings
         }
     }
 } // namespace mappings
+
+#endif
