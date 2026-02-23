@@ -21,6 +21,14 @@ def declare_arguments() -> list[DeclareLaunchArgument]:
     )
     declared_arguments.append(
         DeclareLaunchArgument(
+            "n_runs",
+            default_value="0",
+            description="Number of runs (restarts) for logger to run. The logger will run"
+            " infinitely for any value <= 0. Default is 0 (i.e. infinite).",
+        )
+    )
+    declared_arguments.append(
+        DeclareLaunchArgument(
             "console",
             default_value="false",
             description="Enable logging output to the console. Default is false.",
@@ -104,6 +112,7 @@ def generate_launch_description() -> LaunchDescription:
 
     # Initialize Arguments
     period = LaunchConfiguration("period")
+    n_runs = LaunchConfiguration("n_runs")
     console = LaunchConfiguration("console")
     csv = LaunchConfiguration("csv")
     wandb = LaunchConfiguration("wandb")
@@ -152,6 +161,7 @@ def generate_launch_description() -> LaunchDescription:
         parameters=[
             {
                 "timer_period": period,
+                "n_runs": n_runs,
                 "param_servers": [
                     "apriltag/get_parameters",
                     "pbvs_controller/get_parameters",

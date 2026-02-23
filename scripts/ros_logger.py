@@ -49,6 +49,7 @@ class ROSLogger(Node):
 
         # Declare ROS parameters
         self.declare_parameter("timer_period", rclpy.Parameter.Type.DOUBLE)
+        self.declare_parameter("n_runs", rclpy.Parameter.Type.INTEGER)
         self.declare_parameter("param_servers", rclpy.Parameter.Type.STRING_ARRAY)
         self.declare_parameter("log.console", rclpy.Parameter.Type.BOOL)
         self.declare_parameter("log.csv", rclpy.Parameter.Type.BOOL)
@@ -74,6 +75,8 @@ class ROSLogger(Node):
 
         # Initialize non-ROS class attributes
         timer_period = self.get_parameter("timer_period").value
+        n_runs = self.get_parameter("n_runs").value
+        self._n_runs_left = float("inf") if n_runs <= 0 else n_runs
         self._param_servers: list[str] = self.get_parameter("param_servers").value
         self._log_flags = {
             k: v.value for k, v in self.get_parameters_by_prefix("log").items()
@@ -112,6 +115,11 @@ class ROSLogger(Node):
                     self.get_logger().info(
                         f"{ps} service not available, waiting again..."
                     )
+
+    @property
+    def shutdown(self) -> bool:
+        """Returns flag indentifying whether the node should shutdown or not."""
+        return self._n_runs_left <= 0
 
     def post_init(self) -> None:
         """Initialize all loggers."""
@@ -185,6 +193,7 @@ class ROSLogger(Node):
         self._metrics["se"][1].update(**kwargs)
 
     def callback_rst(self, msg: Empty) -> None:
+        self._n_runs_left -= 1
         self._loggers.restart()
         for _, metric in self._metrics.values():
             metric.reset()
@@ -319,7 +328,11 @@ def main(args=None):
     rclpy.init(args=args)
     ros_logger = ROSLogger()
     ros_logger.post_init()
-    rclpy.spin(ros_logger)
+    while rclpy.ok() and not ros_logger.shutdown:
+        rclpy.spin_once(ros_logger)
+    if ros_logger.shutdown:
+        ros_logger.get_logger().info("Completed planned runs.")
+        ros_logger.get_logger().info("Shutting down.")
     ros_logger.destroy_node()
     rclpy.shutdown()
 
