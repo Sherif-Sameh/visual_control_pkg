@@ -1,7 +1,7 @@
 ### Modifed launch file from the original launch file in the ur_description package.
 ### Original file: https://github.com/UniversalRobots/Universal_Robots_ROS2_Description/blob/rolling/launch/view_ur.launch.py
 
-from launch.actions import DeclareLaunchArgument, OpaqueFunction
+from launch.actions import DeclareLaunchArgument
 from launch.substitutions import Command, FindExecutable, LaunchConfiguration, PathJoinSubstitution
 from launch_ros.actions import Node
 from launch_ros.parameter_descriptions import ParameterValue
@@ -85,46 +85,12 @@ def declare_arguments() -> list[DeclareLaunchArgument]:
     # General arguments
     declared_arguments.append(
         DeclareLaunchArgument(
-            "rviz", default_value="true", description="Launch RViz. Defaults to true."
-        )
-    )
-    declared_arguments.append(
-        DeclareLaunchArgument(
-            "rviz_config",
-            default_value="ur.rviz",
-            description="File name for the .rviz configuration file to load. Defaults to ur.rviz.",
-        )
-    )
-    declared_arguments.append(
-        DeclareLaunchArgument(
             "joint_states_topic_name",
             default_value="/joint_states",
             description="Joint states (sensor_msgs/JointState) topic name to use for robot state publisher.",
         )
     )
     return declared_arguments
-
-
-def launch_setup(context) -> list[Node]:
-    rviz = LaunchConfiguration("rviz").perform(context)
-    rviz_config = LaunchConfiguration("rviz_config")
-
-    # Launch node based on argument value
-    if rviz == "true":
-        rviz_config_file = PathJoinSubstitution(
-            [FindPackageShare("visual_control_pkg"), "rviz", rviz_config]
-        )
-        return [
-            Node(
-                package="rviz2",
-                executable="rviz2",
-                name="rviz2",
-                output="log",
-                arguments=["-d", rviz_config_file],
-            )
-        ]
-
-    return []
 
 
 def generate_launch_description() -> LaunchDescription:
@@ -180,7 +146,4 @@ def generate_launch_description() -> LaunchDescription:
     )
 
     nodes_to_start = [robot_state_publisher_node]
-
-    # Add opaque functions
-    opaque_functions = [OpaqueFunction(function=launch_setup)]
-    return LaunchDescription(declared_arguments + nodes_to_start + opaque_functions)
+    return LaunchDescription(declared_arguments + nodes_to_start)

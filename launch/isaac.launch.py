@@ -1,6 +1,7 @@
 from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription, OpaqueFunction
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
+from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
 
 from launch import LaunchDescription
@@ -48,9 +49,9 @@ def declare_arguments() -> list[DeclareLaunchArgument]:
     declared_arguments.append(
         DeclareLaunchArgument(
             "visualizer",
-            default_value="t",
+            default_value="r,t",
             description="Comma separated string of visualization to enable. Use empty string with"
-            " any character (e.g., ' ') to disable all. Default is t.",
+            " any character (e.g., ' ') to disable all. Default is 'r,t'.",
         )
     )
     declared_arguments.append(
@@ -95,8 +96,9 @@ def declare_arguments() -> list[DeclareLaunchArgument]:
     return declared_arguments
 
 
-def launch_setup(context) -> list[IncludeLaunchDescription]:
+def launch_setup(context) -> list[Node | IncludeLaunchDescription]:
     launch = []
+    launch += _launch_setup_rviz(context)
     launch += _launch_setup_visualizer(context)
     launch += _launch_setup_controller(context)
     return launch
@@ -110,29 +112,7 @@ def generate_launch_description() -> LaunchDescription:
     backends = LaunchConfiguration("backends")
     use_debugger = LaunchConfiguration("use_debugger")
 
-    rviz = LaunchConfiguration("rviz")
-    rviz_config = LaunchConfiguration("rviz_config")
-
     # Include launch files
-    view_ur_launch = IncludeLaunchDescription(
-        PythonLaunchDescriptionSource(
-            PathJoinSubstitution(
-                [
-                    FindPackageShare("visual_control_pkg"),
-                    "launch",
-                    "view_robot",
-                    "view_ur.launch.py",
-                ]
-            )
-        ),
-        launch_arguments={
-            "ur_type": UR_TYPE,
-            "rviz": rviz,
-            "rviz_config": rviz_config,
-            "joint_states_topic_name": "/joint_states",
-        }.items(),
-    )
-
     isaac_ros_apriltag_launch = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
             PathJoinSubstitution(
@@ -154,7 +134,7 @@ def generate_launch_description() -> LaunchDescription:
         }.items(),
     )
 
-    launch_files = [view_ur_launch, isaac_ros_apriltag_launch]
+    launch_files = [isaac_ros_apriltag_launch]
 
     # Add opaque functions
     opaque_functions = [OpaqueFunction(function=launch_setup)]
@@ -166,33 +146,73 @@ def generate_launch_description() -> LaunchDescription:
 ##
 
 
+def _launch_setup_rviz(context) -> list[Node]:
+    rviz = LaunchConfiguration("rviz").perform(context)
+    if rviz == "true":
+        rviz_config = LaunchConfiguration("rviz_config")
+        rviz_config_file = PathJoinSubstitution(
+            [FindPackageShare("visual_control_pkg"), "rviz", rviz_config]
+        )
+        return [
+            Node(
+                package="rviz2",
+                executable="rviz2",
+                name="rviz2",
+                output="log",
+                arguments=["-d", rviz_config_file],
+            )
+        ]
+    return []
+
+
 def _launch_setup_visualizer(context) -> list[IncludeLaunchDescription]:
     visualizer = LaunchConfiguration("visualizer").perform(context)
     visualizer = visualizer.replace(" ", "").split(",")
     launch = []
     # Launch chosen visualizers
+    if "r" in visualizer:
+        launch.append(_include_visualizer_robot())
     if "t" in visualizer:
-        length = LaunchConfiguration("length")
-        trajectory_visualizer_launch = IncludeLaunchDescription(
-            PythonLaunchDescriptionSource(
-                PathJoinSubstitution(
-                    [
-                        FindPackageShare("visual_control_pkg"),
-                        "launch",
-                        "visualizers",
-                        "trajectory_visualizer.launch.py",
-                    ]
-                )
-            ),
-            launch_arguments={
-                "target": f"[{BASE_FRAME}]",
-                "source": f"[{EE_FRAME}]",
-                "length": length,
-                "reset_topic_name": RESET_TOPIC_NAME,
-            }.items(),
-        )
-        launch.append(trajectory_visualizer_launch)
+        launch.append(_include_visualizer_trajectory())
     return launch
+
+
+def _include_visualizer_robot() -> IncludeLaunchDescription:
+    return IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(
+            PathJoinSubstitution(
+                [
+                    FindPackageShare("visual_control_pkg"),
+                    "launch",
+                    "visualizers",
+                    "robot_visualizer.launch.py",
+                ]
+            )
+        ),
+        launch_arguments={"ur_type": UR_TYPE, "joint_states_topic_name": "/joint_states"}.items(),
+    )
+
+
+def _include_visualizer_trajectory() -> IncludeLaunchDescription:
+    length = LaunchConfiguration("length")
+    return IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(
+            PathJoinSubstitution(
+                [
+                    FindPackageShare("visual_control_pkg"),
+                    "launch",
+                    "visualizers",
+                    "trajectory_visualizer.launch.py",
+                ]
+            )
+        ),
+        launch_arguments={
+            "target": f"[{BASE_FRAME}]",
+            "source": f"[{EE_FRAME}]",
+            "length": length,
+            "reset_topic_name": RESET_TOPIC_NAME,
+        }.items(),
+    )
 
 
 def _launch_setup_controller(context) -> list[IncludeLaunchDescription]:
