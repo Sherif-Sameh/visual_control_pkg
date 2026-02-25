@@ -20,6 +20,7 @@ DETECTIONS_TOPIC_NAME = "/detector/tag_detections"
 IMAGE_TOPIC_NAME = "/isaaclab/camera/image_raw"
 JOINT_STATES_TOPIC_NAME = "/isaaclab/joint_states"
 JOINT_TRAJECTORY_TOPIC_NAME = "/isaaclab/joint_trajectory_controller/joint_trajectory"
+RESET_TOPIC_NAME = "/isaaclab/reset"
 
 
 def declare_arguments() -> list[DeclareLaunchArgument]:
@@ -40,6 +41,23 @@ def declare_arguments() -> list[DeclareLaunchArgument]:
             default_value="false",
             description="Enable the Apriltag detector debugger node for publishing"
             " additional visualizations. Default value is false.",
+        )
+    )
+
+    # Trajectory visualizer arguments
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "visualizer",
+            default_value="t",
+            description="Comma separated string of visualization to enable. Use empty string with"
+            " any character (e.g., ' ') to disable all. Default is t.",
+        )
+    )
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "length",
+            default_value="30",
+            description="Length of visualized trajectory for end-effector. Default is 30.",
         )
     )
 
@@ -77,73 +95,11 @@ def declare_arguments() -> list[DeclareLaunchArgument]:
     return declared_arguments
 
 
-def include_pbvs_controller() -> IncludeLaunchDescription:
-    verbose = LaunchConfiguration("verbose")
-    return IncludeLaunchDescription(
-        PythonLaunchDescriptionSource(
-            PathJoinSubstitution(
-                [
-                    FindPackageShare("visual_control_pkg"),
-                    "launch",
-                    "controllers",
-                    "pbvs_controller.launch.py",
-                ]
-            )
-        ),
-        launch_arguments={
-            "ur_type": UR_TYPE,
-            "verbose": verbose,
-            "base_frame": BASE_FRAME,
-            "ee_frame": EE_FRAME,
-            "cam_frame": CAM_FRAME,
-            "tag_family": TAG_FAMILY,
-            "tag_ids": TAG_IDS,
-            "joint_trajectory_topic_name": JOINT_TRAJECTORY_TOPIC_NAME,
-            "joint_states_topic_name": JOINT_STATES_TOPIC_NAME,
-            "detections_topic_name": DETECTIONS_TOPIC_NAME,
-        }.items(),
-    )
-
-
-def include_ibvs_controller() -> IncludeLaunchDescription:
-    verbose = LaunchConfiguration("verbose")
-    return IncludeLaunchDescription(
-        PythonLaunchDescriptionSource(
-            PathJoinSubstitution(
-                [
-                    FindPackageShare("visual_control_pkg"),
-                    "launch",
-                    "controllers",
-                    "ibvs_controller.launch.py",
-                ]
-            )
-        ),
-        launch_arguments={
-            "ur_type": UR_TYPE,
-            "verbose": verbose,
-            "base_frame": BASE_FRAME,
-            "ee_frame": EE_FRAME,
-            "cam_frame": CAM_FRAME,
-            "tag_family": TAG_FAMILY,
-            "tag_size": TAG_SIZE,
-            "tag_ids": TAG_IDS,
-            "joint_trajectory_topic_name": JOINT_TRAJECTORY_TOPIC_NAME,
-            "joint_states_topic_name": JOINT_STATES_TOPIC_NAME,
-            "camera_info_topic_name": CAMERA_INFO_TOPIC_NAME,
-            "detections_topic_name": DETECTIONS_TOPIC_NAME,
-        }.items(),
-    )
-
-
 def launch_setup(context) -> list[IncludeLaunchDescription]:
-    controller = LaunchConfiguration("controller").perform(context)
-    assert controller in ["pbvs", "ibvs"]
-    # Launch chosen controller
-    match controller:
-        case "pbvs":
-            return [include_pbvs_controller()]
-        case "ibvs":
-            return [include_ibvs_controller()]
+    launch = []
+    launch += _launch_setup_visualizer(context)
+    launch += _launch_setup_controller(context)
+    return launch
 
 
 def generate_launch_description() -> LaunchDescription:
@@ -203,3 +159,106 @@ def generate_launch_description() -> LaunchDescription:
     # Add opaque functions
     opaque_functions = [OpaqueFunction(function=launch_setup)]
     return LaunchDescription(declared_arguments + launch_files + opaque_functions)
+
+
+##
+# Private functions
+##
+
+
+def _launch_setup_visualizer(context) -> list[IncludeLaunchDescription]:
+    visualizer = LaunchConfiguration("visualizer").perform(context)
+    visualizer = visualizer.replace(" ", "").split(",")
+    launch = []
+    # Launch chosen visualizers
+    if "t" in visualizer:
+        length = LaunchConfiguration("length")
+        trajectory_visualizer_launch = IncludeLaunchDescription(
+            PythonLaunchDescriptionSource(
+                PathJoinSubstitution(
+                    [
+                        FindPackageShare("visual_control_pkg"),
+                        "launch",
+                        "visualizers",
+                        "trajectory_visualizer.launch.py",
+                    ]
+                )
+            ),
+            launch_arguments={
+                "target": f"[{BASE_FRAME}]",
+                "source": f"[{EE_FRAME}]",
+                "length": length,
+                "reset_topic_name": RESET_TOPIC_NAME,
+            }.items(),
+        )
+        launch.append(trajectory_visualizer_launch)
+    return launch
+
+
+def _launch_setup_controller(context) -> list[IncludeLaunchDescription]:
+    controller = LaunchConfiguration("controller").perform(context)
+    assert controller in ["pbvs", "ibvs"]
+    # Launch chosen controller
+    match controller:
+        case "pbvs":
+            return [_include_controller_pbvs()]
+        case "ibvs":
+            return [_include_controller_ibvs()]
+
+
+def _include_controller_pbvs() -> IncludeLaunchDescription:
+    verbose = LaunchConfiguration("verbose")
+    return IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(
+            PathJoinSubstitution(
+                [
+                    FindPackageShare("visual_control_pkg"),
+                    "launch",
+                    "controllers",
+                    "pbvs_controller.launch.py",
+                ]
+            )
+        ),
+        launch_arguments={
+            "ur_type": UR_TYPE,
+            "verbose": verbose,
+            "base_frame": BASE_FRAME,
+            "ee_frame": EE_FRAME,
+            "cam_frame": CAM_FRAME,
+            "tag_family": TAG_FAMILY,
+            "tag_ids": TAG_IDS,
+            "joint_trajectory_topic_name": JOINT_TRAJECTORY_TOPIC_NAME,
+            "joint_states_topic_name": JOINT_STATES_TOPIC_NAME,
+            "detections_topic_name": DETECTIONS_TOPIC_NAME,
+        }.items(),
+    )
+
+
+def _include_controller_ibvs() -> IncludeLaunchDescription:
+    verbose = LaunchConfiguration("verbose")
+    return IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(
+            PathJoinSubstitution(
+                [
+                    FindPackageShare("visual_control_pkg"),
+                    "launch",
+                    "controllers",
+                    "ibvs_controller.launch.py",
+                ]
+            )
+        ),
+        launch_arguments={
+            "ur_type": UR_TYPE,
+            "verbose": verbose,
+            "base_frame": BASE_FRAME,
+            "ee_frame": EE_FRAME,
+            "cam_frame": CAM_FRAME,
+            "tag_family": TAG_FAMILY,
+            "tag_size": TAG_SIZE,
+            "tag_ids": TAG_IDS,
+            "joint_trajectory_topic_name": JOINT_TRAJECTORY_TOPIC_NAME,
+            "joint_states_topic_name": JOINT_STATES_TOPIC_NAME,
+            "camera_info_topic_name": CAMERA_INFO_TOPIC_NAME,
+            "detections_topic_name": DETECTIONS_TOPIC_NAME,
+        }.items(),
+    )
