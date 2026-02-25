@@ -91,8 +91,8 @@ ament_python_install_package(${PROJECT_NAME})
 
 # Install Python executables
 install(PROGRAMS
-  scripts/detector_debugger.py
   scripts/ros_logger.py
+  scripts/visualizers/detection_visualizer.py
   scripts/visualizers/trajectory_visualizer.py
   DESTINATION lib/${PROJECT_NAME}
 )

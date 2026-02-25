@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 """
-ROS node for visualizing trajectories of selected frames from TF tree in RViz.
+ROS node for visualizing trajectories of selected frames from the TF tree.
 """
 
 import math
@@ -23,8 +23,7 @@ class TrajectoryVisualizer(Node):
     For each transform, it maintains a fixed-length buffer of previous positions. This buffer is
     only updated if the distance between the new point and the last point in the buffer exceeds a
     set threshold. Positions are published through a visualization_msgs/MarkerArray message, where
-    each entry is a line strip whose points correspond to the positions of that frame. Published
-    messages are intented to be visualized in RViz or any other compatible renderer.
+    each entry is a line strip whose points correspond to the positions of that frame.
     """
 
     TIMER_PERIOD = 0.1
