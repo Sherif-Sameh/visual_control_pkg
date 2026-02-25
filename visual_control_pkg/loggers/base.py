@@ -17,15 +17,11 @@ class Logger(ABC):
         filter: Optional filter strings to filter metrics for logging.
     """
 
-    def __init__(
-        self, *, n_log: int = 1, n_flush: int = 1, filter: str | list[str] | None = None
-    ):
+    def __init__(self, *, n_log: int = 1, n_flush: int = 1, filter: str | list[str] | None = None):
         assert n_log <= n_flush, (
             "Logging interval must be less than or equal to interval for flushing logger."
         )
-        assert n_flush % n_log == 0, (
-            "Flushing interval must be a multiple of the logging interval."
-        )
+        assert n_flush % n_log == 0, "Flushing interval must be a multiple of the logging interval."
         self._n_log = n_log
         self._n_flush = n_flush
         self._filter = [filter] if isinstance(filter, str) else filter

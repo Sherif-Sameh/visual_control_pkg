@@ -1,11 +1,9 @@
-from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument
-from launch.substitutions import (
-    LaunchConfiguration,
-    PathJoinSubstitution,
-)
+from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
 from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
+
+from launch import LaunchDescription
 
 
 def declare_arguments() -> list[DeclareLaunchArgument]:
@@ -68,8 +66,7 @@ def declare_arguments() -> list[DeclareLaunchArgument]:
         DeclareLaunchArgument(
             "csv_n_log",
             default_value="1",
-            description="Logging interval for CSV logger relative to logging period."
-            " Default is 1.",
+            description="Logging interval for CSV logger relative to logging period. Default is 1.",
         )
     )
     declared_arguments.append(
@@ -120,19 +117,11 @@ def generate_launch_description() -> LaunchDescription:
     console_n_flush = LaunchConfiguration("console_n_flush")
     csv_n_log = LaunchConfiguration("csv_n_log")
     csv_n_flush = LaunchConfiguration("csv_n_flush")
-    csv_dir = PathJoinSubstitution(
-        [
-            FindPackageShare("visual_control_pkg"),
-            "../../../../logs/csv",
-        ]
-    )
+    csv_dir = PathJoinSubstitution([FindPackageShare("visual_control_pkg"), "../../../../logs/csv"])
     wandb_n_log = LaunchConfiguration("wandb_n_log")
     wandb_n_flush = LaunchConfiguration("wandb_n_flush")
     wandb_dir = PathJoinSubstitution(
-        [
-            FindPackageShare("visual_control_pkg"),
-            "../../../../logs/wandb",
-        ]
+        [FindPackageShare("visual_control_pkg"), "../../../../logs/wandb"]
     )
     wandb_group = LaunchConfiguration("wandb_group")
     wandb_params = [
@@ -161,10 +150,7 @@ def generate_launch_description() -> LaunchDescription:
             {
                 "timer_period": period,
                 "n_runs": n_runs,
-                "param_servers": [
-                    "apriltag/get_parameters",
-                    "ibvs_controller/get_parameters",
-                ],
+                "param_servers": ["apriltag/get_parameters", "ibvs_controller/get_parameters"],
                 "log.console": console,
                 "log.csv": csv,
                 "log.wandb": wandb,
@@ -190,10 +176,7 @@ def generate_launch_description() -> LaunchDescription:
         ],
         remappings=[
             ("/joint_states", "/isaaclab/joint_states"),
-            (
-                "/joint_trajectory",
-                "/isaaclab/joint_trajectory_controller/joint_trajectory",
-            ),
+            ("/joint_trajectory", "/isaaclab/joint_trajectory_controller/joint_trajectory"),
             ("/pose_error", "/isaaclab/pose_error"),
             ("/setpoint_error", "/ibvs_controller/pose_error"),
             ("/ros_logger/restart", "/isaaclab/reset"),

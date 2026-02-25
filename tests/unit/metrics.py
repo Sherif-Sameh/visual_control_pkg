@@ -4,11 +4,8 @@ from typing import TYPE_CHECKING, Callable, Literal
 
 import numpy as np
 import pytest
-from visual_control_pkg.metrics import (
-    AccumulatorMetric,
-    ComposeMetric,
-    FunctionalMetric,
-)
+
+from visual_control_pkg.metrics import AccumulatorMetric, ComposeMetric, FunctionalMetric
 
 if TYPE_CHECKING:
     from numpy.typing import NDArray
@@ -57,9 +54,7 @@ def test_functional_metric(
     n_samples = 5
     sample_size = 2
     metric = FunctionalMetric(
-        name="func_acc",
-        metric=AccumulatorMetric(name="acc", argname="sample", red=red),
-        func=func,
+        name="func_acc", metric=AccumulatorMetric(name="acc", argname="sample", red=red), func=func
     )
 
     # Test `update()` and `compute()` methods

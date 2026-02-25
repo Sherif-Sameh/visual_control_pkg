@@ -30,9 +30,7 @@ class DetectorDebugger(Node):
 
         # Initialize ROS attributes
         self._pub_img = self.create_publisher(Image, "/detector_debugger/image", 0)
-        self._sub_img = self.create_subscription(
-            Image, "/image", self.callback_image, 0
-        )
+        self._sub_img = self.create_subscription(Image, "/image", self.callback_image, 0)
         self._sub_dtn = self.create_subscription(
             AprilTagDetectionArray, "/detections", self.callback_detection, 0
         )
@@ -119,10 +117,7 @@ class DetectorDebugger(Node):
             self._img = cv2.putText(
                 self._img,
                 text=f"ID:{dtn.id}",
-                org=(
-                    int(dtn.center.x) - CENTER_OFFSET[0],
-                    int(dtn.center.y) - CENTER_OFFSET[1],
-                ),
+                org=(int(dtn.center.x) - CENTER_OFFSET[0], int(dtn.center.y) - CENTER_OFFSET[1]),
                 fontFace=FONT_FACE,
                 fontScale=FONT_SCALE,
                 color=FONT_COLOR,

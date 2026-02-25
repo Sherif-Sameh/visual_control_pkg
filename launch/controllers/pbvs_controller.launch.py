@@ -1,15 +1,11 @@
 import numpy as np
-from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument
-from launch.substitutions import (
-    Command,
-    FindExecutable,
-    LaunchConfiguration,
-    PathJoinSubstitution,
-)
+from launch.substitutions import Command, FindExecutable, LaunchConfiguration, PathJoinSubstitution
 from launch_ros.actions import Node
 from launch_ros.parameter_descriptions import ParameterValue
 from launch_ros.substitutions import FindPackageShare
+
+from launch import LaunchDescription
 
 
 def declare_arguments() -> list[DeclareLaunchArgument]:
@@ -186,9 +182,7 @@ def generate_launch_description() -> LaunchDescription:
         [
             PathJoinSubstitution([FindExecutable(name="xacro")]),
             " ",
-            PathJoinSubstitution(
-                [FindPackageShare(description_package), "urdf", description_file]
-            ),
+            PathJoinSubstitution([FindPackageShare(description_package), "urdf", description_file]),
             " ",
             "safety_limits:=",
             safety_limits,
@@ -239,10 +233,7 @@ def generate_launch_description() -> LaunchDescription:
             }
         ],
         remappings=[
-            (
-                "/joint_trajectory_controller/joint_trajectory",
-                joint_trajectory_topic_name,
-            ),
+            ("/joint_trajectory_controller/joint_trajectory", joint_trajectory_topic_name),
             ("/joint_states", joint_states_topic_name),
             ("/detections", detections_topic_name),
         ],

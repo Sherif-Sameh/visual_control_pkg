@@ -1,7 +1,7 @@
 import os
 from dataclasses import dataclass, field
-from typing import Any
 from pathlib import Path
+from typing import Any
 
 import wandb
 
@@ -39,13 +39,9 @@ class WandBLogger(Logger):
         self._metric_names = []
 
         # Find WandB API environment variable
-        assert "WANDB_API_KEY" in os.environ, (
-            "WANDB_API_KEY environment variable is not set."
-        )
+        assert "WANDB_API_KEY" in os.environ, "WANDB_API_KEY environment variable is not set."
         wandb_api_key = os.environ["WANDB_API_KEY"]
-        wandb_api_key = (
-            str(wandb_api_key) if not isinstance(wandb_api_key, str) else wandb_api_key
-        )
+        wandb_api_key = str(wandb_api_key) if not isinstance(wandb_api_key, str) else wandb_api_key
 
         # Initialize WandB run
         wandb.login(key=wandb_api_key)

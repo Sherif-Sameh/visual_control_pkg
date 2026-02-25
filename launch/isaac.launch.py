@@ -1,13 +1,9 @@
-from launch import LaunchDescription
-from launch.actions import (
-    DeclareLaunchArgument,
-    IncludeLaunchDescription,
-    OpaqueFunction,
-)
+from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription, OpaqueFunction
+from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
 from launch_ros.substitutions import FindPackageShare
-from launch.launch_description_sources import PythonLaunchDescriptionSource
 
+from launch import LaunchDescription
 
 # Contants
 UR_TYPE = "ur10e"
@@ -35,11 +31,7 @@ def declare_arguments() -> list[DeclareLaunchArgument]:
             "backends",
             default_value="CPU",
             description="Backend to perform detection with. Default value is CPU.",
-            choices=[
-                "CUDA",
-                "CPU",
-                "PVA",
-            ],
+            choices=["CUDA", "CPU", "PVA"],
         )
     )
     declared_arguments.append(
@@ -57,10 +49,7 @@ def declare_arguments() -> list[DeclareLaunchArgument]:
             "controller",
             default_value="pbvs",
             description="Controller to use for tracking. Default is pbvs",
-            choices=[
-                "pbvs",
-                "ibvs",
-            ],
+            choices=["pbvs", "ibvs"],
         )
     )
     declared_arguments.append(
@@ -74,9 +63,7 @@ def declare_arguments() -> list[DeclareLaunchArgument]:
     # General arguments
     declared_arguments.append(
         DeclareLaunchArgument(
-            "rviz",
-            default_value="true",
-            description="Launch RViz. Defaults to true.",
+            "rviz", default_value="true", description="Launch RViz. Defaults to true."
         )
     )
     declared_arguments.append(
@@ -211,10 +198,7 @@ def generate_launch_description() -> LaunchDescription:
         }.items(),
     )
 
-    launch_files = [
-        view_ur_launch,
-        isaac_ros_apriltag_launch,
-    ]
+    launch_files = [view_ur_launch, isaac_ros_apriltag_launch]
 
     # Add opaque functions
     opaque_functions = [OpaqueFunction(function=launch_setup)]

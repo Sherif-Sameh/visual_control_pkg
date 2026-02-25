@@ -1,8 +1,9 @@
-from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, OpaqueFunction
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import ComposableNodeContainer, Node
 from launch_ros.descriptions import ComposableNode
+
+from launch import LaunchDescription
 
 
 def declare_arguments() -> list[DeclareLaunchArgument]:
@@ -57,11 +58,7 @@ def declare_arguments() -> list[DeclareLaunchArgument]:
             "backends",
             default_value="CUDA",
             description="Backend to perform detection with. Default value is CUDA.",
-            choices=[
-                "CUDA",
-                "CPU",
-                "PVA",
-            ],
+            choices=["CUDA", "CPU", "PVA"],
         )
     )
 
@@ -154,9 +151,7 @@ def generate_launch_description() -> LaunchDescription:
         name="apriltag_container",
         namespace="",
         executable="component_container_mt",
-        composable_node_descriptions=[
-            apriltag_node,
-        ],
+        composable_node_descriptions=[apriltag_node],
         output="screen",
     )
 

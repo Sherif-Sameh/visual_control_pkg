@@ -20,9 +20,7 @@ class FunctionalMetric(Metric):
         func: Function to apply to input values before calling the `update()` method.
     """
 
-    def __init__(
-        self, *, name: str, metric: Metric, func: Callable[[NDArray], NDArray]
-    ):
+    def __init__(self, *, name: str, metric: Metric, func: Callable[[NDArray], NDArray]):
         super().__init__(name=name, argname=metric.argname)
         self._metric = metric
         self._func = func

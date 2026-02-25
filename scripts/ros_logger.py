@@ -14,6 +14,7 @@ from scipy.spatial.transform import Rotation as R
 from sensor_msgs.msg import JointState
 from std_msgs.msg import Empty, Header
 from trajectory_msgs.msg import JointTrajectory
+
 from visual_control_pkg.loggers import ComposeLogger, ConsoleLogger, ROSWrapperLogger
 from visual_control_pkg.loggers.csv import CSVLogger
 from visual_control_pkg.loggers.wandb import WandBLogger
@@ -78,9 +79,7 @@ class ROSLogger(Node):
         n_runs = self.get_parameter("n_runs").value
         self._n_runs_left = float("inf") if n_runs <= 0 else n_runs
         self._param_servers: list[str] = self.get_parameter("param_servers").value
-        self._log_flags = {
-            k: v.value for k, v in self.get_parameters_by_prefix("log").items()
-        }
+        self._log_flags = {k: v.value for k, v in self.get_parameters_by_prefix("log").items()}
         if not any(f for f in self._log_flags.values()):
             self.get_logger().info("None of the logging outputs are enabled.")
             self.get_logger().info("Shutting down.")
@@ -90,31 +89,21 @@ class ROSLogger(Node):
         self._start_time = self.get_clock().now().nanoseconds * 1e-9
 
         # Initialize ROS attributes
-        self._sub_js = self.create_subscription(
-            JointState, "/joint_states", self.callback_js, 10
-        )
+        self._sub_js = self.create_subscription(JointState, "/joint_states", self.callback_js, 10)
         self._sub_jt = self.create_subscription(
             JointTrajectory, "/joint_trajectory", self.callback_jt, 10
         )
-        self._sub_pe = self.create_subscription(
-            PoseStamped, "/pose_error", self.callback_pe, 10
-        )
-        self._sub_se = self.create_subscription(
-            PoseArray, "/setpoint_error", self.callback_se, 10
-        )
+        self._sub_pe = self.create_subscription(PoseStamped, "/pose_error", self.callback_pe, 10)
+        self._sub_se = self.create_subscription(PoseArray, "/setpoint_error", self.callback_se, 10)
         self._sub_rst = self.create_subscription(
             Empty, "/ros_logger/restart", self.callback_rst, 10
         )
         self._timer = self.create_timer(timer_period, self.callback_timer)
         if self._log_flags["wandb"]:
-            self._cli = [
-                self.create_client(GetParameters, ps) for ps in self._param_servers
-            ]
+            self._cli = [self.create_client(GetParameters, ps) for ps in self._param_servers]
             for ps, c in zip(self._param_servers, self._cli):
                 while not c.wait_for_service(timeout_sec=1.0):
-                    self.get_logger().info(
-                        f"{ps} service not available, waiting again..."
-                    )
+                    self.get_logger().info(f"{ps} service not available, waiting again...")
 
     @property
     def shutdown(self) -> bool:
@@ -185,9 +174,7 @@ class ROSLogger(Node):
         for i, pose in enumerate(msg.poses):
             pos, rot = pose.position, pose.orientation
             kwargs[f"position_{i}"] = np.array([pos.x, pos.y, pos.z])
-            kwargs[f"rotvec_{i}"] = R.from_quat(
-                [rot.x, rot.y, rot.z, rot.w]
-            ).as_rotvec()
+            kwargs[f"rotvec_{i}"] = R.from_quat([rot.x, rot.y, rot.z, rot.w]).as_rotvec()
         self._metrics["se"][0] = self._get_timestep(msg.header)
         self._metrics["se"][1].reset()
         self._metrics["se"][1].update(**kwargs)
@@ -207,9 +194,7 @@ class ROSLogger(Node):
 
     def _init_console_logger(self) -> ROSWrapperLogger:
         """Initialize and return a ConsoleLogger according to its declared parameters."""
-        params = {
-            k: v.value for k, v in self.get_parameters_by_prefix("console").items()
-        }
+        params = {k: v.value for k, v in self.get_parameters_by_prefix("console").items()}
         return ROSWrapperLogger(
             n_hold=4,
             logger=ConsoleLogger(
@@ -258,10 +243,7 @@ class ROSLogger(Node):
             rclpy.spin_until_future_complete(self, future)
             response: GetParameters.Response = future.result()
             param_dict.update(
-                {
-                    k: parameter_value_to_python(v)
-                    for k, v in zip(request.names, response.values)
-                }
+                {k: parameter_value_to_python(v) for k, v in zip(request.names, response.values)}
             )
         return ROSWrapperLogger(
             n_hold=4,
@@ -298,9 +280,7 @@ class ROSLogger(Node):
         if len(msg.points[0].velocities) > 0:
             metrics.append(AccM(name="JT (Velocity)", argname="velocity", red="mean"))
         if len(msg.points[0].accelerations) > 0:
-            metrics.append(
-                AccM(name="JT (Acceleration)", argname="acceleration", red="mean")
-            )
+            metrics.append(AccM(name="JT (Acceleration)", argname="acceleration", red="mean"))
         if len(msg.points[0].effort) > 0:
             metrics.append(AccM(name="JT (Effort)", argname="effort", red="mean"))
         return ComposeMetric(metrics=metrics)
@@ -315,12 +295,8 @@ class ROSLogger(Node):
     def _init_se_metric(self, msg: PoseArray) -> ComposeMetric:
         metrics = []
         for i in range(len(msg.poses)):
-            metrics.append(
-                AccM(name=f"SE_{i} (Position)", argname=f"position_{i}", red="mean")
-            )
-            metrics.append(
-                AccM(name=f"SE_{i} (RotVec)", argname=f"rotvec_{i}", red="mean")
-            )
+            metrics.append(AccM(name=f"SE_{i} (Position)", argname=f"position_{i}", red="mean"))
+            metrics.append(AccM(name=f"SE_{i} (RotVec)", argname=f"rotvec_{i}", red="mean"))
         return ComposeMetric(metrics=metrics)
 
 

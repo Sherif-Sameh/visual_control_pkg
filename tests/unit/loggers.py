@@ -1,9 +1,10 @@
-from pathlib import Path
 from ast import literal_eval
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
 import pytest
+
 from visual_control_pkg.loggers import ConsoleLogger
 from visual_control_pkg.loggers.csv import CSVLogger
 from visual_control_pkg.loggers.wandb import WandBLogger
@@ -33,9 +34,7 @@ def test_console_logger(capsys: pytest.CaptureFixture) -> None:
 
         # Initialize and test console logger with n_log and n_flush != 1
         n_log, n_flush = 2, 4
-        print(
-            f"Console Logger (n_log={n_log}, n_flush={n_flush}, filter=None, config=Default)"
-        )
+        print(f"Console Logger (n_log={n_log}, n_flush={n_flush}, filter=None, config=Default)")
         logger = ConsoleLogger(n_log=n_log, n_flush=n_flush, filter=None)
         for i in range(n_flush):
             metrics.reset()
@@ -57,9 +56,7 @@ def test_console_logger(capsys: pytest.CaptureFixture) -> None:
         print("\n")
 
         # Initialize and test console logger with filter
-        print(
-            "Console Logger (n_log=1, n_flush=1, filter=None, config=(precision=2, sign='-'))"
-        )
+        print("Console Logger (n_log=1, n_flush=1, filter=None, config=(precision=2, sign='-'))")
         logger = ConsoleLogger(
             n_log=1,
             n_flush=1,
@@ -135,11 +132,7 @@ def test_wandb_logger(capsys: pytest.CaptureFixture):
                 project="visual_control|PBVS",
                 group="Test",
                 dir=Path(__file__).parent,
-                config={
-                    "test_attr1": 1,
-                    "test_attr2": 0.5,
-                    "test_attr3": {"a": 1, "b": 2, "c": 3},
-                },
+                config={"test_attr1": 1, "test_attr2": 0.5, "test_attr3": {"a": 1, "b": 2, "c": 3}},
             ),
         )
         logger.log(step=0.0, metrics=metrics.compute())
