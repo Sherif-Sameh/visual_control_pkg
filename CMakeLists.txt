@@ -93,6 +93,7 @@ ament_python_install_package(${PROJECT_NAME})
 install(PROGRAMS
   scripts/detector_debugger.py
   scripts/ros_logger.py
+  scripts/visualizers/trajectory_visualizer.py
   DESTINATION lib/${PROJECT_NAME}
 )
 

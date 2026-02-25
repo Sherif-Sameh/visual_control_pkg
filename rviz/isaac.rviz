@@ -8,7 +8,6 @@ Panels:
         - /RobotModel1/Description Topic1
         - /TF1
         - /TF1/Frames1
-        - /TF1/Frames1/world1
       Splitter Ratio: 0.5
     Tree Height: 508
   - Class: rviz_common/Selection
@@ -155,7 +154,13 @@ Visualization Manager:
           Value: true
         base_link_inertia:
           Value: false
-        camera_optical_color_frame:
+        camera_color_optical_frame:
+          Value: false
+        camera_color_optical_frame:0:
+          Value: true
+        camera_color_optical_frame:1:
+          Value: true
+        camera_color_optical_frame_gt:
           Value: true
         flange:
           Value: false
@@ -165,6 +170,10 @@ Visualization Manager:
           Value: false
         shoulder_link:
           Value: false
+        tag36h11:0:
+          Value: true
+        tag36h11:1:
+          Value: true
         tool0:
           Value: false
         upper_arm_link:
@@ -176,15 +185,7 @@ Visualization Manager:
         wrist_2_link:
           Value: false
         wrist_3_link:
-          Value: true
-        tag36h11:0:
-          Value: true
-        tag36h11:1:
-          Value: true
-        camera_color_optical_frame:0:
-          Value: true
-        camera_color_optical_frame:1:
-          Value: true
+          Value: false
       Marker Scale: 1
       Name: TF
       Show Arrows: true
@@ -203,7 +204,14 @@ Visualization Manager:
                   wrist_1_link:
                     wrist_2_link:
                       wrist_3_link:
-                        camera_optical_color_frame:
+                        camera_color_optical_frame:
+                          tag36h11:0:
+                            camera_color_optical_frame:0:
+                              {}
+                          tag36h11:1:
+                            camera_color_optical_frame:1:
+                              {}
+                        camera_color_optical_frame_gt:
                           {}
                         flange:
                           tool0:
@@ -211,6 +219,18 @@ Visualization Manager:
                         ft_frame:
                           {}
       Update Interval: 0
+      Value: true
+    - Class: rviz_default_plugins/MarkerArray
+      Enabled: true
+      Name: MarkerArray
+      Namespaces:
+        trajectory_visualizer: true
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /trajectory_visualizer/trajectory
       Value: true
   Enabled: true
   Global Options:
@@ -258,7 +278,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz_default_plugins/Orbit
-      Distance: 4.644041061401367
+      Distance: 3.8563950061798096
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -273,10 +293,10 @@ Visualization Manager:
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.630398154258728
+      Pitch: 0.8303980231285095
       Target Frame: <Fixed Frame>
       Value: Orbit (rviz)
-      Yaw: 0.655399739742279
+      Yaw: 6.108584880828857
     Saved: ~
 Window Geometry:
   Displays:
