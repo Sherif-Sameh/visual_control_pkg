@@ -174,6 +174,8 @@ def _launch_setup_visualizer(context) -> list[IncludeLaunchDescription]:
         launch.append(_include_visualizer_robot())
     if "t" in visualizer:
         launch.append(_include_visualizer_trajectory())
+    if "d" in visualizer:
+        launch.append(_include_visualizer_detection())
     return launch
 
 
@@ -211,6 +213,25 @@ def _include_visualizer_trajectory() -> IncludeLaunchDescription:
             "source": f"[{EE_FRAME}]",
             "length": length,
             "reset_topic_name": RESET_TOPIC_NAME,
+        }.items(),
+    )
+
+
+def _include_visualizer_detection() -> IncludeLaunchDescription:
+    return IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(
+            PathJoinSubstitution(
+                [
+                    FindPackageShare("visual_control_pkg"),
+                    "launch",
+                    "visualizers",
+                    "detection_visualizer.launch.py",
+                ]
+            )
+        ),
+        launch_arguments={
+            "image_topic_name": IMAGE_TOPIC_NAME,
+            "detections_topic_name": DETECTIONS_TOPIC_NAME,
         }.items(),
     )
 

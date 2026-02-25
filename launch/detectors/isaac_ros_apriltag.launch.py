@@ -1,6 +1,6 @@
-from launch.actions import DeclareLaunchArgument, OpaqueFunction
+from launch.actions import DeclareLaunchArgument
 from launch.substitutions import LaunchConfiguration
-from launch_ros.actions import ComposableNodeContainer, Node
+from launch_ros.actions import ComposableNodeContainer
 from launch_ros.descriptions import ComposableNode
 
 from launch import LaunchDescription
@@ -62,16 +62,6 @@ def declare_arguments() -> list[DeclareLaunchArgument]:
         )
     )
 
-    # Detector debugger arguments
-    declared_arguments.append(
-        DeclareLaunchArgument(
-            "use_debugger",
-            default_value="false",
-            description="Enable the Apriltag detector debugger node for publishing"
-            " additional visualizations. Default value is false.",
-        )
-    )
-
     # General arguments
     declared_arguments.append(
         DeclareLaunchArgument(
@@ -88,27 +78,6 @@ def declare_arguments() -> list[DeclareLaunchArgument]:
         )
     )
     return declared_arguments
-
-
-def launch_setup(context) -> list[Node]:
-    use_debugger = LaunchConfiguration("use_debugger").perform(context)
-    image_topic_name = LaunchConfiguration("image_topic_name")
-
-    # Launch node based on argument value
-    if use_debugger == "true":
-        return [
-            Node(
-                package="visual_control_pkg",
-                executable="detector_debugger.py",
-                output="screen",
-                remappings=[
-                    ("/image", image_topic_name),
-                    ("/detections", "/detector/tag_detections"),
-                ],
-            )
-        ]
-
-    return []
 
 
 def generate_launch_description() -> LaunchDescription:
@@ -156,7 +125,4 @@ def generate_launch_description() -> LaunchDescription:
     )
 
     nodes_to_start = [apriltag_container]
-
-    # Add opaque functions
-    opaque_functions = [OpaqueFunction(function=launch_setup)]
-    return LaunchDescription(declared_arguments + nodes_to_start + opaque_functions)
+    return LaunchDescription(declared_arguments + nodes_to_start)
