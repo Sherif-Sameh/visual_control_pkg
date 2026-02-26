@@ -1,3 +1,7 @@
+import os
+
+import toml
+from ament_index_python.packages import get_package_share_directory
 from launch.actions import DeclareLaunchArgument
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
@@ -23,43 +27,6 @@ def declare_arguments() -> list[DeclareLaunchArgument]:
             description="Names of source frames for each tracked frame. Default is ['ee_link'].",
         )
     )
-    declared_arguments.append(
-        DeclareLaunchArgument(
-            "length",
-            default_value="30",
-            description="Length of trajectory for each tracked frame. Default is 30.",
-        )
-    )
-    declared_arguments.append(
-        DeclareLaunchArgument(
-            "spacing",
-            default_value="0.025",
-            description="Spacing threshold for adding new point to tracked trajectories in meters."
-            " Default is 0.025.",
-        )
-    )
-    declared_arguments.append(
-        DeclareLaunchArgument(
-            "width",
-            default_value="0.025",
-            description="Width of line strip for each tracked frame in meters. Default is 0.025.",
-        )
-    )
-    declared_arguments.append(
-        DeclareLaunchArgument(
-            "alpha",
-            default_value="0.5",
-            description="Opacity of line strip for each tracked frame. Default is 0.5.",
-        )
-    )
-    declared_arguments.append(
-        DeclareLaunchArgument(
-            "color",
-            default_value="[0.0, 1.0, 0.0]",
-            description="Concatenated list of RGB colors for each tracked frame."
-            " Default is [0.0, 1.0, 0.0].",
-        )
-    )
 
     # General arguments
     declared_arguments.append(
@@ -79,30 +46,20 @@ def generate_launch_description() -> LaunchDescription:
     # Initialize Arguments
     target = LaunchConfiguration("target")
     source = LaunchConfiguration("source")
-    length = LaunchConfiguration("length")
-    spacing = LaunchConfiguration("spacing")
-    width = LaunchConfiguration("width")
-    alpha = LaunchConfiguration("alpha")
-    color = LaunchConfiguration("color")
 
     reset_topic_name = LaunchConfiguration("reset_topic_name")
+
+    # Load configuration from toml
+    pkg_share = get_package_share_directory("visual_control_pkg")
+    config_path = os.path.join(pkg_share, "config", "visualizers", "trajectory_visualizer.toml")
+    config = toml.load(config_path)
 
     # Initialize nodes to start
     trajectory_visualizer_node = Node(
         package="visual_control_pkg",
         executable="trajectory_visualizer.py",
         output="screen",
-        parameters=[
-            {
-                "frame.target": target,
-                "frame.source": source,
-                "traj.length": length,
-                "traj.spacing": spacing,
-                "traj.width": width,
-                "traj.alpha": alpha,
-                "traj.color": color,
-            }
-        ],
+        parameters=[{"frame.target": target, "frame.source": source, **config["visualizer"]}],
         remappings=[("/trajectory_visualizer/reset", reset_topic_name)],
     )
 

@@ -46,13 +46,6 @@ def declare_arguments() -> list[DeclareLaunchArgument]:
             " any character (e.g., ' ') to disable all. Default is 'r,t'.",
         )
     )
-    declared_arguments.append(
-        DeclareLaunchArgument(
-            "length",
-            default_value="30",
-            description="Length of visualized trajectory for end-effector. Default is 30.",
-        )
-    )
 
     # Controller arguments
     declared_arguments.append(
@@ -186,7 +179,6 @@ def _include_visualizer_robot() -> IncludeLaunchDescription:
 
 
 def _include_visualizer_trajectory() -> IncludeLaunchDescription:
-    length = LaunchConfiguration("length")
     return IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
             PathJoinSubstitution(
@@ -201,7 +193,6 @@ def _include_visualizer_trajectory() -> IncludeLaunchDescription:
         launch_arguments={
             "target": f"[{BASE_FRAME}]",
             "source": f"[{EE_FRAME}]",
-            "length": length,
             "reset_topic_name": RESET_TOPIC_NAME,
         }.items(),
     )

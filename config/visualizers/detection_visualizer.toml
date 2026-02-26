@@ -1,0 +1,15 @@
+### AprilTag Detections Visualizer Configuration ###
+
+[visualizer]
+
+# Tag center parameters
+"center.radius" = 5
+
+# Tag border parameters
+"border.thickness" = 2
+
+# Tag ID font parameters
+"font.thickness" = 2
+"font.scale" = 1.0
+"font.offset_x" = -35
+"font.offset_y" = -35
