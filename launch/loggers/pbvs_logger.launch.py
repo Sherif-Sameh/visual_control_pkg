@@ -88,9 +88,9 @@ def declare_arguments() -> list[DeclareLaunchArgument]:
     declared_arguments.append(
         DeclareLaunchArgument(
             "wandb_n_flush",
-            default_value="10",
+            default_value="2",
             description="Flushing interval for WandB logger relative to logging period."
-            " Default is 10.",
+            " Default is 2.",
         )
     )
     declared_arguments.append(

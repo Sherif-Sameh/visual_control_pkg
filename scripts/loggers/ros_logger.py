@@ -89,12 +89,12 @@ class ROSLogger(Node):
         self._start_time = self.get_clock().now().nanoseconds * 1e-9
 
         # Initialize ROS attributes
-        self._sub_js = self.create_subscription(JointState, "/joint_states", self.callback_js, 10)
+        self._sub_js = self.create_subscription(JointState, "/joint_states", self.callback_js, 50)
         self._sub_jt = self.create_subscription(
-            JointTrajectory, "/joint_trajectory", self.callback_jt, 10
+            JointTrajectory, "/joint_trajectory", self.callback_jt, 50
         )
-        self._sub_pe = self.create_subscription(PoseStamped, "/pose_error", self.callback_pe, 10)
-        self._sub_se = self.create_subscription(PoseArray, "/setpoint_error", self.callback_se, 10)
+        self._sub_pe = self.create_subscription(PoseStamped, "/pose_error", self.callback_pe, 50)
+        self._sub_se = self.create_subscription(PoseArray, "/setpoint_error", self.callback_se, 50)
         self._sub_rst = self.create_subscription(
             Empty, "/ros_logger/restart", self.callback_rst, 10
         )

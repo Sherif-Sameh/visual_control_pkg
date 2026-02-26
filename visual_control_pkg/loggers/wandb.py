@@ -1,11 +1,17 @@
+from __future__ import annotations
+
 import os
 from dataclasses import dataclass, field
-from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import wandb
 
 from .base import Logger
+
+if TYPE_CHECKING:
+    from pathlib import Path
+
+    from numpy.typing import NDArray
 
 
 class WandBLogger(Logger):
@@ -36,7 +42,6 @@ class WandBLogger(Logger):
     ):
         super().__init__(n_log=n_log, n_flush=n_flush, filter=filter)
         self._config = config
-        self._metric_names = []
 
         # Find WandB API environment variable
         assert "WANDB_API_KEY" in os.environ, "WANDB_API_KEY environment variable is not set."
@@ -51,25 +56,34 @@ class WandBLogger(Logger):
         """Saves stored logs to WandB project and run."""
         if not self._log:
             return
-        # Prepare logs for WandB
-        # 1) Add step entry to dicts
-        # 2) Define any new metrics
-        # 3) Separate array entries
-        for step in self._log.keys():
-            step_mod = {"logger_step": step}
-            for name, value in self._log[step].items():
-                for i, v in enumerate(value):
-                    metric_name = f"{name}/{i}"
-                    if metric_name not in self._metric_names:
-                        self._run.define_metric(metric_name, step_metric="logger_step")
-                        self._metric_names.append(metric_name)
-                    step_mod[metric_name] = v
-            self._log[step] = step_mod
 
         # Log existing at each step
         for step in self._log.keys():
             self._run.log(self._log[step])
         self._log.clear()
+
+    def log(self, step: float, metrics: dict[str, NDArray]) -> None:
+        """Logs all tracked metrics at the given step.
+
+        **Note**: Logs are flushed automatically when the set interval is reached.
+
+        Entries of NumPy arrays are separated into individual metrics since WandB's `log()` method
+        does not accept NumPy array values.
+
+        Args:
+            step: Current step for logging metrics. Gets rounded to 3 digits.
+            metrics: Dictionary mapping metric names to their ndarray values.
+        """
+        self._count += 1
+        if self._count % self._n_log == 0:
+            filtered_metrics = self.filter(metrics)
+            if filtered_metrics:
+                filtered_metrics = self._split_metrics(filtered_metrics)
+                filtered_metrics["logger_step"] = step
+                self._log[round(step, 3)] = filtered_metrics
+        if self._count % self._n_flush == 0:
+            self.flush()
+            self._count = 0
 
     def restart(self) -> None:
         """Restart the logger without reinitialization.
@@ -91,3 +105,7 @@ class WandBLogger(Logger):
         super().close()
         if self._run:
             self._run.finish()
+
+    @staticmethod
+    def _split_metrics(metrics: dict[str, NDArray]) -> dict[str, float]:
+        return {f"{k}/{i}": v[i] for k, v in metrics.items() for i in range(v.shape[0])}
