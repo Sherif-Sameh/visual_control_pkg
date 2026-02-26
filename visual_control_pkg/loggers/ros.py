@@ -49,3 +49,7 @@ class ROSWrapperLogger(Logger):
     def restart(self) -> None:
         """Restarts the wrapped logger."""
         self._logger.restart()
+
+    def close(self) -> None:
+        """Close the wrapped logger."""
+        self._logger.close()

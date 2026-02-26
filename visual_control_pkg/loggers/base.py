@@ -28,9 +28,6 @@ class Logger(ABC):
         self._log = defaultdict(dict)
         self._count = 0
 
-    def __del__(self):
-        self.flush()
-
     @abstractmethod
     def flush(self) -> None:
         """Flushes stored logs to the logging output destination."""
@@ -72,4 +69,8 @@ class Logger(ABC):
 
         Flushes all existing logs.
         """
+        self.flush()
+
+    def close(self) -> None:
+        """Close the logger and any of its resources cleanly."""
         self.flush()

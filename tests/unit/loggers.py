@@ -67,6 +67,7 @@ def test_console_logger(capsys: pytest.CaptureFixture) -> None:
         logger.log(step=0.0, metrics=metrics.compute())
         assert logger._log == {}
         print("\n")
+        logger.close()
 
 
 @pytest.mark.unit
@@ -107,6 +108,7 @@ def test_csv_logger():
     assert df.loc[metric2.name] is not None
     assert df.shape[0] == 6
     logger._path.unlink()  # Clean up test CSV file
+    logger.close()
 
 
 @pytest.mark.unit
@@ -154,3 +156,4 @@ def test_wandb_logger(capsys: pytest.CaptureFixture):
         metric3.update(vel=vel)
         logger.log(step=0.10, metrics={"VelError": metric3.compute()})
         assert logger._log == {}
+        logger.close()

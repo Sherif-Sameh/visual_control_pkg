@@ -40,3 +40,8 @@ class ComposeLogger(Logger):
         """Restart all composed loggers."""
         for logger in self._loggers:
             logger.restart()
+
+    def close(self) -> None:
+        """Close all composed loggers."""
+        for logger in self._loggers:
+            logger.close()

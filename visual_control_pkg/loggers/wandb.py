@@ -47,11 +47,6 @@ class WandBLogger(Logger):
         wandb.login(key=wandb_api_key)
         self.restart()
 
-    def __del__(self):
-        self.flush()
-        if self._run:
-            self._run.finish()
-
     def flush(self) -> None:
         """Saves stored logs to WandB project and run."""
         if not self._log:
@@ -73,8 +68,7 @@ class WandBLogger(Logger):
 
         # Log existing at each step
         for step in self._log.keys():
-            self._run.log(self._log[step], commit=False)
-        self._run.log({}, commit=True)
+            self._run.log(self._log[step])
         self._log.clear()
 
     def restart(self) -> None:
@@ -91,3 +85,9 @@ class WandBLogger(Logger):
             config=self._config.config,
             reinit="finish_previous",
         )
+
+    def close(self) -> None:
+        """Close the logger and finish active WandB run cleanly."""
+        super().close()
+        if self._run:
+            self._run.finish()
