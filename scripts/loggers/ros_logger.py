@@ -124,6 +124,10 @@ class ROSLogger(Node):
             self.get_logger().info("Initialized WandB logger.")
         self._loggers = ComposeLogger(loggers=loggers)
 
+    def close(self) -> None:
+        """Close all active loggers cleanly."""
+        self._loggers.close()
+
     def callback_timer(self) -> None:
         for step, metric in self._metrics.values():
             self._loggers.log(step, metric.compute())
@@ -181,11 +185,12 @@ class ROSLogger(Node):
 
     def callback_rst(self, msg: Empty) -> None:
         self._n_runs_left -= 1
-        self._loggers.restart()
-        for _, metric in self._metrics.values():
-            metric.reset()
-        self._start_time = self.get_clock().now().nanoseconds * 1e-9
-        self.get_logger().info("Restarted ROS logger.")
+        if not self.shutdown:
+            self._loggers.restart()
+            for _, metric in self._metrics.values():
+                metric.reset()
+            self._start_time = self.get_clock().now().nanoseconds * 1e-9
+            self.get_logger().info("Restarted ROS logger.")
 
     def _get_timestep(self, header: Header) -> float:
         """Get the current timestep for the provided header since the node's initialization."""
@@ -309,6 +314,7 @@ def main(args=None):
     if ros_logger.shutdown:
         ros_logger.get_logger().info("Completed planned runs.")
         ros_logger.get_logger().info("Shutting down.")
+    ros_logger.close()
     ros_logger.destroy_node()
     rclpy.shutdown()
 

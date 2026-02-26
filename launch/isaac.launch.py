@@ -36,21 +36,13 @@ def declare_arguments() -> list[DeclareLaunchArgument]:
             choices=["CUDA", "CPU", "PVA"],
         )
     )
-    declared_arguments.append(
-        DeclareLaunchArgument(
-            "use_debugger",
-            default_value="false",
-            description="Enable the Apriltag detector debugger node for publishing"
-            " additional visualizations. Default value is false.",
-        )
-    )
 
-    # Trajectory visualizer arguments
+    # Visualization arguments
     declared_arguments.append(
         DeclareLaunchArgument(
             "visualizer",
             default_value="r,t",
-            description="Comma separated string of visualization to enable. Use empty string with"
+            description="Comma separated string of visualizations to enable. Use empty string with"
             " any character (e.g., ' ') to disable all. Default is 'r,t'.",
         )
     )
@@ -110,7 +102,6 @@ def generate_launch_description() -> LaunchDescription:
 
     # Initialize Arguments
     backends = LaunchConfiguration("backends")
-    use_debugger = LaunchConfiguration("use_debugger")
 
     # Include launch files
     isaac_ros_apriltag_launch = IncludeLaunchDescription(
@@ -128,7 +119,6 @@ def generate_launch_description() -> LaunchDescription:
             "size": TAG_SIZE,
             "tag_family": TAG_FAMILY,
             "backends": backends,
-            "use_debugger": use_debugger,
             "image_topic_name": IMAGE_TOPIC_NAME,
             "camera_info_topic_name": CAMERA_INFO_TOPIC_NAME,
         }.items(),
