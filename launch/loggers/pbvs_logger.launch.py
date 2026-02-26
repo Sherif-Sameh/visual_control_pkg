@@ -1,3 +1,7 @@
+import os
+
+import toml
+from ament_index_python.packages import get_package_share_directory
 from launch.actions import DeclareLaunchArgument
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
 from launch_ros.actions import Node
@@ -108,39 +112,20 @@ def generate_launch_description() -> LaunchDescription:
     declared_arguments = declare_arguments()
 
     # Initialize Arguments
-    period = LaunchConfiguration("period")
     n_runs = LaunchConfiguration("n_runs")
     console = LaunchConfiguration("console")
     csv = LaunchConfiguration("csv")
     wandb = LaunchConfiguration("wandb")
-    console_n_log = LaunchConfiguration("console_n_log")
-    console_n_flush = LaunchConfiguration("console_n_flush")
-    csv_n_log = LaunchConfiguration("csv_n_log")
-    csv_n_flush = LaunchConfiguration("csv_n_flush")
     csv_dir = PathJoinSubstitution([FindPackageShare("visual_control_pkg"), "../../../../logs/csv"])
-    wandb_n_log = LaunchConfiguration("wandb_n_log")
-    wandb_n_flush = LaunchConfiguration("wandb_n_flush")
     wandb_dir = PathJoinSubstitution(
         [FindPackageShare("visual_control_pkg"), "../../../../logs/wandb"]
     )
     wandb_group = LaunchConfiguration("wandb_group")
-    wandb_params = [
-        "apriltag/size",
-        "apriltag/tile_size",
-        "apriltag/backends",
-        "pbvs_controller/tag.tag_ids",
-        "pbvs_controller/ik.eps",
-        "pbvs_controller/ik.lambda",
-        "pbvs_controller/ik.max_iters",
-        "pbvs_controller/ik.weight_js",
-        "pbvs_controller/robot.max_tvel",
-        "pbvs_controller/robot.max_rvel",
-        "pbvs_controller/robot.max_vel_sf",
-        "pbvs_controller/robot.max_qdot",
-        "pbvs_controller/ctrl.conv_ttol",
-        "pbvs_controller/ctrl.conv_rtol",
-        "pbvs_controller/ctrl.lambda",
-    ]
+
+    # Load configuration from toml
+    pkg_share = get_package_share_directory("visual_control_pkg")
+    config_path = os.path.join(pkg_share, "config", "loggers", "pbvs_logger.toml")
+    config = toml.load(config_path)
 
     # Initialize nodes to start
     pbvs_logger_node = Node(
@@ -149,30 +134,14 @@ def generate_launch_description() -> LaunchDescription:
         output="screen",
         parameters=[
             {
-                "timer_period": period,
                 "n_runs": n_runs,
-                "param_servers": ["apriltag/get_parameters", "pbvs_controller/get_parameters"],
                 "log.console": console,
                 "log.csv": csv,
                 "log.wandb": wandb,
-                "console.n_log": console_n_log,
-                "console.n_flush": console_n_flush,
-                "console.filter": ["JT", "PE"],
-                "console.config.precision": 3,
-                "console.config.separator": "  ",
-                "console.config.sign": "+",
-                "csv.n_log": csv_n_log,
-                "csv.n_flush": csv_n_flush,
-                "csv.filter": [""],
                 "csv.dir": csv_dir,
-                "wandb.n_log": wandb_n_log,
-                "wandb.n_flush": wandb_n_flush,
-                "wandb.filter": ["JS", "PE"],
-                "wandb.config.entity": "u1999168-girona",
-                "wandb.config.project": "visual_control|VS",
                 "wandb.config.group": wandb_group,
                 "wandb.config.dir": wandb_dir,
-                "wandb.config.params": wandb_params,
+                **config["logger"],
             }
         ],
         remappings=[

@@ -1,0 +1,47 @@
+### PBVS ROS Logger Configuration ###
+
+[logger]
+
+# General parameters
+timer_period = 0.1
+param_servers = [
+    "apriltag/get_parameters",
+    "pbvs_controller/get_parameters",
+]
+
+# Console logger parameters
+"console.n_log" = 5
+"console.n_flush" = 5
+"console.filter" = ["JT", "PE"]
+"console.config.precision" = 3
+"console.config.separator" = "  "
+"console.config.sign" = "+"
+
+# CSV logger parameters
+"csv.n_log" = 1
+"csv.n_flush" = 4
+"csv.filter" = [""]
+
+# WandB logger parameters
+"wandb.n_log" = 2
+"wandb.n_flush" = 2
+"wandb.filter" = ["JS", "PE"]
+"wandb.config.entity" = "u1999168-girona"
+"wandb.config.project" = "visual_control|VS"
+"wandb.config.params" = [
+    "apriltag/size",
+    "apriltag/tile_size",
+    "apriltag/backends",
+    "pbvs_controller/tag.tag_ids",
+    "pbvs_controller/ik.eps",
+    "pbvs_controller/ik.lambda",
+    "pbvs_controller/ik.max_iters",
+    "pbvs_controller/ik.weight_js",
+    "pbvs_controller/robot.max_tvel",
+    "pbvs_controller/robot.max_rvel",
+    "pbvs_controller/robot.max_vel_sf",
+    "pbvs_controller/robot.max_qdot",
+    "pbvs_controller/ctrl.conv_ttol",
+    "pbvs_controller/ctrl.conv_rtol",
+    "pbvs_controller/ctrl.lambda",
+]

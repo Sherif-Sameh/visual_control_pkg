@@ -1,0 +1,46 @@
+### IBVS ROS Logger Configuration ###
+
+[logger]
+
+# General parameters
+timer_period = 0.1
+param_servers = [
+    "apriltag/get_parameters",
+    "ibvs_controller/get_parameters",
+]
+
+# Console logger parameters
+"console.n_log" = 5
+"console.n_flush" = 5
+"console.filter" = ["JT", "PE"]
+"console.config.precision" = 3
+"console.config.separator" = "  "
+"console.config.sign" = "+"
+
+# CSV logger parameters
+"csv.n_log" = 1
+"csv.n_flush" = 4
+"csv.filter" = ["JS", "JT", "PE", "Position"]
+
+# WandB logger parameters
+"wandb.n_log" = 2
+"wandb.n_flush" = 2
+"wandb.filter" = ["JS", "PE"]
+"wandb.config.entity" = "u1999168-girona"
+"wandb.config.project" = "visual_control|VS"
+"wandb.config.params" = [
+    "apriltag/size",
+    "apriltag/tile_size",
+    "apriltag/backends",
+    "ibvs_controller/tag.tag_ids",
+    "ibvs_controller/ik.eps",
+    "ibvs_controller/ik.lambda",
+    "ibvs_controller/ik.max_iters",
+    "ibvs_controller/ik.weight_js",
+    "ibvs_controller/robot.max_tvel",
+    "ibvs_controller/robot.max_rvel",
+    "ibvs_controller/robot.max_vel_sf",
+    "ibvs_controller/robot.max_qdot",
+    "ibvs_controller/ctrl.conv_ttol",
+    "ibvs_controller/ctrl.lambda",
+]
