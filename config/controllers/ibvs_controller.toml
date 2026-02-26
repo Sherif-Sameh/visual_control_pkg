@@ -1,0 +1,33 @@
+### IBVS Controller Configuration ###
+
+[controller]
+
+# IK solver parameters
+"ik.eps" = 0.04
+"ik.lambda" = 0.04
+"ik.max_iters" = 50
+"ik.weight_js" = [
+  0.8, 0.0, 0.0, 0.0, 0.0, 0.0,
+  0.0, 0.8, 0.0, 0.0, 0.0, 0.0,
+  0.0, 0.0, 1.0, 0.0, 0.0, 0.0,
+  0.0, 0.0, 0.0, 1.0, 0.0, 0.0,
+  0.0, 0.0, 0.0, 0.0, 1.0, 0.0,
+  0.0, 0.0, 0.0, 0.0, 0.0, 1.0,
+]  # diag(0.8, 0.8, 1.0, 1.0, 1.0, 1.0)
+
+# Robot parameters
+"robot.max_tvel" = 0.5
+"robot.max_rvel" = 0.5
+"robot.max_vel_sf" = 1.0
+"robot.max_qdot" = [
+    2.094395102,  # 120 DPS
+    2.094395102,  # 120 DPS
+    3.141592654,  # 180 DPS
+    3.141592654,  # 180 DPS
+    3.141592654,  # 180 DPS
+    3.141592654,  # 180 DPS
+]
+
+# Controller parameters
+"ctrl.conv_ttol" = 0.005
+"ctrl.lambda" = [0.7, 0.7, 0.7, 0.8, 0.8, 0.5]

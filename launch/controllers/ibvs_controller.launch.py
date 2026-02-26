@@ -1,4 +1,7 @@
-import numpy as np
+import os
+
+import toml
+from ament_index_python.packages import get_package_share_directory
 from launch.actions import DeclareLaunchArgument
 from launch.substitutions import Command, FindExecutable, LaunchConfiguration, PathJoinSubstitution
 from launch_ros.actions import Node
@@ -221,6 +224,11 @@ def generate_launch_description() -> LaunchDescription:
     )
     robot_description = ParameterValue(value=robot_description_content, value_type=str)
 
+    # Load configuration from toml
+    pkg_share = get_package_share_directory("visual_control_pkg")
+    config_path = os.path.join(pkg_share, "config", "controllers", "ibvs_controller.toml")
+    config = toml.load(config_path)
+
     # Initialize nodes to start
     ibvs_controller_node = Node(
         package="visual_control_pkg",
@@ -236,16 +244,7 @@ def generate_launch_description() -> LaunchDescription:
                 "tag.tag_family": tag_family,
                 "tag.tag_size": tag_size,
                 "tag.tag_ids": tag_ids,
-                "ik.eps": 0.04,
-                "ik.lambda": 0.04,
-                "ik.max_iters": 50,
-                "ik.weight_js": np.diag([0.8, 0.8, 1, 1, 1, 1]).flatten().tolist(),
-                "robot.max_tvel": 0.5,
-                "robot.max_rvel": 0.5,
-                "robot.max_vel_sf": 1.0,
-                "robot.max_qdot": [120 * np.pi / 180] * 2 + [180 * np.pi / 180] * 4,
-                "ctrl.conv_ttol": 0.005,
-                "ctrl.lambda": [0.7, 0.7, 0.7, 0.8, 0.8, 0.5],
+                **config["controller"],
             }
         ],
         remappings=[

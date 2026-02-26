@@ -97,8 +97,8 @@ install(PROGRAMS
   DESTINATION lib/${PROJECT_NAME}
 )
 
-# Install launch and rviz directories
-install(DIRECTORY launch rviz
+# Install launch, rviz and config directories
+install(DIRECTORY launch rviz config
   DESTINATION share/${PROJECT_NAME})
 
 if(BUILD_TESTING)
