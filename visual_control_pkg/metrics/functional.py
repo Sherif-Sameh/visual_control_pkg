@@ -24,7 +24,6 @@ class FunctionalMetric(Metric):
         super().__init__(name=name, argname=metric.argname)
         self._metric = metric
         self._func = func
-        self.reset()
 
     def compute(self) -> NDArray:
         """Computes and returns the metric value based on the internal state.

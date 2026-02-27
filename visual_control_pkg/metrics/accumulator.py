@@ -26,7 +26,8 @@ class AccumulatorMetric(Metric):
         assert red in ["sum", "mean", "cnt"], f"Reduction method {red} not supported."
         super().__init__(name=name, argname=argname)
         self._red = red
-        self.reset()
+        self._count = 0
+        self._state = None
 
     def compute(self) -> NDArray:
         """Computes and returns the metric value by reducing the accumulated state.
@@ -36,7 +37,7 @@ class AccumulatorMetric(Metric):
                 Shape is (D,). where D is the dimensionality of the tracked metric.
         """
         if self._state is None:
-            return np.array([float("nan")])
+            return np.array([np.nan])
         match self._red:
             case "sum":
                 return self._state
@@ -47,8 +48,9 @@ class AccumulatorMetric(Metric):
 
     def reset(self) -> None:
         """Resets the internal state and count to their default values."""
-        self._state = None
-        self._count = 0
+        if self._state is not None:
+            self._state.fill(0.0)
+            self._count = 0
 
     def update(self, **kwargs) -> None:
         """Updates the internal state and count with the provided value.
@@ -65,7 +67,7 @@ class AccumulatorMetric(Metric):
         if value is None:
             return  # There's nothing to update.
         value = np.atleast_2d(value)
-        if self._state is None:
+        if self._state is None:  # lazy initialization
             self._state = np.zeros(value.shape[1])
         self._state += value.sum(axis=0)
         self._count += value.shape[0]

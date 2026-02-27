@@ -35,13 +35,13 @@ def test_accumulator_metric(red: Literal["sum", "mean", "cnt"]) -> None:
 
     # Test `reset()` method
     metric.reset()
-    assert metric._state is None and metric._count == 0
-    assert np.all(np.isnan(metric.compute()))
+    state = metric._state
+    assert np.allclose(state, np.zeros_like(state)) and metric._count == 0
 
     # Test that updates with other argnames do not change state
     metric.update(other_values=np.random.normal(0, 1, size=(10, 2)))
-    assert metric._state is None and metric._count == 0
-    assert np.all(np.isnan(metric.compute()))
+    state = metric._state
+    assert np.allclose(state, np.zeros_like(state)) and metric._count == 0
 
 
 @pytest.mark.unit
@@ -74,13 +74,13 @@ def test_functional_metric(
 
     # Test `reset()` method
     metric.reset()
-    assert metric._metric._state is None and metric._metric._count == 0
-    assert np.all(np.isnan(metric.compute()))
+    state = metric._metric._state
+    assert np.allclose(state, np.zeros_like(state)) and metric._metric._count == 0
 
     # Test that updates with other argnames do not change state
     metric.update(other_values=np.random.normal(0, 1, size=(10, 2)))
-    assert metric._metric._state is None and metric._metric._count == 0
-    assert np.all(np.isnan(metric.compute()))
+    state = metric._metric._state
+    assert np.allclose(state, np.zeros_like(state)) and metric._metric._count == 0
 
 
 @pytest.mark.unit
@@ -123,19 +123,28 @@ def test_compose_metric(
 
     # Test `reset()` method
     composed_metric.reset()
-    computed_metrics = composed_metric.compute()
-    assert np.all(np.isnan(computed_metrics["acc"]))
-    assert np.all(np.isnan(computed_metrics["func_acc"]))
+    state_1 = composed_metric._metrics[0]._state
+    count_1 = composed_metric._metrics[0]._count
+    state_2 = composed_metric._metrics[1]._metric._state
+    count_2 = composed_metric._metrics[1]._metric._count
+    assert np.allclose(state_1, np.zeros_like(state_1)) and count_1 == 0
+    assert np.allclose(state_2, np.zeros_like(state_2)) and count_2 == 0
 
     # Test that partial updates work correctly
     composed_metric.update(sample=sample)
-    computed_metrics = composed_metric.compute()
-    composed_metric.reset()
-    assert not np.any(np.isnan(computed_metrics["acc"]))
-    assert np.all(np.isnan(computed_metrics["func_acc"]))
+    state_1 = composed_metric._metrics[0]._state
+    count_1 = composed_metric._metrics[0]._count
+    state_2 = composed_metric._metrics[1]._metric._state
+    count_2 = composed_metric._metrics[1]._metric._count
+    assert not np.allclose(state_1, np.zeros_like(state_1)) and count_1 != 0
+    assert np.allclose(state_2, np.zeros_like(state_2)) and count_2 == 0
 
     # Test that updating with missing argnames does not change state
+    composed_metric.reset()
     composed_metric.update(other_values=np.random.normal(0, 1, size=(10, 2)))
-    computed_metrics = composed_metric.compute()
-    assert np.all(np.isnan(computed_metrics["acc"]))
-    assert np.all(np.isnan(computed_metrics["func_acc"]))
+    state_1 = composed_metric._metrics[0]._state
+    count_1 = composed_metric._metrics[0]._count
+    state_2 = composed_metric._metrics[1]._metric._state
+    count_2 = composed_metric._metrics[1]._metric._count
+    assert np.allclose(state_1, np.zeros_like(state_1)) and count_1 == 0
+    assert np.allclose(state_2, np.zeros_like(state_2)) and count_2 == 0

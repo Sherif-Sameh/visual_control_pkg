@@ -18,7 +18,6 @@ class ComposeMetric(Metric):
     def __init__(self, *, metrics: list[Metric]):
         super().__init__(name="ComposedMetric", argname="")
         self._metrics = metrics
-        self.reset()
 
     def compute(self) -> dict[str, NDArray]:
         """Computes and returns the values of all composed metrics.
