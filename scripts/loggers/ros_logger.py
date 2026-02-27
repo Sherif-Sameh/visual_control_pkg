@@ -4,6 +4,8 @@
 ROS node for logging metrics during runtime from active topics.
 """
 
+from functools import partial
+
 import numpy as np
 import rclpy
 from geometry_msgs.msg import PoseArray, PoseStamped
@@ -18,8 +20,7 @@ from trajectory_msgs.msg import JointTrajectory
 from visual_control_pkg.loggers import ComposeLogger, ConsoleLogger, ROSWrapperLogger
 from visual_control_pkg.loggers.csv import CSVLogger
 from visual_control_pkg.loggers.wandb import WandBLogger
-from visual_control_pkg.metrics import AccumulatorMetric as AccM
-from visual_control_pkg.metrics import ComposeMetric
+from visual_control_pkg.metrics import AccumulatorMetric, ComposeMetric, UnitMetric
 
 
 class ROSLogger(Node):
@@ -49,8 +50,9 @@ class ROSLogger(Node):
         super().__init__("ros_logger")
 
         # Declare ROS parameters
-        self.declare_parameter("timer_period", rclpy.Parameter.Type.DOUBLE)
         self.declare_parameter("n_runs", rclpy.Parameter.Type.INTEGER)
+        self.declare_parameter("smooth", rclpy.Parameter.Type.BOOL)
+        self.declare_parameter("timer_period", rclpy.Parameter.Type.DOUBLE)
         self.declare_parameter("param_servers", rclpy.Parameter.Type.STRING_ARRAY)
         self.declare_parameter("log.console", rclpy.Parameter.Type.BOOL)
         self.declare_parameter("log.csv", rclpy.Parameter.Type.BOOL)
@@ -131,13 +133,13 @@ class ROSLogger(Node):
     def callback_timer(self) -> None:
         for step, metric in self._metrics.values():
             self._loggers.log(step, metric.compute())
+            metric.reset()
 
     def callback_js(self, msg: JointState) -> None:
         if "js" not in self._metrics:
             self._metrics["js"] = [0, self._init_js_metric(msg)]
 
         self._metrics["js"][0] = self._get_timestep(msg.header)
-        self._metrics["js"][1].reset()
         self._metrics["js"][1].update(
             position=np.array(msg.position),
             velocity=np.array(msg.velocity),
@@ -150,7 +152,6 @@ class ROSLogger(Node):
             self._metrics["jt"] = [0, self._init_jt_metric(msg)]
 
         self._metrics["jt"][0] = self._get_timestep(msg.header)
-        self._metrics["jt"][1].reset()
         self._metrics["jt"][1].update(
             position=np.array(msg.points[0].positions),
             velocity=np.array(msg.points[0].velocities),
@@ -164,7 +165,6 @@ class ROSLogger(Node):
 
         pos, rot = msg.pose.position, msg.pose.orientation
         self._metrics["pe"][0] = self._get_timestep(msg.header)
-        self._metrics["pe"][1].reset()
         self._metrics["pe"][1].update(
             position=np.array([pos.x, pos.y, pos.z]),
             rotvec=R.from_quat([rot.x, rot.y, rot.z, rot.w]).as_rotvec(),
@@ -180,7 +180,6 @@ class ROSLogger(Node):
             kwargs[f"position_{i}"] = np.array([pos.x, pos.y, pos.z])
             kwargs[f"rotvec_{i}"] = R.from_quat([rot.x, rot.y, rot.z, rot.w]).as_rotvec()
         self._metrics["se"][0] = self._get_timestep(msg.header)
-        self._metrics["se"][1].reset()
         self._metrics["se"][1].update(**kwargs)
 
     def callback_rst(self, msg: Empty) -> None:
@@ -268,40 +267,48 @@ class ROSLogger(Node):
 
     def _init_js_metric(self, msg: JointState) -> ComposeMetric:
         """Initialize the JointState metric according the sample message."""
+        smooth = self.get_parameter("smooth").value
+        cls = partial(AccumulatorMetric, red="mean") if smooth else UnitMetric
         metrics = []
         if len(msg.position) > 0:
-            metrics.append(AccM(name="JS (Position)", argname="position", red="mean"))
+            metrics.append(cls(name="JS (Position)", argname="position"))
         if len(msg.velocity) > 0:
-            metrics.append(AccM(name="JS (Velocity)", argname="velocity", red="mean"))
+            metrics.append(cls(name="JS (Velocity)", argname="velocity"))
         if len(msg.effort) > 0:
-            metrics.append(AccM(name="JS (Effort)", argname="effort", red="mean"))
+            metrics.append(cls(name="JS (Effort)", argname="effort"))
         return ComposeMetric(metrics=metrics)
 
     def _init_jt_metric(self, msg: JointTrajectory) -> ComposeMetric:
         """Initialize the JointTrajectory metric according the sample message."""
+        smooth = self.get_parameter("smooth").value
+        cls = partial(AccumulatorMetric, red="mean") if smooth else UnitMetric
         metrics = []
         if len(msg.points[0].positions) > 0:
-            metrics.append(AccM(name="JT (Position)", argname="position", red="mean"))
+            metrics.append(cls(name="JT (Position)", argname="position"))
         if len(msg.points[0].velocities) > 0:
-            metrics.append(AccM(name="JT (Velocity)", argname="velocity", red="mean"))
+            metrics.append(cls(name="JT (Velocity)", argname="velocity"))
         if len(msg.points[0].accelerations) > 0:
-            metrics.append(AccM(name="JT (Acceleration)", argname="acceleration", red="mean"))
+            metrics.append(cls(name="JT (Acceleration)", argname="acceleration"))
         if len(msg.points[0].effort) > 0:
-            metrics.append(AccM(name="JT (Effort)", argname="effort", red="mean"))
+            metrics.append(cls(name="JT (Effort)", argname="effort"))
         return ComposeMetric(metrics=metrics)
 
     def _init_pe_metric(self, msg: PoseStamped) -> ComposeMetric:
+        smooth = self.get_parameter("smooth").value
+        cls = partial(AccumulatorMetric, red="mean") if smooth else UnitMetric
         metrics = [
-            AccM(name="PE (Position)", argname="position", red="mean"),
-            AccM(name="PE (RotVec)", argname="rotvec", red="mean"),
+            cls(name="PE (Position)", argname="position"),
+            cls(name="PE (RotVec)", argname="rotvec"),
         ]
         return ComposeMetric(metrics=metrics)
 
     def _init_se_metric(self, msg: PoseArray) -> ComposeMetric:
+        smooth = self.get_parameter("smooth").value
+        cls = partial(AccumulatorMetric, red="mean") if smooth else UnitMetric
         metrics = []
         for i in range(len(msg.poses)):
-            metrics.append(AccM(name=f"SE_{i} (Position)", argname=f"position_{i}", red="mean"))
-            metrics.append(AccM(name=f"SE_{i} (RotVec)", argname=f"rotvec_{i}", red="mean"))
+            metrics.append(cls(name=f"SE_{i} (Position)", argname=f"position_{i}"))
+            metrics.append(cls(name=f"SE_{i} (RotVec)", argname=f"rotvec_{i}"))
         return ComposeMetric(metrics=metrics)
 
 

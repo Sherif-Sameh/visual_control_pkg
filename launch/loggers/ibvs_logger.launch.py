@@ -24,6 +24,14 @@ def declare_arguments() -> list[DeclareLaunchArgument]:
     )
     declared_arguments.append(
         DeclareLaunchArgument(
+            "smooth",
+            default_value="false",
+            description="Enable metric smoothing through averaging between timer callbacks."
+            " Default is false (i.e. log only the last value before callback).",
+        )
+    )
+    declared_arguments.append(
+        DeclareLaunchArgument(
             "console",
             default_value="false",
             description="Enable logging output to the console. Default is false.",
@@ -59,6 +67,7 @@ def generate_launch_description() -> LaunchDescription:
 
     # Initialize Arguments
     n_runs = LaunchConfiguration("n_runs")
+    smooth = LaunchConfiguration("smooth")
     console = LaunchConfiguration("console")
     csv = LaunchConfiguration("csv")
     wandb = LaunchConfiguration("wandb")
@@ -81,6 +90,7 @@ def generate_launch_description() -> LaunchDescription:
         parameters=[
             {
                 "n_runs": n_runs,
+                "smooth": smooth,
                 "log.console": console,
                 "log.csv": csv,
                 "log.wandb": wandb,

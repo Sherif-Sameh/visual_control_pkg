@@ -16,17 +16,18 @@ def declare_arguments() -> list[DeclareLaunchArgument]:
     # ROS Logger arguments
     declared_arguments.append(
         DeclareLaunchArgument(
-            "period",
-            default_value="0.1",
-            description="Period for logging callback in seconds. Default is 0.1.",
-        )
-    )
-    declared_arguments.append(
-        DeclareLaunchArgument(
             "n_runs",
             default_value="0",
             description="Number of runs (restarts) for logger to run. The logger will run"
             " infinitely for any value <= 0. Default is 0 (i.e. infinite).",
+        )
+    )
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "smooth",
+            default_value="false",
+            description="Enable metric smoothing through averaging between timer callbacks."
+            " Default is false (i.e. log only the last value before callback).",
         )
     )
     declared_arguments.append(
@@ -113,6 +114,7 @@ def generate_launch_description() -> LaunchDescription:
 
     # Initialize Arguments
     n_runs = LaunchConfiguration("n_runs")
+    smooth = LaunchConfiguration("smooth")
     console = LaunchConfiguration("console")
     csv = LaunchConfiguration("csv")
     wandb = LaunchConfiguration("wandb")
@@ -135,6 +137,7 @@ def generate_launch_description() -> LaunchDescription:
         parameters=[
             {
                 "n_runs": n_runs,
+                "smooth": smooth,
                 "log.console": console,
                 "log.csv": csv,
                 "log.wandb": wandb,
