@@ -5,10 +5,35 @@ from typing import TYPE_CHECKING, Callable, Literal
 import numpy as np
 import pytest
 
-from visual_control_pkg.metrics import AccumulatorMetric, ComposeMetric, FunctionalMetric
+from visual_control_pkg.metrics import (
+    AccumulatorMetric,
+    ComposeMetric,
+    FunctionalMetric,
+    UnitMetric,
+)
 
 if TYPE_CHECKING:
     from numpy.typing import NDArray
+
+
+@pytest.mark.unit
+def test_unit_metric() -> None:
+    n_samples = 5
+    metric = UnitMetric(name="unit", argname="sample")
+
+    # Test `update()` and `compute()` methods
+    for _ in range(n_samples):
+        sample = np.random.normal(0, 1, size=(3,))
+        metric.update(sample=sample)
+    assert np.allclose(metric.compute(), sample)
+
+    # Test `reset()` method
+    metric.reset()
+    assert metric._state is None
+
+    # Test that updates with other argnames do not change state
+    metric.update(other_values=np.random.normal(0, 1, size=(10, 2)))
+    assert metric._state is None
 
 
 @pytest.mark.unit
