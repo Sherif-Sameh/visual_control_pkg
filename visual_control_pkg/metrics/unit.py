@@ -32,7 +32,7 @@ class UnitMetric(Metric):
                 dimensionality of the tracked metric.
         """
         if self._state is None:
-            return np.array([float("nan")])
+            return np.array([np.nan])
         return self._state
 
     def reset(self) -> None:
