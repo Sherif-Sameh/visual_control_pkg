@@ -5,6 +5,7 @@ ROS node for logging metrics during runtime from active topics.
 """
 
 from functools import partial
+from typing import Any
 
 import numpy as np
 import rclpy
@@ -197,7 +198,7 @@ class ROSLogger(Node):
         return h_time - self._start_time
 
     def _init_console_logger(self) -> ROSWrapperLogger:
-        """Initialize and return a ConsoleLogger according to its declared parameters."""
+        """Initialize and return a ROS-wrapped ConsoleLogger according to its declared parameters."""
         params = {k: v.value for k, v in self.get_parameters_by_prefix("console").items()}
         return ROSWrapperLogger(
             n_hold=4,
@@ -214,7 +215,7 @@ class ROSLogger(Node):
         )
 
     def _init_csv_logger(self) -> ROSWrapperLogger:
-        """Initialize and return a CSVLogger according to its declared parameters."""
+        """Initialize and return a ROS-wrapped CSVLogger according to its declared parameters."""
         params = {k: v.value for k, v in self.get_parameters_by_prefix("csv").items()}
         return ROSWrapperLogger(
             n_hold=4,
@@ -227,17 +228,14 @@ class ROSLogger(Node):
         )
 
     def _init_wandb_logger(self) -> ROSWrapperLogger:
-        """Initialize and return a WandB according to its declared parameters.
+        """Initialize and return a ROS-wrapped WandBLogger according to its declared parameters.
 
         After reading the logger's parameters, the function attempts to get the values of the
         parameter's given to the logger as part of its config.
-
-        **Warning**: This function must be called after the node has been initialized since it
-        needs to request parameters from the GetParameter server.
         """
         params = {k: v.value for k, v in self.get_parameters_by_prefix("wandb").items()}
         param_names: list[str] = params["config.params"]
-        param_dict: dict[str, str] = {}
+        param_dict: dict[str, Any] = {}
         for ps, c in zip(self._param_servers, self._cli):
             request = GetParameters.Request()
             request.names = [
@@ -294,6 +292,7 @@ class ROSLogger(Node):
         return ComposeMetric(metrics=metrics)
 
     def _init_pe_metric(self, msg: PoseStamped) -> ComposeMetric:
+        """Initialize the PoseError metric."""
         smooth = self.get_parameter("smooth").value
         cls = partial(AccumulatorMetric, red="mean") if smooth else UnitMetric
         metrics = [
@@ -303,6 +302,7 @@ class ROSLogger(Node):
         return ComposeMetric(metrics=metrics)
 
     def _init_se_metric(self, msg: PoseArray) -> ComposeMetric:
+        """Initialize the SetpointError metric according to the sample message."""
         smooth = self.get_parameter("smooth").value
         cls = partial(AccumulatorMetric, red="mean") if smooth else UnitMetric
         metrics = []
