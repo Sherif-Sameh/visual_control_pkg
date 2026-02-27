@@ -108,4 +108,8 @@ class WandBLogger(Logger):
 
     @staticmethod
     def _split_metrics(metrics: dict[str, NDArray]) -> dict[str, float]:
-        return {f"{k}/{i}": v[i] for k, v in metrics.items() for i in range(v.shape[0])}
+        return {
+            f"{k}/{i}" if v.shape[0] > 1 else k: v[i]
+            for k, v in metrics.items()
+            for i in range(v.shape[0])
+        }
