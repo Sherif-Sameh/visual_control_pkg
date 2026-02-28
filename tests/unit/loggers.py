@@ -112,6 +112,7 @@ def test_csv_logger():
 
 
 @pytest.mark.unit
+@pytest.mark.filterwarnings("ignore")
 def test_wandb_logger(capsys: pytest.CaptureFixture):
     with capsys.disabled():
         # Initialize some metrics to log
@@ -131,9 +132,9 @@ def test_wandb_logger(capsys: pytest.CaptureFixture):
             filter=None,
             config=WandBLogger.WandBConfig(
                 entity="u1999168-girona",
-                project="visual_control|PBVS",
+                project="visual_control|VS",
                 group="Test",
-                dir=Path(__file__).parent,
+                dir=str(Path(__file__).parent),
                 config={"test_attr1": 1, "test_attr2": 0.5, "test_attr3": {"a": 1, "b": 2, "c": 3}},
             ),
         )

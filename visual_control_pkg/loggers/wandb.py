@@ -9,8 +9,6 @@ import wandb
 from .base import Logger
 
 if TYPE_CHECKING:
-    from pathlib import Path
-
     from numpy.typing import NDArray
 
 
@@ -26,10 +24,10 @@ class WandBLogger(Logger):
 
     @dataclass
     class WandBConfig:
-        entity: str
-        project: str
-        group: str
-        dir: str | Path
+        entity: str | None = None
+        project: str | None = None
+        group: str | None = None
+        dir: str | None = None
         config: dict[str, Any] = field(default_factory=lambda: {})
 
     def __init__(
@@ -38,7 +36,7 @@ class WandBLogger(Logger):
         n_log: int = 1,
         n_flush: int = 1,
         filter: str | list[str] | None = None,
-        config: WandBConfig,
+        config: WandBConfig = WandBConfig(),
     ):
         super().__init__(n_log=n_log, n_flush=n_flush, filter=filter)
         self._config = config
