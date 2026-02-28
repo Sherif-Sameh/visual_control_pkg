@@ -25,6 +25,12 @@ class FunctionalMetric(Metric):
         self._metric = metric
         self._func = func
 
+    @Metric.argname.setter
+    def argname(self, value: str) -> None:
+        """Sets the name of the argument of the metric and its wrapped metric."""
+        self._argname = value
+        self._metric.argname = value
+
     def compute(self) -> NDArray:
         """Computes and returns the metric value based on the internal state.
 

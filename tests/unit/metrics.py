@@ -40,16 +40,19 @@ def test_unit_metric() -> None:
 @pytest.mark.unit
 def test_delta_metric() -> None:
     n_samples = 5
-    metric = DeltaMetric(name="unit", argname="sample", metric=UnitMetric(name="", argname=""))
+    default = np.zeros(3)
+    metric = DeltaMetric(
+        name="unit", argname="sample", metric=UnitMetric(name="", argname=""), default=default
+    )
 
     # Test `update()` and `compute()` methods
     samples, values = [], []
     for _ in range(n_samples):
-        sample = np.random.normal(0, 1, size=(3,))
+        sample = np.random.normal(0, 1, size=default.shape)
         samples.append(sample.copy())
         metric.update(sample=sample)
         values.append(metric.compute())
-    true_values = [np.nan] + np.diff(samples, axis=0).tolist()
+    true_values = [default] + np.diff(samples, axis=0).tolist()
     for v, tv in zip(values, true_values):
         if np.isnan(np.sum(v)) or np.isnan(np.sum(tv)):
             assert np.isnan(np.sum(v)) and np.isnan(np.sum(tv))

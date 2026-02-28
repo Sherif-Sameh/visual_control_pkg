@@ -36,6 +36,11 @@ class Metric(ABC):
         """Returns the name of the argument of the metric."""
         return self._argname
 
+    @argname.setter
+    def argname(self, value: str) -> None:
+        """Sets the name of the argument of the metric."""
+        self._argname = value
+
     @abstractmethod
     def compute(self) -> NDArray:
         """Computes and returns the metric value based on the internal state.

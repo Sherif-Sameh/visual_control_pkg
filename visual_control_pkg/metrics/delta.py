@@ -19,13 +19,22 @@ class DeltaMetric(Metric):
         name: Name for the metric.
         argname: Name of the argument to compute Δ changes from during updates.
         metric: Base metric to wrap.
+        default: Default value to return when no changes have been recorded yet.
     """
 
-    def __init__(self, *, name: str, argname: str, metric: Metric):
+    def __init__(self, *, name: str, argname: str, metric: Metric, default: NDArray):
         super().__init__(name=name, argname=argname)
         self._metric = metric
-        self._metric._argname = f"delta_{argname}"
+        self._metric.argname = f"delta_{argname}"
+        self._default = default
         self._state = None
+        self._count = 0
+
+    @Metric.argname.setter
+    def argname(self, value: str) -> None:
+        """Sets the name of the argument of the metric and its wrapped metric."""
+        self._argname = value
+        self._metric.argname = f"delta_{value}"
 
     def compute(self) -> NDArray:
         """Computes and returns the metric value based on the internal state.
@@ -33,12 +42,15 @@ class DeltaMetric(Metric):
         Returns:
             Array containing the computed metric value.
         """
+        if self._count == 0:
+            return self._default
         return self._metric.compute()
 
     def reset(self) -> None:
         """Resets the metric's internal state."""
         self._metric.reset()
         self._state = None
+        self._count = 0
 
     def update(self, **kwargs) -> None:
         """Updates the metric's internal state based on input data.
@@ -57,3 +69,4 @@ class DeltaMetric(Metric):
             return  # No change to pass to wrapped metric
         self._metric.update(**{f"delta_{self._argname}": value - self._state})
         self._state = value
+        self._count += 1
