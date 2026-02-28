@@ -44,7 +44,7 @@ IbvsController::IbvsController() : Node("ibvs_controller")
     init_controller();
 
     // Initialize ROS attributes
-    m_setup_timer = this->create_wall_timer(0.25s, std::bind(&IbvsController::post_init, this));
+    m_timer_setup = this->create_wall_timer(0.25s, std::bind(&IbvsController::post_init, this));
     m_pub_perr =
         this->create_publisher<geometry_msgs::msg::PoseArray>("/ibvs_controller/pose_error", 10);
     m_pub_traj = this->create_publisher<trajectory_msgs::msg::JointTrajectory>(
@@ -57,6 +57,8 @@ IbvsController::IbvsController() : Node("ibvs_controller")
         "/detections", 0, std::bind(&IbvsController::callback_tag, this, _1));
     m_tf_buffer = std::make_unique<tf2_ros::Buffer>(this->get_clock());
     m_tf_listener = std::make_shared<tf2_ros::TransformListener>(*m_tf_buffer);
+    m_cbh_param =
+        this->add_on_set_parameters_callback(std::bind(&IbvsController::callback_params, this, _1));
 }
 
 IbvsController::~IbvsController()
@@ -72,7 +74,7 @@ void IbvsController::post_init()
 
     // Finish initialization and cancel timer
     m_robot.set_eMc(eMc);
-    m_setup_timer->cancel();
+    m_timer_setup->cancel();
 }
 
 void IbvsController::publish_traj(const std::vector<double> &qdot)
@@ -161,6 +163,62 @@ void IbvsController::callback_tag(const AprilTagDetectionArray::SharedPtr msg)
     }
     publish_traj(qdot);
     publish_perr(perr.toStdVector()); // log errors
+}
+
+rcl_interfaces::msg::SetParametersResult
+IbvsController::callback_params(const std::vector<rclcpp::Parameter> &parameters)
+{
+    rcl_interfaces::msg::SetParametersResult result;
+    result.successful = true;
+    result.reason = "success";
+    bool has_ik_params = false;
+
+    auto failed = [&has_ik_params, &result](const std::string &reason)
+    {
+        has_ik_params = false;
+        result.successful = false;
+        result.reason = reason;
+    };
+
+    // Check for params that are allowed to change at runtime
+    for (const auto &param : parameters)
+    {
+        // IK solver param
+        if (!has_ik_params && param.get_name().find("ik.") != std::string::npos)
+        {
+            has_ik_params = true;
+        }
+
+        // Controller convergence tolerance
+        if (param.get_name() == "ctrl.conv_ttol")
+        {
+            if (param.get_type() != rclcpp::ParameterType::PARAMETER_DOUBLE)
+            {
+                failed("conv_ttol must be double");
+                break;
+            }
+            m_conv_eps = std::pow(param.as_double(), 2);
+        }
+
+        // Controller lambda (gain)
+        if (param.get_name() == "ctrl.lambda")
+        {
+            if (param.get_type() != rclcpp::ParameterType::PARAMETER_DOUBLE_ARRAY ||
+                param.as_double_array().size() != m_lambda.size())
+            {
+                failed("lambda must be a double array of size " + std::to_string(m_lambda.size()));
+                break;
+            }
+            m_lambda = param.as_double_array();
+        }
+    }
+
+    if (has_ik_params)
+    {
+        // Reintialize robot to update IK solver's parameters
+        init_robot();
+    }
+    return result;
 }
 
 void IbvsController::init_robot()

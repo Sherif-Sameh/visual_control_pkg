@@ -41,7 +41,7 @@ PbvsController::PbvsController() : Node("pbvs_controller")
     init_controller();
 
     // Initialize ROS attributes
-    m_setup_timer = this->create_wall_timer(0.25s, std::bind(&PbvsController::post_init, this));
+    m_timer_setup = this->create_wall_timer(0.25s, std::bind(&PbvsController::post_init, this));
     m_pub_perr =
         this->create_publisher<geometry_msgs::msg::PoseArray>("/pbvs_controller/pose_error", 10);
     m_pub_traj = this->create_publisher<trajectory_msgs::msg::JointTrajectory>(
@@ -52,6 +52,8 @@ PbvsController::PbvsController() : Node("pbvs_controller")
         "/detections", 0, std::bind(&PbvsController::callback_tag, this, _1));
     m_tf_buffer = std::make_unique<tf2_ros::Buffer>(this->get_clock());
     m_tf_listener = std::make_shared<tf2_ros::TransformListener>(*m_tf_buffer);
+    m_cbh_param =
+        this->add_on_set_parameters_callback(std::bind(&PbvsController::callback_params, this, _1));
 }
 
 PbvsController::~PbvsController()
@@ -67,7 +69,7 @@ void PbvsController::post_init()
 
     // Finish initialization and cancel timer
     m_robot.set_eMc(eMc);
-    m_setup_timer->cancel();
+    m_timer_setup->cancel();
 }
 
 void PbvsController::publish_traj(const std::vector<double> &qdot)
@@ -144,6 +146,71 @@ void PbvsController::callback_tag(const AprilTagDetectionArray::SharedPtr msg)
     std::vector<double> qdot = m_robot.computeJointVelocity(fMe, v_c);
     publish_traj(qdot);
     publish_perr(m_controller.getError().toStdVector()); // log errors
+}
+
+rcl_interfaces::msg::SetParametersResult
+PbvsController::callback_params(const std::vector<rclcpp::Parameter> &parameters)
+{
+    rcl_interfaces::msg::SetParametersResult result;
+    result.successful = true;
+    result.reason = "success";
+    bool has_ik_params = false;
+
+    auto failed = [&has_ik_params, &result](const std::string &reason)
+    {
+        has_ik_params = false;
+        result.successful = false;
+        result.reason = reason;
+    };
+
+    // Check for params that are allowed to change at runtime
+    for (const auto &param : parameters)
+    {
+        // IK solver param
+        if (!has_ik_params && param.get_name().find("ik.") != std::string::npos)
+        {
+            has_ik_params = true;
+        }
+
+        // Controller convergence tolerances
+        if (param.get_name() == "ctrl.conv_ttol")
+        {
+            if (param.get_type() != rclcpp::ParameterType::PARAMETER_DOUBLE)
+            {
+                failed("conv_ttol must be double");
+                break;
+            }
+            m_conv_eps.first = std::pow(param.as_double(), 2);
+        }
+        if (param.get_name() == "ctrl.conv_rtol")
+        {
+            if (param.get_type() != rclcpp::ParameterType::PARAMETER_DOUBLE)
+            {
+                failed("conv_rtol must be double");
+                break;
+            }
+            m_conv_eps.second = std::pow(param.as_double(), 2);
+        }
+
+        // Controller lambda (gain)
+        if (param.get_name() == "ctrl.lambda")
+        {
+            if (param.get_type() != rclcpp::ParameterType::PARAMETER_DOUBLE_ARRAY ||
+                param.as_double_array().size() != m_lambda.size())
+            {
+                failed("lambda must be a double array of size " + std::to_string(m_lambda.size()));
+                break;
+            }
+            m_lambda = param.as_double_array();
+        }
+    }
+
+    if (has_ik_params)
+    {
+        // Reintialize robot to update IK solver's parameters
+        init_robot();
+    }
+    return result;
 }
 
 void PbvsController::init_robot()

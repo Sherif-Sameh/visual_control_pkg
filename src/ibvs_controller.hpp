@@ -19,6 +19,7 @@
 #include "geometry_msgs/msg/transform_stamped.hpp"
 #include "isaac_ros_apriltag_interfaces/msg/april_tag_detection.hpp"
 #include "isaac_ros_apriltag_interfaces/msg/april_tag_detection_array.hpp"
+#include "rcl_interfaces/msg/set_parameters_result.hpp"
 #include "rclcpp/rclcpp.hpp"
 #include "sensor_msgs/msg/camera_info.hpp"
 #include "sensor_msgs/msg/joint_state.hpp"
@@ -42,14 +43,16 @@ class IbvsController : public rclcpp::Node
 public:
     IbvsController();
     ~IbvsController();
-    void post_init();
 
 private:
+    void post_init();
     void publish_traj(const std::vector<double> &qdot);
     void publish_perr(const std::vector<double> &perr);
     void callback_js(const sensor_msgs::msg::JointState::SharedPtr msg);
     void callback_cam_info(const sensor_msgs::msg::CameraInfo::SharedPtr msg);
     void callback_tag(const AprilTagDetectionArray::SharedPtr msg);
+    rcl_interfaces::msg::SetParametersResult
+    callback_params(const std::vector<rclcpp::Parameter> &parameters);
     void init_robot();
     void init_controller();
     void update_desired_features();
@@ -79,7 +82,7 @@ private:
     vpServo m_controller;
 
     // ROS Attributes
-    rclcpp::TimerBase::SharedPtr m_setup_timer;
+    rclcpp::TimerBase::SharedPtr m_timer_setup;
     rclcpp::Publisher<geometry_msgs::msg::PoseArray>::SharedPtr m_pub_perr{nullptr};
     rclcpp::Publisher<trajectory_msgs::msg::JointTrajectory>::SharedPtr m_pub_traj{nullptr};
     rclcpp::Subscription<sensor_msgs::msg::JointState>::SharedPtr m_sub_js{nullptr};
@@ -87,6 +90,7 @@ private:
     rclcpp::Subscription<AprilTagDetectionArray>::SharedPtr m_sub_tag{nullptr};
     std::shared_ptr<tf2_ros::TransformListener> m_tf_listener{nullptr};
     std::unique_ptr<tf2_ros::Buffer> m_tf_buffer;
+    rclcpp::node_interfaces::OnSetParametersCallbackHandle::SharedPtr m_cbh_param;
 };
 
 #endif
