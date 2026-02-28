@@ -44,6 +44,7 @@ IbvsController::IbvsController() : Node("ibvs_controller")
     init_controller();
 
     // Initialize ROS attributes
+    m_setup_timer = this->create_wall_timer(0.25s, std::bind(&IbvsController::post_init, this));
     m_pub_perr =
         this->create_publisher<geometry_msgs::msg::PoseArray>("/ibvs_controller/pose_error", 10);
     m_pub_traj = this->create_publisher<trajectory_msgs::msg::JointTrajectory>(
@@ -66,20 +67,12 @@ IbvsController::~IbvsController()
 
 void IbvsController::post_init()
 {
-    constexpr int max_trials = 20;
-    constexpr auto sleep_duration = std::chrono::duration_cast<std::chrono::nanoseconds>(0.5s);
     vpHomogeneousMatrix eMc;
-    for (int i = 0; i < max_trials; i++)
-    {
-        if (lookup_transform(m_ee_frame, m_cam_frame, eMc))
-        {
-            m_robot.set_eMc(eMc);
-            return;
-        }
-        RCLCPP_WARN_STREAM(this->get_logger(), "Retrying in 0.5s");
-        rclcpp::sleep_for(sleep_duration);
-    }
-    rclcpp::shutdown(nullptr, "Robot initialization failed.");
+    if (!lookup_transform(m_ee_frame, m_cam_frame, eMc)) return;
+
+    // Finish initialization and cancel timer
+    m_robot.set_eMc(eMc);
+    m_setup_timer->cancel();
 }
 
 void IbvsController::publish_traj(const std::vector<double> &qdot)
@@ -130,13 +123,13 @@ void IbvsController::callback_cam_info(const sensor_msgs::msg::CameraInfo::Share
 void IbvsController::callback_tag(const AprilTagDetectionArray::SharedPtr msg)
 {
     update_desired_features();
-    if (!m_is_cam_init) return;
     if (m_pd.size() == 0)
     {
         RCLCPP_DEBUG_STREAM(this->get_logger(), "No desired features available.");
         return;
     }
 
+    if (!m_is_cam_init) return;
     std::vector<int> valid_ids, invalid_ids;
     update_features(msg->detections, valid_ids, invalid_ids);
     if (valid_ids.size() == 0)
@@ -156,7 +149,7 @@ void IbvsController::callback_tag(const AprilTagDetectionArray::SharedPtr msg)
 
     // Get end-effector pose relative to robot base from TF Tree
     vpHomogeneousMatrix fMe;
-    if (!lookup_transform(m_base_frame, m_ee_frame, fMe)) return;
+    if (!(m_robot.isInitialized() && lookup_transform(m_base_frame, m_ee_frame, fMe))) return;
 
     // Compute camera velocity and convert to joint velocities
     vpColVector v_c = m_lambda.hadamard(m_controller.computeControlLaw());
@@ -288,7 +281,6 @@ int main(int argc, char *argv[])
 {
     rclcpp::init(argc, argv);
     auto ibvs_controller = std::make_shared<IbvsController>();
-    ibvs_controller->post_init();
     rclcpp::spin(ibvs_controller);
     rclcpp::shutdown();
     return 0;

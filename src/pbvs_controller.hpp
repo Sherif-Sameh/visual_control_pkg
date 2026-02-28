@@ -74,6 +74,7 @@ private:
     vpServo m_controller;
 
     // ROS Attributes
+    rclcpp::TimerBase::SharedPtr m_setup_timer;
     rclcpp::Publisher<geometry_msgs::msg::PoseArray>::SharedPtr m_pub_perr{nullptr};
     rclcpp::Publisher<trajectory_msgs::msg::JointTrajectory>::SharedPtr m_pub_traj{nullptr};
     rclcpp::Subscription<sensor_msgs::msg::JointState>::SharedPtr m_sub_js{nullptr};

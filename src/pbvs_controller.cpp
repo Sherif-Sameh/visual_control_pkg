@@ -41,6 +41,7 @@ PbvsController::PbvsController() : Node("pbvs_controller")
     init_controller();
 
     // Initialize ROS attributes
+    m_setup_timer = this->create_wall_timer(0.25s, std::bind(&PbvsController::post_init, this));
     m_pub_perr =
         this->create_publisher<geometry_msgs::msg::PoseArray>("/pbvs_controller/pose_error", 10);
     m_pub_traj = this->create_publisher<trajectory_msgs::msg::JointTrajectory>(
@@ -61,20 +62,12 @@ PbvsController::~PbvsController()
 
 void PbvsController::post_init()
 {
-    constexpr int max_trials = 20;
-    constexpr auto sleep_duration = std::chrono::duration_cast<std::chrono::nanoseconds>(0.5s);
     vpHomogeneousMatrix eMc;
-    for (int i = 0; i < max_trials; i++)
-    {
-        if (lookup_transform(m_ee_frame, m_cam_frame, eMc))
-        {
-            m_robot.set_eMc(eMc);
-            return;
-        }
-        RCLCPP_WARN_STREAM(this->get_logger(), "Retrying in 0.5s");
-        rclcpp::sleep_for(sleep_duration);
-    }
-    rclcpp::shutdown(nullptr, "Robot initialization failed.");
+    if (!lookup_transform(m_ee_frame, m_cam_frame, eMc)) return;
+
+    // Finish initialization and cancel timer
+    m_robot.set_eMc(eMc);
+    m_setup_timer->cancel();
 }
 
 void PbvsController::publish_traj(const std::vector<double> &qdot)
@@ -144,7 +137,7 @@ void PbvsController::callback_tag(const AprilTagDetectionArray::SharedPtr msg)
 
     // Get end-effector pose relative to robot base from TF Tree
     vpHomogeneousMatrix fMe;
-    if (!lookup_transform(m_base_frame, m_ee_frame, fMe)) return;
+    if (!(m_robot.isInitialized() && lookup_transform(m_base_frame, m_ee_frame, fMe))) return;
 
     // Compute camera velocity and convert to joint velocities
     vpColVector v_c = m_lambda.hadamard(m_controller.computeControlLaw());
@@ -258,7 +251,6 @@ int main(int argc, char *argv[])
 {
     rclcpp::init(argc, argv);
     auto pbvs_controller = std::make_shared<PbvsController>();
-    pbvs_controller->post_init();
     rclcpp::spin(pbvs_controller);
     rclcpp::shutdown();
     return 0;
