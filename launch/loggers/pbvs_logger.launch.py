@@ -53,53 +53,6 @@ def declare_arguments() -> list[DeclareLaunchArgument]:
     )
     declared_arguments.append(
         DeclareLaunchArgument(
-            "console_n_log",
-            default_value="5",
-            description="Logging interval for console logger relative to logging period."
-            " Default is 5.",
-        )
-    )
-    declared_arguments.append(
-        DeclareLaunchArgument(
-            "console_n_flush",
-            default_value="5",
-            description="Flushing interval for console logger relative to logging period."
-            " Default is 5.",
-        )
-    )
-    declared_arguments.append(
-        DeclareLaunchArgument(
-            "csv_n_log",
-            default_value="1",
-            description="Logging interval for CSV logger relative to logging period. Default is 1.",
-        )
-    )
-    declared_arguments.append(
-        DeclareLaunchArgument(
-            "csv_n_flush",
-            default_value="4",
-            description="Flushing interval for CSV logger relative to logging period."
-            " Default is 4.",
-        )
-    )
-    declared_arguments.append(
-        DeclareLaunchArgument(
-            "wandb_n_log",
-            default_value="2",
-            description="Logging interval for WandB logger relative to logging period."
-            " Default is 2.",
-        )
-    )
-    declared_arguments.append(
-        DeclareLaunchArgument(
-            "wandb_n_flush",
-            default_value="2",
-            description="Flushing interval for WandB logger relative to logging period."
-            " Default is 2.",
-        )
-    )
-    declared_arguments.append(
-        DeclareLaunchArgument(
             "wandb_group",
             default_value="PBVS",
             description="Group name for run to use for WandB logger. Default is PBVS.",
