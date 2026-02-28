@@ -39,7 +39,7 @@ class ROSSweeper(Node):
         # Declare ROS parameters
         self.declare_parameter("timer_period", rclpy.Parameter.Type.DOUBLE)
         self.declare_parameter("n_runs", rclpy.Parameter.Type.INTEGER)
-        self.declare_parameter("n_sweeps", rclpy.Parameter.Type.INTEGER)
+        self.declare_parameter("n_runs_per_set", rclpy.Parameter.Type.INTEGER)
         self.declare_parameter("target_nodes", rclpy.Parameter.Type.STRING_ARRAY)
         self.declare_parameter("obj.flags", rclpy.Parameter.Type.STRING_ARRAY)
         self.declare_parameter("obj.weights", rclpy.Parameter.Type.DOUBLE_ARRAY)
@@ -55,10 +55,11 @@ class ROSSweeper(Node):
 
         # Initialize non-ROS class attributes
         timer_period = self.get_parameter("timer_period").value
-        self._n_runs = self.get_parameter("n_runs").value
-        self._n_runs_left = 1 if self._n_runs <= 0 else self._n_runs
-        self._n_sweeps_left = self.get_parameter("n_sweeps").value
-        self._n_sweeps_left = float("inf") if self._n_sweeps_left <= 0 else self._n_sweeps_left
+        self._n_runs_left = self.get_parameter("n_runs").value
+        self._n_runs_left = float("inf") if self._n_runs_left <= 0 else self._n_runs_left
+        self._n_runs_per_set = self.get_parameter("n_runs_per_set").value
+        self._n_runs_per_set = 1 if self._n_runs_per_set <= 0 else self._n_runs_per_set
+        self._n_runs_per_set_left = self._n_runs_per_set
         self._target_nodes: list[str] = self.get_parameter("target_nodes").value
         self._obj_flags = self.get_parameter("obj.flags").value
         self._obj_weights = np.array(self.get_parameter("obj.weights").value)
@@ -76,7 +77,7 @@ class ROSSweeper(Node):
         self._sub_js = self.create_subscription(JointState, "/joint_states", self.callback_js, 50)
         self._sub_pe = self.create_subscription(PoseStamped, "/pose_error", self.callback_pe, 50)
         self._sub_rst = self.create_subscription(
-            Empty, "/ros_logger/restart", self.callback_rst, 10
+            Empty, "/ros_sweeper/restart", self.callback_rst, 10
         )
         self._get_cli = [
             self.create_client(GetParameters, f"/{tn}/get_parameters") for tn in self._target_nodes
@@ -92,22 +93,9 @@ class ROSSweeper(Node):
         self._timer = self.create_timer(timer_period, self.callback_timer)
 
     @property
-    def run_done(self) -> bool:
-        """Returns flag indentifying whether the current run is done or not."""
-        return self._n_runs_left <= 0
-
-    @property
-    def agent_kwargs(self) -> dict[str, Any]:
-        """Returns the kwargs for the wandb agent.
-
-        Those include the count (number of sweeps), entity and project.
-        """
-        kwargs = {
-            "count": self.get_parameter("n_sweeps").value,
-            "entity": self._wandb_kwargs["config"].entity,
-            "project": self._wandb_kwargs["config"].project,
-        }
-        return kwargs
+    def run_set_done(self) -> bool:
+        """Returns flag indentifying whether the current set of runs is done or not."""
+        return self._n_runs_per_set_left <= 0
 
     @property
     def sweep_id(self) -> str:
@@ -122,13 +110,22 @@ class ROSSweeper(Node):
             )
         return self._sweep_params["id"]
 
-    def pre_run(self) -> None:
-        """Setup routine to prepare for a new run in the sweep.
+    @property
+    def agent_kwargs(self) -> dict[str, Any]:
+        """Returns the kwargs for the wandb agent.
 
-        **Note**: Run in this context refers to a new set of hyperparameters. This function should
-        not be called in-between runs with the same hyperparameters.
+        Those include the count (number of sweeps), entity and project.
         """
-        if self._n_sweeps_left <= 0:
+        kwargs = {
+            "count": self.get_parameter("n_sweeps").value,
+            "entity": self._wandb_kwargs["config"].entity,
+            "project": self._wandb_kwargs["config"].project,
+        }
+        return kwargs
+
+    def pre_run_set(self) -> None:
+        """Setup routine to prepare for a new set of runs in the sweep."""
+        if self._n_runs_left <= 0:
             return
 
         # Initialize/re-intiialize WandB logger
@@ -140,20 +137,19 @@ class ROSSweeper(Node):
         config = wandb.config.as_dict()
         self._set_hyperparameters(config)
 
-    def post_run(self) -> None:
-        """Termination routine to close an active run in the sweep cleanly.
-
-        **Note**: Run in this context refers to a new set of hyperparameters. This function should
-        not be called in-between runs with the same hyperparameters.
-        """
-        # Log objective value for run
+    def post_run_set(self) -> None:
+        """Termination routine to close an active set of runs in the sweep cleanly."""
+        # Log objective value for run set
         step = max(self._metrics_t[0], self._metrics_t[1])
-        self._wandb.log(step, {self._obj.name: self._obj.compute()})
+        obj_value = self._obj.compute()
+        for _ in range(self._wandb_kwargs["n_log"]):
+            self._wandb.log(step, {self._obj.name: obj_value})
+            self._wandb.log(step, {})  # counteract n_hold=2
 
-        # Reset internal states to prepare for new sweep
+        # Reset internal states to prepare for new run set
         self._obj.reset()
         self._wandb.close()
-        self._n_runs_left = self._n_runs
+        self._n_runs_per_set_left = self._n_runs_per_set
 
     def callback_timer(self) -> None:
         terms = []
@@ -163,7 +159,7 @@ class ROSSweeper(Node):
             terms.extend(result.values())
             metric.reset()
         self._obj.update(
-            objective=self._obj_weights * np.sum(np.concatenate(terms, axis=0), keepdims=True)
+            objective=np.sum(self._obj_weights * np.concatenate(terms, axis=0), keepdims=True)
         )
 
     def callback_js(self, msg: JointState) -> None:
@@ -180,10 +176,10 @@ class ROSSweeper(Node):
         self._metrics_t[1] = self._get_timestep(msg.header)
 
     def callback_rst(self, msg: Empty) -> None:
-        self._n_runs_left -= 1
-        if self._n_runs_left == 0:
-            self._n_sweeps_left -= 1
-        if self._n_sweeps_left > 0:
+        self._n_runs_per_set_left -= 1
+        if self._n_runs_per_set_left == 0:
+            self._n_runs_left -= 1
+        if self._n_runs_left > 0:
             for metric in self._metrics:
                 metric.reset()
             self._start_time = self.get_clock().now().nanoseconds * 1e-9
@@ -254,7 +250,7 @@ class ROSSweeper(Node):
         param_dict = {}
         for tn, get_c in zip(self._target_nodes, self._get_cli):
             request = GetParameters.Request()
-            request.names = [n.split("/")[-1] for n in param_names if n.startswith(f"/{tn}")]
+            request.names = [n.split("/")[-1] for n in param_names if n.startswith(tn)]
             future = get_c.call_async(request)
             rclpy.spin_until_future_complete(self, future)
             response: GetParameters.Response = future.result()
@@ -284,7 +280,7 @@ class ROSSweeper(Node):
             request.parameters = [
                 Parameter(name=k.split("/")[-1], value=python_to_param_value(v))
                 for k, v in config.items()
-                if k.startswith(f"/{tn}")
+                if k.startswith(tn)
             ]
             future = set_c.call_async(request)
             rclpy.spin_until_future_complete(self, future)
@@ -308,10 +304,10 @@ def main(args=None):
     agent_kwargs = ros_sweeper.agent_kwargs
 
     def sweep_fn() -> None:
-        ros_sweeper.pre_run()
-        while rclpy.ok() and not ros_sweeper.run_done:
+        ros_sweeper.pre_run_set()
+        while rclpy.ok() and not ros_sweeper.run_set_done:
             rclpy.spin_once(ros_sweeper)
-        ros_sweeper.post_run()
+        ros_sweeper.post_run_set()
 
     wandb.agent(sweep_id, sweep_fn, **agent_kwargs)
     ros_sweeper.destroy_node()
