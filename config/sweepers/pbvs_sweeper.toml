@@ -30,21 +30,21 @@ target_nodes = ["apriltag", "pbvs_controller"]
 "wandb.config.entity" = "u1999168-girona"
 "wandb.config.project" = "visual_control|VS_sweeps"
 "wandb.config.params" = [
-    "apriltag/size",
-    "apriltag/tile_size",
-    "apriltag/backends",
-    "pbvs_controller/tag.tag_ids",
-    "pbvs_controller/ik.eps",
-    "pbvs_controller/ik.lambda",
-    "pbvs_controller/ik.max_iters",
-    "pbvs_controller/ik.weight_js",
-    "pbvs_controller/robot.max_tvel",
-    "pbvs_controller/robot.max_rvel",
-    "pbvs_controller/robot.max_vel_sf",
-    "pbvs_controller/robot.max_qdot",
-    "pbvs_controller/ctrl.conv_ttol",
-    "pbvs_controller/ctrl.conv_rtol",
-    "pbvs_controller/ctrl.lambda",
+    "apriltag-size",
+    "apriltag-tile_size",
+    "apriltag-backends",
+    "pbvs_controller-tag.tag_ids",
+    "pbvs_controller-ik.eps",
+    "pbvs_controller-ik.lambda",
+    "pbvs_controller-ik.max_iters",
+    "pbvs_controller-ik.weight_js",
+    "pbvs_controller-robot.max_tvel",
+    "pbvs_controller-robot.max_rvel",
+    "pbvs_controller-robot.max_vel_sf",
+    "pbvs_controller-robot.max_qdot",
+    "pbvs_controller-ctrl.conv_ttol",
+    "pbvs_controller-ctrl.conv_rtol",
+    "pbvs_controller-ctrl.lambda",
 ]
 
 
@@ -58,11 +58,11 @@ name = "objective"
 goal = "minimize"
 
 [sweep.parameters]
-"pbvs_controller/ik.eps" = { distribution = "log_uniform_values", min = 1e-3, max = 0.1}
-"pbvs_controller/ik.lambda" = { distribution = "log_uniform_values", min = 1e-3, max = 0.1}
-"pbvs_controller/ctrl.conv_ttol" = {distribution = "log_uniform_values", min = 1e-3, max = 0.025}
-"pbvs_controller/ctrl.conv_rtol" = {distribution = "log_uniform_values", min = 1e-3, max = 0.02}
-"pbvs_controller/ctrl.lambda.01" = {min = 0.1, max = 2.0}
-"pbvs_controller/ctrl.lambda.2" = {min = 0.1, max = 2.0}
-"pbvs_controller/ctrl.lambda.34" = {min = 0.1, max = 2.0}
-"pbvs_controller/ctrl.lambda.5" = {min = 0.1, max = 2.0}
+"pbvs_controller-ik.eps" = { distribution = "log_uniform_values", min = 1e-3, max = 0.1}
+"pbvs_controller-ik.lambda" = { distribution = "log_uniform_values", min = 1e-3, max = 0.1}
+"pbvs_controller-ctrl.conv_ttol" = {distribution = "log_uniform_values", min = 1e-3, max = 0.025}
+"pbvs_controller-ctrl.conv_rtol" = {distribution = "log_uniform_values", min = 1e-3, max = 0.02}
+"pbvs_controller-ctrl.lambda.idx_01" = {min = 0.1, max = 2.0}
+"pbvs_controller-ctrl.lambda.idx_2" = {min = 0.1, max = 2.0}
+"pbvs_controller-ctrl.lambda.idx_34" = {min = 0.1, max = 2.0}
+"pbvs_controller-ctrl.lambda.idx_5" = {min = 0.1, max = 2.0}

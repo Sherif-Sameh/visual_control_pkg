@@ -27,6 +27,7 @@ from visual_control_pkg.metrics import (
     FunctionalMetric,
 )
 from visual_control_pkg.objectives import NormObjective, RotNormObjective, TfNormObjective
+from visual_control_pkg.utils.common import process_wandb_config
 from visual_control_pkg.utils.ros import python_to_param_value
 
 
@@ -68,9 +69,10 @@ class ROSSweeper(Node):
         self._obj = AccumulatorMetric(name="objective", argname="objective", red="mean")
         self._metrics = (self._init_js_metric(), self._init_pe_metric())
         self._metrics_t = [0.0, 0.0]
+        self._metrics_nan = [True, True]
         self._wandb: WandBLogger | None = None
         self._wandb_kwargs: dict[str, Any] = {}
-        self._start_time = self.get_clock().now().nanoseconds * 1e-9
+        self._start_time = None
         assert len(self._obj_flags) == len(self._obj_weights)
 
         # Initialize ROS attributes
@@ -83,7 +85,7 @@ class ROSSweeper(Node):
             self.create_client(GetParameters, f"/{tn}/get_parameters") for tn in self._target_nodes
         ]
         self._set_cli = [
-            self.create_client(GetParameters, f"/{tn}/set_parameters") for tn in self._target_nodes
+            self.create_client(SetParameters, f"/{tn}/set_parameters") for tn in self._target_nodes
         ]
         for tn, get_c in zip(self._target_nodes, self._get_cli):
             while not get_c.wait_for_service(timeout_sec=0.5):
@@ -106,7 +108,8 @@ class ROSSweeper(Node):
         """
         if self._sweep_params["id"] == "":
             self._sweep_params["id"] = wandb.sweep(
-                sweep=self._sweep_params["config"], project=self._wandb_kwargs["config"].project
+                sweep=self._sweep_params["config"],
+                project=self.get_parameter("wandb.config.project").value,
             )
         return self._sweep_params["id"]
 
@@ -117,9 +120,9 @@ class ROSSweeper(Node):
         Those include the count (number of sweeps), entity and project.
         """
         kwargs = {
-            "count": self.get_parameter("n_sweeps").value,
-            "entity": self._wandb_kwargs["config"].entity,
-            "project": self._wandb_kwargs["config"].project,
+            "count": self.get_parameter("n_runs").value,
+            "entity": self.get_parameter("wandb.config.entity").value,
+            "project": self.get_parameter("wandb.config.project").value,
         }
         return kwargs
 
@@ -134,8 +137,9 @@ class ROSSweeper(Node):
         self._wandb = ROSWrapperLogger(n_hold=2, logger=WandBLogger(**self._wandb_kwargs))
 
         # Send hyperparameters to target nodes
-        config = wandb.config.as_dict()
+        config = process_wandb_config(wandb.config.as_dict())
         self._set_hyperparameters(config)
+        self._start_time = self.get_clock().now().nanoseconds * 1e-9
 
     def post_run_set(self) -> None:
         """Termination routine to close an active set of runs in the sweep cleanly."""
@@ -152,19 +156,21 @@ class ROSSweeper(Node):
         self._n_runs_per_set_left = self._n_runs_per_set
 
     def callback_timer(self) -> None:
+        if self._wandb is None or any(self._metrics_nan):
+            return
         terms = []
-        for step, metric in zip(self._metrics_t, self._metrics):
-            result = metric.compute()
-            self._wandb.log(step, result)
-            terms.extend(result.values())
+        for i, (step, metric) in enumerate(zip(self._metrics_t, self._metrics)):
+            self._wandb.log(step, metrics_dict := metric.compute())
+            terms.extend(metrics_dict.values())
             metric.reset()
-        self._obj.update(
-            objective=np.sum(self._obj_weights * np.concatenate(terms, axis=0), keepdims=True)
-        )
+            self._metrics_nan[i] = True
+        obj_value = np.sum(self._obj_weights * np.concatenate(terms, axis=0), keepdims=True)
+        self._obj.update(objective=obj_value)
 
     def callback_js(self, msg: JointState) -> None:
         self._metrics[0].update(velocity=np.array(msg.velocity))
         self._metrics_t[0] = self._get_timestep(msg.header)
+        self._metrics_nan[0] = False
 
     def callback_pe(self, msg: PoseStamped) -> None:
         pos, rot = msg.pose.position, msg.pose.orientation
@@ -174,16 +180,16 @@ class ROSSweeper(Node):
             pose=np.array([pos.x, pos.y, pos.z, rot.x, rot.y, rot.z, rot.w]),
         )
         self._metrics_t[1] = self._get_timestep(msg.header)
+        self._metrics_nan[1] = False
 
     def callback_rst(self, msg: Empty) -> None:
         self._n_runs_per_set_left -= 1
         if self._n_runs_per_set_left == 0:
             self._n_runs_left -= 1
         if self._n_runs_left > 0:
-            for metric in self._metrics:
+            for i, metric in enumerate(self._metrics):
                 metric.reset()
-            self._start_time = self.get_clock().now().nanoseconds * 1e-9
-            self.get_logger().info("Preparing for new run. Cleared all metrics.")
+                self._metrics_nan[i] = True
 
     def _init_js_metric(self) -> ComposeMetric:
         """Initialize and return composed tracked JS metrics according to objective configuration."""
@@ -198,14 +204,15 @@ class ROSSweeper(Node):
             )
         if "jnt_delta_vel" in self._obj_flags:
             metrics.append(
-                FunctionalMetric(
+                DeltaMetric(
                     name="JS/DeltaVelL2Norm",
-                    metric=DeltaMetric(
+                    argname="velocity",
+                    metric=FunctionalMetric(
                         name="",
-                        argname="velocity",
                         metric=AccumulatorMetric(name="", argname="", red="mean"),
+                        func=NormObjective(name="", ord=2),
                     ),
-                    func=NormObjective(name="", ord=2),
+                    default=np.zeros(1),
                 )
             )
         return ComposeMetric(metrics=metrics)
@@ -250,7 +257,7 @@ class ROSSweeper(Node):
         param_dict = {}
         for tn, get_c in zip(self._target_nodes, self._get_cli):
             request = GetParameters.Request()
-            request.names = [n.split("/")[-1] for n in param_names if n.startswith(tn)]
+            request.names = [n.split("-")[-1] for n in param_names if n.startswith(tn)]
             future = get_c.call_async(request)
             rclpy.spin_until_future_complete(self, future)
             response: GetParameters.Response = future.result()
@@ -258,8 +265,8 @@ class ROSSweeper(Node):
                 {k: parameter_value_to_python(v) for k, v in zip(request.names, response.values)}
             )
         config = WandBLogger.WandBConfig(
-            entity=params["config.entity"],
-            project=params["config.project"],
+            entity=None,
+            project=None,
             group=params["config.group"],
             dir=params["config.dir"],
             config=param_dict,
@@ -278,10 +285,12 @@ class ROSSweeper(Node):
         for tn, set_c in zip(self._target_nodes, self._set_cli):
             request = SetParameters.Request()
             request.parameters = [
-                Parameter(name=k.split("/")[-1], value=python_to_param_value(v))
+                Parameter(name=k.split("-")[-1], value=python_to_param_value(v))
                 for k, v in config.items()
                 if k.startswith(tn)
             ]
+            if len(request.parameters) == 0:
+                continue
             future = set_c.call_async(request)
             rclpy.spin_until_future_complete(self, future)
             response: SetParameters.Response = future.result()
