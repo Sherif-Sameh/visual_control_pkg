@@ -54,8 +54,8 @@ def declare_arguments() -> list[DeclareLaunchArgument]:
     declared_arguments.append(
         DeclareLaunchArgument(
             "wandb_group",
-            default_value="IBVS",
-            description="Group name for run to use for WandB logger. Default is IBVS.",
+            default_value="IBVS|ideal",
+            description="Group name for run to use for WandB logger. Default is IBVS|ideal.",
         )
     )
     return declared_arguments

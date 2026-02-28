@@ -54,7 +54,7 @@ class ROSLogger(Node):
         self.declare_parameter("n_runs", rclpy.Parameter.Type.INTEGER)
         self.declare_parameter("smooth", rclpy.Parameter.Type.BOOL)
         self.declare_parameter("timer_period", rclpy.Parameter.Type.DOUBLE)
-        self.declare_parameter("param_servers", rclpy.Parameter.Type.STRING_ARRAY)
+        self.declare_parameter("target_nodes", rclpy.Parameter.Type.STRING_ARRAY)
         self.declare_parameter("log.console", rclpy.Parameter.Type.BOOL)
         self.declare_parameter("log.csv", rclpy.Parameter.Type.BOOL)
         self.declare_parameter("log.wandb", rclpy.Parameter.Type.BOOL)
@@ -81,7 +81,7 @@ class ROSLogger(Node):
         timer_period = self.get_parameter("timer_period").value
         n_runs = self.get_parameter("n_runs").value
         self._n_runs_left = float("inf") if n_runs <= 0 else n_runs
-        self._param_servers: list[str] = self.get_parameter("param_servers").value
+        self._target_nodes: list[str] = self.get_parameter("target_nodes").value
         self._log_flags = {k: v.value for k, v in self.get_parameters_by_prefix("log").items()}
         if not any(f for f in self._log_flags.values()):
             self.get_logger().info("None of the logging outputs are enabled.")
@@ -89,7 +89,7 @@ class ROSLogger(Node):
             rclpy.shutdown()
         self._metrics: dict[str, list[float | ComposeMetric]] = dict()
         self._loggers: ComposeLogger | None = None
-        self._start_time = self.get_clock().now().nanoseconds * 1e-9
+        self._start_time = None
 
         # Initialize ROS attributes
         self._sub_js = self.create_subscription(JointState, "/joint_states", self.callback_js, 50)
@@ -103,10 +103,15 @@ class ROSLogger(Node):
         )
         self._timer = self.create_timer(timer_period, self.callback_timer)
         if self._log_flags["wandb"]:
-            self._cli = [self.create_client(GetParameters, ps) for ps in self._param_servers]
-            for ps, c in zip(self._param_servers, self._cli):
+            self._cli = [
+                self.create_client(GetParameters, f"/{tn}/get_parameters")
+                for tn in self._target_nodes
+            ]
+            for tn, c in zip(self._target_nodes, self._cli):
                 while not c.wait_for_service(timeout_sec=1.0):
-                    self.get_logger().info(f"{ps} service not available, waiting again...")
+                    self.get_logger().info(
+                        f"Get parameters service for {tn} not available, waiting again..."
+                    )
 
     @property
     def shutdown(self) -> bool:
@@ -126,6 +131,7 @@ class ROSLogger(Node):
             loggers.append(self._init_wandb_logger())
             self.get_logger().info("Initialized WandB logger.")
         self._loggers = ComposeLogger(loggers=loggers)
+        self._start_time = self.get_clock().now().nanoseconds * 1e-9
 
     def close(self) -> None:
         """Close all active loggers cleanly."""
@@ -236,11 +242,9 @@ class ROSLogger(Node):
         params = {k: v.value for k, v in self.get_parameters_by_prefix("wandb").items()}
         param_names: list[str] = params["config.params"]
         param_dict: dict[str, Any] = {}
-        for ps, c in zip(self._param_servers, self._cli):
+        for tn, c in zip(self._target_nodes, self._cli):
             request = GetParameters.Request()
-            request.names = [
-                n.split("/")[-1] for n in param_names if n.startswith(ps.split("/")[0])
-            ]
+            request.names = [n.split("-")[-1] for n in param_names if n.startswith(tn)]
             future = c.call_async(request)
             rclpy.spin_until_future_complete(self, future)
             response: GetParameters.Response = future.result()
