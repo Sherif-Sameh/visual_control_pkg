@@ -33,8 +33,8 @@ def declare_arguments() -> list[DeclareLaunchArgument]:
     declared_arguments.append(
         DeclareLaunchArgument(
             "wandb_group",
-            default_value="PBVS|ideal",
-            description="Group name for run to use for WandB logger. Default is PBVS|ideal.",
+            default_value="IBVS|ideal",
+            description="Group name for run to use for WandB logger. Default is IBVS|ideal.",
         )
     )
     return declared_arguments
@@ -54,11 +54,11 @@ def generate_launch_description() -> LaunchDescription:
 
     # Load configuration from toml
     pkg_share = get_package_share_directory("visual_control_pkg")
-    config_path = os.path.join(pkg_share, "config", "sweepers", "pbvs_sweeper.toml")
+    config_path = os.path.join(pkg_share, "config", "sweepers", "ibvs_sweeper.toml")
     config = toml.load(config_path)
 
     # Initialize nodes to start
-    pbvs_sweeper_node = Node(
+    ibvs_sweeper_node = Node(
         package="visual_control_pkg",
         executable="ros_sweeper.py",
         output="screen",
@@ -79,5 +79,5 @@ def generate_launch_description() -> LaunchDescription:
         ],
     )
 
-    nodes_to_start = [pbvs_sweeper_node]
+    nodes_to_start = [ibvs_sweeper_node]
     return LaunchDescription(declared_arguments + nodes_to_start)

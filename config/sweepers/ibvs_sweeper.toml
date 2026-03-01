@@ -1,0 +1,66 @@
+### IBVS ROS Sweeper Configuration ###
+
+# Launch script parameters  
+[launch]
+
+# General parameters
+timer_period = 0.1
+n_runs_per_set = 2
+target_nodes = ["apriltag", "ibvs_controller"]
+
+# Objective function parameters
+"obj.flags" = [
+    "jnt_vel",
+    "jnt_delta_vel",
+    "pos",
+    "rot",
+    "pose",
+]
+"obj.weights" = [
+    0.005,
+    0.01,
+    0.75,
+    0.5,
+    0.0,
+]
+
+# WandB logger parameters
+"wandb.n_log" = 2
+"wandb.n_flush" = 2
+"wandb.config.entity" = "u1999168-girona"
+"wandb.config.project" = "visual_control|VS_sweeps"
+"wandb.config.params" = [
+    "apriltag-size",
+    "apriltag-tile_size",
+    "apriltag-backends",
+    "ibvs_controller-tag.tag_ids",
+    "ibvs_controller-ik.eps",
+    "ibvs_controller-ik.lambda",
+    "ibvs_controller-ik.max_iters",
+    "ibvs_controller-ik.weight_js",
+    "ibvs_controller-robot.max_tvel",
+    "ibvs_controller-robot.max_rvel",
+    "ibvs_controller-robot.max_vel_sf",
+    "ibvs_controller-robot.max_qdot",
+    "ibvs_controller-ctrl.conv_ttol",
+    "ibvs_controller-ctrl.lambda",
+]
+
+
+# Sweep hyperparameters
+[sweep]
+program = "scripts/sweepers/ros_sweeper.py"
+method = "bayes"
+
+[sweep.metric]
+name = "objective"
+goal = "minimize"
+
+[sweep.parameters]
+"ibvs_controller-ik.eps" = { distribution = "log_uniform_values", min = 1e-3, max = 0.1}
+"ibvs_controller-ik.lambda" = { distribution = "log_uniform_values", min = 1e-3, max = 0.1}
+"ibvs_controller-ctrl.conv_ttol" = {distribution = "log_uniform_values", min = 1e-3, max = 0.025}
+"ibvs_controller-ctrl.lambda.idx_01" = {min = 0.1, max = 2.0}
+"ibvs_controller-ctrl.lambda.idx_2" = {min = 0.1, max = 2.0}
+"ibvs_controller-ctrl.lambda.idx_34" = {min = 0.1, max = 2.0}
+"ibvs_controller-ctrl.lambda.idx_5" = {min = 0.1, max = 2.0}
