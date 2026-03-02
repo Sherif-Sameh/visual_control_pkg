@@ -5,7 +5,7 @@
 
 # General parameters
 timer_period = 0.1
-n_runs_per_set = 2
+n_runs_per_set = 3
 target_nodes = ["apriltag", "ibvs_controller"]
 
 # Objective function parameters
@@ -17,11 +17,11 @@ target_nodes = ["apriltag", "ibvs_controller"]
     "pose",
 ]
 "obj.weights" = [
-    0.005,
-    0.01,
-    0.75,
-    0.5,
+    0.025,
+    0.1,
     0.0,
+    0.0,
+    1.0,
 ]
 
 # WandB logger parameters

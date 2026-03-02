@@ -22,7 +22,7 @@ target_nodes = ["apriltag", "ibvs_controller"]
 # WandB logger parameters
 "wandb.n_log" = 2
 "wandb.n_flush" = 2
-"wandb.filter" = ["JS", "PE"]
+"wandb.filter" = ["JS", "JT", "PE"]
 "wandb.config.entity" = "u1999168-girona"
 "wandb.config.project" = "visual_control|VS"
 "wandb.config.params" = [
