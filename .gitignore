@@ -35,3 +35,8 @@ data/*
 
 # WandB logs
 **/wandb/
+
+# Plots
+*.png
+*.jpeg
+*.svg
