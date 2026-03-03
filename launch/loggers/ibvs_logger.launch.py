@@ -71,9 +71,11 @@ def generate_launch_description() -> LaunchDescription:
     console = LaunchConfiguration("console")
     csv = LaunchConfiguration("csv")
     wandb = LaunchConfiguration("wandb")
-    csv_dir = PathJoinSubstitution([FindPackageShare("visual_control_pkg"), "../../../../logs/csv"])
+    csv_dir = PathJoinSubstitution(
+        [FindPackageShare("visual_control_pkg"), "../../../../logs/csv/ibvs"]
+    )
     wandb_dir = PathJoinSubstitution(
-        [FindPackageShare("visual_control_pkg"), "../../../../logs/wandb"]
+        [FindPackageShare("visual_control_pkg"), "../../../../logs/wandb/ibvs"]
     )
     wandb_group = LaunchConfiguration("wandb_group")
 
