@@ -1,10 +1,11 @@
 ### PBVS Controller Configuration ###
 
-[controller]
+# Tuned values derived from ideal simulation environment
+[controller]  # https://wandb.ai/u1999168-girona/visual_control|VS_sweeps/runs/mpncqxtq?nw=nwuseru1999168
 
 # IK solver parameters
-"ik.eps" = 0.04
-"ik.lambda" = 0.04
+"ik.eps" = 6.105e-2
+"ik.lambda" = 3.409e-3
 "ik.max_iters" = 50
 "ik.weight_js" = [
   0.8, 0.0, 0.0, 0.0, 0.0, 0.0,
@@ -29,6 +30,13 @@
 ]
 
 # Controller parameters
-"ctrl.conv_ttol" = 0.005
-"ctrl.conv_rtol" = 0.005
-"ctrl.lambda" = [1.0, 1.0, 0.7, 1.0, 1.0, 0.5]
+"ctrl.conv_ttol" = 1.654e-2
+"ctrl.conv_rtol" = 1.298e-3
+"ctrl.lambda" = [
+  1.985,
+  1.985,
+  1.338,
+  1.966,
+  1.966,
+  1.249,
+]
