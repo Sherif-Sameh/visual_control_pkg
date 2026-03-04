@@ -79,10 +79,24 @@ ament_target_dependencies(ibvs_controller
   VISP
 )
 
+add_executable(pose_controller src/controllers/pose_controller.cpp)
+target_link_libraries(pose_controller vc_lib)
+ament_target_dependencies(pose_controller 
+  rclcpp
+  geometry_msgs
+  sensor_msgs
+  tf2
+  tf2_ros
+  tf2_geometry_msgs
+  trajectory_msgs
+  VISP
+)
+
 # Install C++ executables
 install(TARGETS
   pbvs_controller
   ibvs_controller
+  pose_controller
   DESTINATION lib/${PROJECT_NAME}
 )
 
