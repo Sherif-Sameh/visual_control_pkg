@@ -42,10 +42,10 @@ PbvsController::PbvsController() : Node("pbvs_controller")
 
     // Initialize ROS attributes
     m_timer_setup = this->create_wall_timer(0.25s, std::bind(&PbvsController::post_init, this));
-    m_pub_perr =
-        this->create_publisher<geometry_msgs::msg::PoseArray>("/pbvs_controller/pose_error", 10);
     m_pub_traj = this->create_publisher<trajectory_msgs::msg::JointTrajectory>(
         "/joint_trajectory_controller/joint_trajectory", 0);
+    m_pub_perr =
+        this->create_publisher<geometry_msgs::msg::PoseArray>("/pbvs_controller/pose_error", 10);
     m_sub_js = this->create_subscription<sensor_msgs::msg::JointState>(
         "/joint_states", 0, std::bind(&PbvsController::callback_js, this, _1));
     m_sub_tag = this->create_subscription<AprilTagDetectionArray>(
@@ -143,7 +143,11 @@ void PbvsController::callback_tag(const AprilTagDetectionArray::SharedPtr msg)
 
     // Compute camera velocity and convert to joint velocities
     vpColVector v_c = m_lambda.hadamard(m_controller.computeControlLaw());
-    std::vector<double> qdot = m_robot.computeJointVelocity(fMe, v_c);
+    std::vector<double> qdot(m_robot.getNumDofs(), 0.0);
+    if (!has_converged(valid_ids))
+    {
+        qdot = m_robot.computeJointVelocity(fMe, v_c);
+    }
     publish_traj(qdot);
     publish_perr(m_controller.getError().toStdVector()); // log errors
 }
@@ -283,16 +287,22 @@ void PbvsController::update_features(const std::vector<AprilTagDetection> &detec
         {
             vpHomogeneousMatrix cMo = geometry::gm_pose_to_vp_hmatrix((*it).pose.pose.pose);
             vpHomogeneousMatrix cdMc = cdMo * cMo.inverse();
-            if (cdMc.getTranslationVector().sumSquare() > m_conv_eps.first ||
-                cdMc.getThetaUVector().sumSquare() > m_conv_eps.second)
-            {
-                valid_ids.push_back(id);
-                invalid_ids.pop_back();
-                m_t[id].buildFrom(cdMc);
-                m_tu[id].buildFrom(cdMc);
-            }
+            valid_ids.push_back(id);
+            invalid_ids.pop_back();
+            m_t[id].buildFrom(cdMc);
+            m_tu[id].buildFrom(cdMc);
         }
     }
+}
+
+bool PbvsController::has_converged(const std::vector<int> &valid_ids)
+{
+    return std::all_of(valid_ids.cbegin(), valid_ids.cend(),
+                       [this](int id)
+                       {
+                           return m_t[id].get_s().sumSquare() < m_conv_eps.first &&
+                                  m_tu[id].get_s().sumSquare() < m_conv_eps.second;
+                       });
 }
 
 bool PbvsController::lookup_transform(const std::string &target_frame,

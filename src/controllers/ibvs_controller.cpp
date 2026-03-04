@@ -45,10 +45,10 @@ IbvsController::IbvsController() : Node("ibvs_controller")
 
     // Initialize ROS attributes
     m_timer_setup = this->create_wall_timer(0.25s, std::bind(&IbvsController::post_init, this));
-    m_pub_perr =
-        this->create_publisher<geometry_msgs::msg::PoseArray>("/ibvs_controller/pose_error", 10);
     m_pub_traj = this->create_publisher<trajectory_msgs::msg::JointTrajectory>(
         "/joint_trajectory_controller/joint_trajectory", 0);
+    m_pub_perr =
+        this->create_publisher<geometry_msgs::msg::PoseArray>("/ibvs_controller/pose_error", 10);
     m_sub_js = this->create_subscription<sensor_msgs::msg::JointState>(
         "/joint_states", 0, std::bind(&IbvsController::callback_js, this, _1));
     m_sub_cam_info = this->create_subscription<sensor_msgs::msg::CameraInfo>(
@@ -155,14 +155,13 @@ void IbvsController::callback_tag(const AprilTagDetectionArray::SharedPtr msg)
 
     // Compute camera velocity and convert to joint velocities
     vpColVector v_c = m_lambda.hadamard(m_controller.computeControlLaw());
-    vpColVector perr = m_controller.getError();
     std::vector<double> qdot(m_robot.getNumDofs(), 0.0);
-    if (perr.sumSquare() > m_conv_eps)
+    if (!has_converged(valid_ids))
     {
         qdot = m_robot.computeJointVelocity(fMe, v_c);
     }
     publish_traj(qdot);
-    publish_perr(perr.toStdVector()); // log errors
+    publish_perr(m_controller.getError().toStdVector()); // log errors
 }
 
 rcl_interfaces::msg::SetParametersResult
@@ -314,6 +313,21 @@ void IbvsController::update_features(const std::vector<AprilTagDetection> &detec
             invalid_ids.push_back(id);
         }
     }
+}
+
+bool IbvsController::has_converged(const std::vector<int> &valid_ids)
+{
+    auto has_feature_converged = [this](const int id)
+    {
+        bool all = true;
+        for (std::size_t i = 0; i < m_p[id].size(); i++)
+        {
+            all = all && m_p[id][i].error(m_pd[id][i]).sumSquare() < m_conv_eps;
+        }
+        return all;
+    };
+    return std::all_of(valid_ids.cbegin(), valid_ids.cend(), [&has_feature_converged](const int id)
+                       { return has_feature_converged(id); });
 }
 
 bool IbvsController::lookup_transform(const std::string &target_frame,

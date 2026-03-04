@@ -55,6 +55,7 @@ private:
     void update_desired_features();
     void update_features(const std::vector<AprilTagDetection> &detections,
                          std::vector<int> &valid_ids, std::vector<int> &invalid_ids);
+    bool has_converged(const std::vector<int> &valid_ids);
     bool lookup_transform(const std::string &target_frame, const std::string &source_frame,
                           vpHomogeneousMatrix &t);
 
@@ -78,8 +79,8 @@ private:
 
     // ROS Attributes
     rclcpp::TimerBase::SharedPtr m_timer_setup;
-    rclcpp::Publisher<geometry_msgs::msg::PoseArray>::SharedPtr m_pub_perr{nullptr};
     rclcpp::Publisher<trajectory_msgs::msg::JointTrajectory>::SharedPtr m_pub_traj{nullptr};
+    rclcpp::Publisher<geometry_msgs::msg::PoseArray>::SharedPtr m_pub_perr{nullptr};
     rclcpp::Subscription<sensor_msgs::msg::JointState>::SharedPtr m_sub_js{nullptr};
     rclcpp::Subscription<AprilTagDetectionArray>::SharedPtr m_sub_tag{nullptr};
     std::shared_ptr<tf2_ros::TransformListener> m_tf_listener{nullptr};
