@@ -53,7 +53,7 @@ def declare_arguments() -> list[DeclareLaunchArgument]:
             "controller",
             default_value="pbvs",
             description="Controller to use for tracking. Default is pbvs",
-            choices=["pbvs", "ibvs"],
+            choices=["pbvs", "ibvs", "pose"],
         )
     )
     declared_arguments.append(
@@ -219,13 +219,15 @@ def _include_visualizer_detection() -> IncludeLaunchDescription:
 
 def _launch_setup_controller(context) -> list[IncludeLaunchDescription]:
     controller = LaunchConfiguration("controller").perform(context)
-    assert controller in ["pbvs", "ibvs"]
+    assert controller in ["pbvs", "ibvs", "pose"]
     # Launch chosen controller
     match controller:
         case "pbvs":
             return [_include_controller_pbvs()]
         case "ibvs":
             return [_include_controller_ibvs()]
+        case "pose":
+            return [_include_controller_pose()]
 
 
 def _include_controller_pbvs() -> IncludeLaunchDescription:
@@ -282,5 +284,29 @@ def _include_controller_ibvs() -> IncludeLaunchDescription:
             "joint_states_topic_name": JOINT_STATES_TOPIC_NAME,
             "camera_info_topic_name": CAMERA_INFO_TOPIC_NAME,
             "detections_topic_name": DETECTIONS_TOPIC_NAME,
+        }.items(),
+    )
+
+
+def _include_controller_pose() -> IncludeLaunchDescription:
+    verbose = LaunchConfiguration("verbose")
+    return IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(
+            PathJoinSubstitution(
+                [
+                    FindPackageShare("visual_control_pkg"),
+                    "launch",
+                    "controllers",
+                    "pose_controller.launch.py",
+                ]
+            )
+        ),
+        launch_arguments={
+            "ur_type": UR_TYPE,
+            "verbose": verbose,
+            "base_frame": BASE_FRAME,
+            "ee_frame": EE_FRAME,
+            "joint_trajectory_topic_name": JOINT_TRAJECTORY_TOPIC_NAME,
+            "joint_states_topic_name": JOINT_STATES_TOPIC_NAME,
         }.items(),
     )
