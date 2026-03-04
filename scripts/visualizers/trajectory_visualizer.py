@@ -5,6 +5,7 @@ ROS node for visualizing trajectories of selected frames from the TF tree.
 """
 
 import math
+from collections import deque
 
 import rclpy
 from geometry_msgs.msg import Point, TransformStamped
@@ -45,9 +46,9 @@ class TrajectoryVisualizer(Node):
         self._frame_source = self.get_parameter("frame.source").value
         assert len(self._frame_target) == len(self._frame_source)
 
-        self._traj = [None] * len(self._frame_source)
-        self._traj_stamp = [None] * len(self._frame_source)
-        self._traj_length = self.get_parameter("traj.length").value
+        traj_length = self.get_parameter("traj.length").value
+        self._traj = [deque(maxlen=traj_length)] * len(self._frame_source)
+        self._traj_stamp = [0.0] * len(self._frame_source)
         self._traj_spacing = self.get_parameter("traj.spacing").value
         self._traj_width = self.get_parameter("traj.width").value
         self._traj_alpha = self.get_parameter("traj.alpha").value
@@ -55,7 +56,7 @@ class TrajectoryVisualizer(Node):
         self._traj_color = [
             self._traj_color[3 * i : 3 * (i + 1)] for i in range(len(self._traj_color) // 3)
         ]
-        assert self._traj_length > 0
+        assert traj_length > 0
         assert self._traj_spacing > 0
         assert self._traj_width > 0
         assert 0 <= self._traj_alpha <= 1.0
@@ -77,8 +78,9 @@ class TrajectoryVisualizer(Node):
 
         Clears all stored trajectories and time stamps.
         """
-        self._traj = [None] * len(self._frame_source)
-        self._traj_stamp = [None] * len(self._frame_source)
+        for i in range(len(self._traj)):
+            self._traj[i].clear()
+            self._traj_stamp[i] = 0.0
 
     def callback_timer(self) -> None:
         """Callback function for periodic timer.
@@ -92,7 +94,7 @@ class TrajectoryVisualizer(Node):
         # Publish latest trajectories
         msg = MarkerArray()
         for i in range(len(self._traj)):
-            if self._traj[i] is None:
+            if len(self._traj[i]) == 0:
                 continue
             marker = Marker()
             marker.header.frame_id = self._frame_target[i]
@@ -108,7 +110,7 @@ class TrajectoryVisualizer(Node):
             marker.color.g = self._traj_color[i][1]
             marker.color.b = self._traj_color[i][2]
             marker.color.a = self._traj_alpha
-            marker.points = self._traj[i]
+            marker.points = list(self._traj[i])
             msg.markers.append(marker)
         self._pub_markers.publish(msg)
 
@@ -121,14 +123,13 @@ class TrajectoryVisualizer(Node):
 
             translation = t.transform.translation
             pt = Point(x=translation.x, y=translation.y, z=translation.z)
-            if self._traj[i] is None:
+            if len(self._traj[i]) == 0:
                 # First time initialization
-                self._traj[i] = [pt] * self._traj_length
+                self._traj[i].append(pt)
                 self._traj_stamp[i] = t.header.stamp
             elif self._exceeds_spacing(self._traj[i][-1], pt):
-                # Shift trajectory and add latest point
-                self._traj[i][:-1] = self._traj[i][1:]
-                self._traj[i][-1] = pt
+                # Add latest point
+                self._traj[i].append(pt)
                 self._traj_stamp[i] = t.header.stamp
 
     def _lookup_transform(self, target_frame: str, source_frame: str) -> TransformStamped | None:
