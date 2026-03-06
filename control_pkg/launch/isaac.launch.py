@@ -1,10 +1,9 @@
+from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription, OpaqueFunction
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
 from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
-
-from launch import LaunchDescription
 
 # Contants
 UR_TYPE = "ur10e"
@@ -134,7 +133,7 @@ def _launch_setup_rviz(context) -> list[Node]:
     if rviz == "true":
         rviz_config = LaunchConfiguration("rviz_config")
         rviz_config_file = PathJoinSubstitution(
-            [FindPackageShare("control_pkg"), "rviz", rviz_config]
+            [FindPackageShare("visualization_pkg"), "rviz", rviz_config]
         )
         return [
             Node(
@@ -167,7 +166,7 @@ def _include_visualizer_robot() -> IncludeLaunchDescription:
         PythonLaunchDescriptionSource(
             PathJoinSubstitution(
                 [
-                    FindPackageShare("visual_control_pkg"),
+                    FindPackageShare("visualization_pkg"),
                     "launch",
                     "visualizers",
                     "robot_visualizer.launch.py",
@@ -183,7 +182,7 @@ def _include_visualizer_trajectory() -> IncludeLaunchDescription:
         PythonLaunchDescriptionSource(
             PathJoinSubstitution(
                 [
-                    FindPackageShare("visual_control_pkg"),
+                    FindPackageShare("visualization_pkg"),
                     "launch",
                     "visualizers",
                     "trajectory_visualizer.launch.py",
@@ -203,7 +202,7 @@ def _include_visualizer_detection() -> IncludeLaunchDescription:
         PythonLaunchDescriptionSource(
             PathJoinSubstitution(
                 [
-                    FindPackageShare("visual_control_pkg"),
+                    FindPackageShare("visualization_pkg"),
                     "launch",
                     "visualizers",
                     "detection_visualizer.launch.py",

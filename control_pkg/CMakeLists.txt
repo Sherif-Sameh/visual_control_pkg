@@ -108,8 +108,8 @@ install(TARGETS
 #   DESTINATION lib/${PROJECT_NAME}
 # )
 
-# Install launch, rviz and config directories
-install(DIRECTORY launch rviz config
+# Install launch and config directories
+install(DIRECTORY launch config
   DESTINATION share/${PROJECT_NAME})
 
 if(BUILD_TESTING)
