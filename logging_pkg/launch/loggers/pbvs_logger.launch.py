@@ -71,22 +71,20 @@ def generate_launch_description() -> LaunchDescription:
     console = LaunchConfiguration("console")
     csv = LaunchConfiguration("csv")
     wandb = LaunchConfiguration("wandb")
-    csv_dir = PathJoinSubstitution(
-        [FindPackageShare("visual_control_pkg"), "../../../../logs/csv/pbvs"]
-    )
+    csv_dir = PathJoinSubstitution([FindPackageShare("logging_pkg"), "../../../../logs/csv/pbvs"])
     wandb_dir = PathJoinSubstitution(
-        [FindPackageShare("visual_control_pkg"), "../../../../logs/wandb/pbvs"]
+        [FindPackageShare("logging_pkg"), "../../../../logs/wandb/pbvs"]
     )
     wandb_group = LaunchConfiguration("wandb_group")
 
     # Load configuration from toml
-    pkg_share = get_package_share_directory("visual_control_pkg")
-    config_path = os.path.join(pkg_share, "config", "loggers", "pbvs_logger.toml")
+    pkg_share = get_package_share_directory("logging_pkg")
+    config_path = os.path.join(pkg_share, "config", "pbvs_logger.toml")
     config = toml.load(config_path)
 
     # Initialize nodes to start
     pbvs_logger_node = Node(
-        package="visual_control_pkg",
+        package="logging_pkg",
         executable="ros_logger.py",
         output="screen",
         parameters=[
