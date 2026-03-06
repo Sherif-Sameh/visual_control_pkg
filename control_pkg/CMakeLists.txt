@@ -51,7 +51,7 @@ ament_target_dependencies(vc_lib
 )
 
 # Create C++ executables
-add_executable(pbvs_controller src/controllers/pbvs_controller.cpp)
+add_executable(pbvs_controller src/pbvs_controller.cpp)
 target_link_libraries(pbvs_controller vc_lib)
 ament_target_dependencies(pbvs_controller 
   rclcpp
@@ -65,7 +65,7 @@ ament_target_dependencies(pbvs_controller
   VISP
 )
 
-add_executable(ibvs_controller src/controllers/ibvs_controller.cpp)
+add_executable(ibvs_controller src/ibvs_controller.cpp)
 target_link_libraries(ibvs_controller vc_lib)
 ament_target_dependencies(ibvs_controller 
   rclcpp
@@ -79,7 +79,7 @@ ament_target_dependencies(ibvs_controller
   VISP
 )
 
-add_executable(pose_controller src/controllers/pose_controller.cpp)
+add_executable(pose_controller src/pose_controller.cpp)
 target_link_libraries(pose_controller vc_lib)
 ament_target_dependencies(pose_controller 
   rclcpp

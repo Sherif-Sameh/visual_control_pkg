@@ -50,13 +50,13 @@ def generate_launch_description() -> LaunchDescription:
     reset_topic_name = LaunchConfiguration("reset_topic_name")
 
     # Load configuration from toml
-    pkg_share = get_package_share_directory("visual_control_pkg")
-    config_path = os.path.join(pkg_share, "config", "visualizers", "trajectory_visualizer.toml")
+    pkg_share = get_package_share_directory("visualization_pkg")
+    config_path = os.path.join(pkg_share, "config", "trajectory_visualizer.toml")
     config = toml.load(config_path)
 
     # Initialize nodes to start
     trajectory_visualizer_node = Node(
-        package="visual_control_pkg",
+        package="visualization_pkg",
         executable="trajectory_visualizer.py",
         output="screen",
         parameters=[{"frame.target": target, "frame.source": source, **config["visualizer"]}],

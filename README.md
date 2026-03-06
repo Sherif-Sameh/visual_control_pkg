@@ -1,1 +1,1 @@
-# Visual Control ROS 2 Package
+# Visualization ROS 2 Package
