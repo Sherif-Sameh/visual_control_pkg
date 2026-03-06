@@ -101,7 +101,7 @@ def generate_launch_description() -> LaunchDescription:
         PythonLaunchDescriptionSource(
             PathJoinSubstitution(
                 [
-                    FindPackageShare("visual_control_pkg"),
+                    FindPackageShare("vision_pkg"),
                     "launch",
                     "detectors",
                     "isaac_ros_apriltag.launch.py",
