@@ -2,12 +2,11 @@ import os
 
 import toml
 from ament_index_python.packages import get_package_share_directory
+from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
 from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
-
-from launch import LaunchDescription
 
 
 def declare_arguments() -> list[DeclareLaunchArgument]:
@@ -48,18 +47,16 @@ def generate_launch_description() -> LaunchDescription:
     n_runs = LaunchConfiguration("n_runs")
     sweep_id = LaunchConfiguration("sweep_id")
     wandb_group = LaunchConfiguration("wandb_group")
-    wandb_dir = PathJoinSubstitution(
-        [FindPackageShare("visual_control_pkg"), "../../../../logs/wandb"]
-    )
+    wandb_dir = PathJoinSubstitution([FindPackageShare("sweep_pkg"), "../../../../logs/wandb"])
 
     # Load configuration from toml
-    pkg_share = get_package_share_directory("visual_control_pkg")
-    config_path = os.path.join(pkg_share, "config", "sweepers", "ibvs_sweeper.toml")
+    pkg_share = get_package_share_directory("sweep_pkg")
+    config_path = os.path.join(pkg_share, "config", "ibvs_sweep.toml")
     config = toml.load(config_path)
 
     # Initialize nodes to start
     ibvs_sweeper_node = Node(
-        package="visual_control_pkg",
+        package="sweep_pkg",
         executable="ros_sweeper.py",
         output="screen",
         parameters=[

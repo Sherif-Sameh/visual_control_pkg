@@ -18,17 +18,12 @@ from rclpy.parameter import parameter_value_to_python
 from sensor_msgs.msg import JointState
 from std_msgs.msg import Empty, Header
 
-from visual_control_pkg.loggers import ROSWrapperLogger
-from visual_control_pkg.loggers.wandb import WandBLogger
-from visual_control_pkg.metrics import (
-    AccumulatorMetric,
-    ComposeMetric,
-    DeltaMetric,
-    FunctionalMetric,
-)
-from visual_control_pkg.objectives import NormObjective, RotNormObjective, TfNormObjective
-from visual_control_pkg.utils.common import process_wandb_config
-from visual_control_pkg.utils.ros import python_to_param_value
+from logging_pkg.loggers import ROSWrapperLogger
+from logging_pkg.loggers.wandb import WandBLogger
+from logging_pkg.metrics import AccumulatorMetric, ComposeMetric, DeltaMetric, FunctionalMetric
+from logging_pkg.objectives import NormObjective, RotNormObjective, TfNormObjective
+from logging_pkg.utils.common import process_wandb_config
+from logging_pkg.utils.ros import python_to_param_value
 
 
 class ROSSweeper(Node):
