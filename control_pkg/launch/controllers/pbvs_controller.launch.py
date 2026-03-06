@@ -83,12 +83,12 @@ def declare_arguments() -> list[DeclareLaunchArgument]:
         )
     )
 
-    # Pose controller arguments
+    # PBVS controller arguments
     declared_arguments.append(
         DeclareLaunchArgument(
             "verbose",
             default_value="false",
-            description="Enable verbose output from pose controller. Default value is false.",
+            description="Enable verbose output from PBVS controller. Default value is false.",
         )
     )
     declared_arguments.append(
@@ -103,6 +103,28 @@ def declare_arguments() -> list[DeclareLaunchArgument]:
             "ee_frame",
             default_value="ee_link",
             description="Name of the end-effector frame of the robot. Default value is ee_link.",
+        )
+    )
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "cam_frame",
+            default_value="camera_color_optical_frame",
+            description="Name of the camera frame of the RGB images."
+            " Default value is camera_color_optical_frame.",
+        )
+    )
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "tag_family",
+            default_value="tag36h11",
+            description="Tag family to use for tracking. Default value is tag36h11.",
+        )
+    )
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "tag_ids",
+            default_value="[0]",
+            description="Tag IDS to use for tracking. Default value is [0].",
         )
     )
 
@@ -121,6 +143,14 @@ def declare_arguments() -> list[DeclareLaunchArgument]:
             default_value="/joint_states",
             description="Joint states (sensor_msgs/JointState) topic name."
             " Default is /joint_states.",
+        )
+    )
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "detections_topic_name",
+            default_value="/detections",
+            description="AprilTag detections (isaac_ros_apriltag_interfaces/AprilTagDetectionArray)"
+            " topic name. Default is /detections.",
         )
     )
     return declared_arguments
@@ -142,9 +172,13 @@ def generate_launch_description() -> LaunchDescription:
     verbose = LaunchConfiguration("verbose")
     base_frame = LaunchConfiguration("base_frame")
     ee_frame = LaunchConfiguration("ee_frame")
+    cam_frame = LaunchConfiguration("cam_frame")
+    tag_family = LaunchConfiguration("tag_family")
+    tag_ids = LaunchConfiguration("tag_ids")
 
     joint_trajectory_topic_name = LaunchConfiguration("joint_trajectory_topic_name")
     joint_states_topic_name = LaunchConfiguration("joint_states_topic_name")
+    detections_topic_name = LaunchConfiguration("detections_topic_name")
 
     # Initialize robot_description parameter
     robot_description_content = Command(
@@ -175,14 +209,14 @@ def generate_launch_description() -> LaunchDescription:
     robot_description = ParameterValue(value=robot_description_content, value_type=str)
 
     # Load configuration from toml
-    pkg_share = get_package_share_directory("visual_control_pkg")
-    config_path = os.path.join(pkg_share, "config", "controllers", "pose_controller.toml")
+    pkg_share = get_package_share_directory("control_pkg")
+    config_path = os.path.join(pkg_share, "config", "pbvs_controller.toml")
     config = toml.load(config_path)
 
     # Initialize nodes to start
-    pose_controller_node = Node(
-        package="visual_control_pkg",
-        executable="pose_controller",
+    pbvs_controller_node = Node(
+        package="control_pkg",
+        executable="pbvs_controller",
         output="screen",
         parameters=[
             {
@@ -190,14 +224,18 @@ def generate_launch_description() -> LaunchDescription:
                 "robot_description": robot_description,
                 "frame.base_frame": base_frame,
                 "frame.ee_frame": ee_frame,
+                "frame.cam_frame": cam_frame,
+                "tag.tag_family": tag_family,
+                "tag.tag_ids": tag_ids,
                 **config["controller"],
             }
         ],
         remappings=[
             ("/joint_trajectory_controller/joint_trajectory", joint_trajectory_topic_name),
             ("/joint_states", joint_states_topic_name),
+            ("/detections", detections_topic_name),
         ],
     )
 
-    nodes_to_start = [pose_controller_node]
+    nodes_to_start = [pbvs_controller_node]
     return LaunchDescription(declared_arguments + nodes_to_start)

@@ -134,7 +134,7 @@ def _launch_setup_rviz(context) -> list[Node]:
     if rviz == "true":
         rviz_config = LaunchConfiguration("rviz_config")
         rviz_config_file = PathJoinSubstitution(
-            [FindPackageShare("visual_control_pkg"), "rviz", rviz_config]
+            [FindPackageShare("control_pkg"), "rviz", rviz_config]
         )
         return [
             Node(
@@ -236,7 +236,7 @@ def _include_controller_pbvs() -> IncludeLaunchDescription:
         PythonLaunchDescriptionSource(
             PathJoinSubstitution(
                 [
-                    FindPackageShare("visual_control_pkg"),
+                    FindPackageShare("control_pkg"),
                     "launch",
                     "controllers",
                     "pbvs_controller.launch.py",
@@ -264,7 +264,7 @@ def _include_controller_ibvs() -> IncludeLaunchDescription:
         PythonLaunchDescriptionSource(
             PathJoinSubstitution(
                 [
-                    FindPackageShare("visual_control_pkg"),
+                    FindPackageShare("control_pkg"),
                     "launch",
                     "controllers",
                     "ibvs_controller.launch.py",
@@ -294,7 +294,7 @@ def _include_controller_pose() -> IncludeLaunchDescription:
         PythonLaunchDescriptionSource(
             PathJoinSubstitution(
                 [
-                    FindPackageShare("visual_control_pkg"),
+                    FindPackageShare("control_pkg"),
                     "launch",
                     "controllers",
                     "pose_controller.launch.py",

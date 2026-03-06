@@ -225,13 +225,13 @@ def generate_launch_description() -> LaunchDescription:
     robot_description = ParameterValue(value=robot_description_content, value_type=str)
 
     # Load configuration from toml
-    pkg_share = get_package_share_directory("visual_control_pkg")
-    config_path = os.path.join(pkg_share, "config", "controllers", "ibvs_controller.toml")
+    pkg_share = get_package_share_directory("control_pkg")
+    config_path = os.path.join(pkg_share, "config", "ibvs_controller.toml")
     config = toml.load(config_path)
 
     # Initialize nodes to start
     ibvs_controller_node = Node(
-        package="visual_control_pkg",
+        package="control_pkg",
         executable="ibvs_controller",
         output="screen",
         parameters=[
