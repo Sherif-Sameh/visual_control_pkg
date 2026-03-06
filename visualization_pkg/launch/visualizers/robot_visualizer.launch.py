@@ -1,13 +1,12 @@
 ### Modifed launch file from the original launch file in the ur_description package.
 ### Original file: https://github.com/UniversalRobots/Universal_Robots_ROS2_Description/blob/rolling/launch/view_ur.launch.py
 
+from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument
 from launch.substitutions import Command, FindExecutable, LaunchConfiguration, PathJoinSubstitution
 from launch_ros.actions import Node
 from launch_ros.parameter_descriptions import ParameterValue
 from launch_ros.substitutions import FindPackageShare
-
-from launch import LaunchDescription
 
 
 def declare_arguments() -> list[DeclareLaunchArgument]:

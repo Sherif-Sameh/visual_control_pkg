@@ -25,7 +25,7 @@ find_package(sensor_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(visualization_msgs REQUIRED)
 
-find_package(vision_pkg)
+find_package(isaac_ros_apriltag)
 
 # Install Python executables
 install(PROGRAMS
