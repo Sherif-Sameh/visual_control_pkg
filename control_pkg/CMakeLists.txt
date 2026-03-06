@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.8)
-project(visual_control_pkg)
+project(control_pkg)
 
 # Set C++ standard to C++17
 set(CMAKE_CXX_STANDARD 17)
@@ -28,11 +28,11 @@ find_package(tf2_ros REQUIRED)
 find_package(tf2_geometry_msgs REQUIRED)
 find_package(trajectory_msgs REQUIRED)
 
-find_package(vision_pkg)
 find_package(Eigen3 REQUIRED)
 find_package(VISP COMPONENTS core robot visual_features vs REQUIRED)
 find_package(orocos_kdl_vendor REQUIRED)
 find_package(kdl_parser REQUIRED)
+find_package(isaac_ros_apriltag REQUIRED)
 
 # Include C++ "include" directory
 include_directories(include/control_pkg)
@@ -61,7 +61,7 @@ ament_target_dependencies(pbvs_controller
   tf2_ros
   tf2_geometry_msgs
   trajectory_msgs
-  vision_pkg
+  isaac_ros_apriltag
   VISP
 )
 
@@ -75,7 +75,7 @@ ament_target_dependencies(ibvs_controller
   tf2_ros
   tf2_geometry_msgs
   trajectory_msgs
-  vision_pkg
+  isaac_ros_apriltag
   VISP
 )
 

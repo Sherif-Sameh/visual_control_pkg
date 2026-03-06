@@ -25,6 +25,8 @@ find_package(sensor_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(trajectory_msgs REQUIRED)
 
+find_package(logging_pkg)
+
 # Install Python executables
 install(PROGRAMS
   scripts/ros_sweeper.py
