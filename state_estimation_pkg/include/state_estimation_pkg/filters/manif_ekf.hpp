@@ -17,6 +17,23 @@
 
 namespace se
 {
+    /**
+     * @brief Generic Extended Kalman Filter (EKF) template for arbitrary Lie Groups with arbitrary
+     * action and measurement models.
+     *
+     * The Q and R covariance matrices can be set through their respective setter member functions.
+     * Similarly, the initial state and error covariance P can be set through setter member
+     * functions. The EKF provides the two member functions `predict()` and `update()` to perform
+     * the two main steps of the EKF algorithm.
+     *
+     * Note that all process models are constrained to the following structure: `x_k+1` =
+     * `x_k`.rplus(f(`x_k`, `u_k`, `w_k`)), where f(`x_k`, `u_k`, `w_k`) is the given action model.
+     * @tparam _Group Lie group, a derived class from `manif::LieGroupBase`.
+     * @tparam _Action Action model, a derived class from `se::ActionBase`. Defaults to the unit
+     * model defined by `se::ActionUnit` class.
+     * @tparam _Measure Measurement model, a derived class from `se::MeasurementBase`. Defaults to
+     * the unit model defined by the `se::MeasurementUnit` class.
+     */
     template <class _Group, class _Action = ActionUnit<_Group>,
               class _Measure = MeasurementUnit<_Group>>
     class ManifEKF
@@ -57,9 +74,26 @@ namespace se
         void setProcessCovariance(const CovarianceA &Q);
         void setMeasurementCovariance(const CovarianceM &R);
 
+        /**
+         * @brief Peform prediction step of the EKF given the latest action `u`.
+         *
+         * @param[in] u Latest action whose type is determined by the action model.
+         * @param[out] x_out State after performing the prediction step.
+         * @param[out] P_out Error covariance after performing the prediction step.
+         * @param[in] u_func Action model instance to use for mapping actions to the tangent space.
+         */
         void predict(const Action &u, State &x_out, Covariance &P_out,
                      const _Action &u_func = u_default);
-        void update(const Measurement &y, State &x_out, Covariance &P_outm,
+        /**
+         * @brief Perform update step of the EKF given the latest measurement `y`.
+         *
+         * @param[in] y Latest measurement whose type is determined by the measurement model.
+         * @param[out] x_out State after performing update step.
+         * @param[out] P_out Error covariance after performing update step.
+         * @param[in] h_func Measurement model instance to use for mapping state to expected
+         * measurement.
+         */
+        void update(const Measurement &y, State &x_out, Covariance &P_out,
                     const _Measure &h_func = h_default);
 
     protected:

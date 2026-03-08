@@ -67,7 +67,7 @@ namespace se
         /**
          * @brief Compute and return the feature's interaction matrix at the current state.
          *
-         * @param x Current state (Lie Group).
+         * @param[in] x Current state (Lie Group).
          * @return Interaction matrix evaluated at the current state.
          */
         auto interaction(const State &x) const -> Interaction;
