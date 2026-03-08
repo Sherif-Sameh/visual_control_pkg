@@ -23,7 +23,7 @@ namespace se
     {
     public:
         static constexpr int xDoF = manif::LieGroupBase<_Group>::DoF;
-        static constexpr int uDoF = ActionBase<_Group, _Action>::DoF;
+        static constexpr int wDoF = ActionBase<_Group, _Action>::DoF;
         static constexpr int yDoF = MeasurementBase<_Group, _Measure>::DoF;
 
         using Scalar = typename manif::LieGroupBase<_Group>::Scalar;
@@ -35,7 +35,7 @@ namespace se
 
         using Action = typename ActionBase<_Group, _Action>::Action;
         using JacobianA = typename ActionBase<_Group, _Action>::Jacobian;
-        using CovarianceA = Eigen::Matrix<Scalar, uDoF, uDoF>;
+        using CovarianceA = Eigen::Matrix<Scalar, wDoF, wDoF>;
 
         using Measurement = typename MeasurementBase<_Group, _Measure>::Measurement;
         using DeltaMeasurement = typename MeasurementBase<_Group, _Measure>::DeltaMeasurement;
