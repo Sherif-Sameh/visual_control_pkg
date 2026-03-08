@@ -15,6 +15,21 @@
 
 namespace se
 {
+    /**
+     * @brief Base action model.
+     *
+     * Action models are responsible for converting input actions from any arbitrary representation
+     * into the tangent space of the associated Lie Group. Additionally, if the action model is a
+     * function of the process noise `w`, then it should provide the Jacobian of the action model
+     * wrt process noise `w`. An action model is called through its `operator ()`.
+     *
+     * Derived action models are expected to define the types of both their input action
+     * representation and Jacobian as well as the number of DoF of the process noise. These are
+     * defined through specializations of the `internal::traits` struct.
+     * @tparam _Group Lie group, a derived class from `manif::LieGroupBase`.
+     * @tparam _Action Derived action model class for CRTP. For more on CRTP, refer to:
+     * https://en.cppreference.com/w/cpp/language/crtp.html
+     */
     template <class _Group, class _Action>
     class ActionBase
     {
@@ -36,7 +51,7 @@ namespace se
          *
          * @param[in] x Current state (Lie group).
          * @param[in] u Latest input to derive tangent action from.
-         * @param[out] J_uout_w Optional Jacobian of action model wrt process noise w.
+         * @param[out] J_uout_w Optional Jacobian of action model wrt process noise `w`.
          * @return An element of the Lie group's tangent space to add to the current state.
          */
         auto operator()(const State &x, const Action &u, OptJacobianRef J_uout_w = {}) const

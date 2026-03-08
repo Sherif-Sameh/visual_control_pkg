@@ -13,6 +13,19 @@
 
 namespace se
 {
+    /**
+     * @brief 2D image point(s) visual features action model.
+     *
+     * An action model for 2D image point visual features. It provides the mapping from input
+     * actions represented in the observing camera's tangent space to 2D feature displacements
+     * expressed in R(2N), where N is the number of points.
+     *
+     * Prior to calling this action model, the Z (depth)-coordinates of each point should be
+     * provided through the `setZ()` member function since they're required in the computation of
+     * the interaction matrix.
+     * @tparam _Scalar Scalar type of the visual features (e.g., `double`).
+     * @tparam NumPts Number of 2D image point visual features.
+     */
     template <typename _Scalar, unsigned int NumPts>
     class ActionPointFeatures : public ActionVisualFeatures<manif::Rn<_Scalar, 2 * NumPts>,
                                                             ActionPointFeatures<_Scalar, NumPts>>
@@ -36,6 +49,12 @@ namespace se
         void setZ(const std::array<_Scalar, NumPts> &&z) { m_z = std::move(z); }
 
     protected:
+        /**
+         * @brief Compute and return the feature's interaction matrix at the current state.
+         *
+         * @param x Current state (Lie Group).
+         * @return Interaction matrix evaluated at the current state.
+         */
         auto interaction(const State &x) const -> Interaction;
 
     protected:

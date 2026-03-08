@@ -11,6 +11,18 @@
 
 namespace se
 {
+    /**
+     * @brief Unit action model.
+     *
+     * An action model representing the identity action to tangent mapping. It does not modify its
+     * input actions at all. Input actions are returned as they are and therefore, its Jacobian, if
+     * required, is the identity matrix.
+     *
+     * Accordingly, its input action type is the same as that of the associated Lie Group's tangent
+     * space. The number of DoF of the process noise and the size of its Jacobian are derived from
+     * the number of DoF of its associated Lie Group.
+     * @tparam _Group Lie group, a derived class from `manif::LieGroupBase`.
+     */
     template <class _Group>
     class ActionUnit : public ActionBase<_Group, ActionUnit<_Group>>
     {
@@ -33,7 +45,7 @@ namespace se
          * identity.
          * @param[in] x Current state (Lie group).
          * @param[in] u Latest input to derive tangent action from.
-         * @param[out] J_uout_w Optional Jacobian of action model wrt process noise w.
+         * @param[out] J_uout_w Optional Jacobian of action model wrt process noise `w`.
          * @return An element of the Lie group's tangent space to add to the current state.
          */
         auto operator()(const State &x, const Action &u, OptJacobianRef J_uout_w = {}) const
