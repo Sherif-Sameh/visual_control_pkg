@@ -15,6 +15,21 @@
 
 namespace se
 {
+    /**
+     * @brief Base measurement model.
+     *
+     * Measurement models are responsible for defining the mapping from the current state into the
+     * expected measurements for any arbitrary measurement representation. Additionally, they should
+     * provide the Jacobian of the measurement function wrt the input state. A measurement model is
+     * called through its `operator ()`.
+     *
+     * Derived measurement models are expected to define the types of both output measurements,
+     * measurement residual (i.e., `y - y_exp`) and Jacobian as well as the number of DoF of
+     * measurements through specializations of the `internal::traits` struct.
+     * @tparam _Group Lie group, a derived class from `manif::LieGroupBase`.
+     * @tparam _Measure Derived measurement model class for CRTP. For more on CRTP, refer to:
+     * https://en.cppreference.com/w/cpp/language/crtp.html
+     */
     template <class _Group, class _Measure>
     class MeasurementBase
     {

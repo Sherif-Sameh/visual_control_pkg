@@ -10,6 +10,17 @@
 
 namespace se
 {
+    /**
+     * @brief Unit measurement model.
+     *
+     * A measurement model representing the identity state to measurement mapping. It does not
+     * modify its input states at all. Input states are returned as they are and therefore, its
+     * Jacobian, if required, is the identity matrix.
+     *
+     * Accordingly, the types of its measurement, measurement residual and Jacobian as well as the
+     * number of DoF of measurements are derived from the the associated Lie Group's properties.
+     * @tparam _Group Lie group, a derived class from `manif::LieGroupBase`.
+     */
     template <class _Group>
     class MeasurementUnit : public MeasurementBase<_Group, MeasurementUnit<_Group>>
     {
