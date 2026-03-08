@@ -23,10 +23,10 @@ namespace geometry
 {
 
     /**
-     * @brief Convert pose from geometry_msgs Pose to ViSP vpHomogeneousMatrix
+     * @brief Convert pose from `geometry_msgs::msg::Pose` to ViSP `vpHomogeneousMatrix`.
      *
-     * @param pose Input pose to initialize vpHomogeneousMatrix from.
-     * @return vpHomogeneousMatrix
+     * @param[in] pose Input pose to initialize `vpHomogeneousMatrix` from.
+     * @return ViSP `vpHomogeneousMatrix` initialized from input pose.
      */
     inline vpHomogeneousMatrix gm_pose_to_vp_hmatrix(const geometry_msgs::msg::Pose &pose)
     {
@@ -37,10 +37,10 @@ namespace geometry
     }
 
     /**
-     * @brief Convert pose from geometry_msgs Transform to ViSP vpHomogeneousMatrix
+     * @brief Convert pose from `geometry_msgs::msg::Transform` to ViSP `vpHomogeneousMatrix`.
      *
-     * @param transform Input transform to initialize vpHomogeneousMatrix from.
-     * @return vpHomogeneousMatrix
+     * @param[in] transform Input transform to initialize `vpHomogeneousMatrix` from.
+     * @return ViSP `vpHomogeneousMatrix` initialized from input pose
      */
     inline vpHomogeneousMatrix
     gm_transform_to_vp_hmatrix(const geometry_msgs::msg::Transform &transform)
@@ -53,12 +53,12 @@ namespace geometry
     }
 
     /**
-     * @brief Convert rotation from (x, y, z) 3D axis-angle to geometry_msgs Quaternion.
+     * @brief Convert rotation from (x, y, z) 3D axis-angle to `geometry_msgs::msg::Quaternion`.
      *
-     * @param x x-component of the axis-angle representation.
-     * @param y y-component of the axis-angle representation.
-     * @param z z-component of the axis-angle representation.
-     * @return geometry_msgs::msg::Quaternion
+     * @param[in] x x-component of the axis-angle representation.
+     * @param[in] y y-component of the axis-angle representation.
+     * @param[in] z z-component of the axis-angle representation.
+     * @return `geometry_msgs::msg::Quaternion` initialized from input axis-angle.
      */
     inline geometry_msgs::msg::Quaternion xyz_aa_to_gm_quat(const double x, const double y,
                                                             const double z)

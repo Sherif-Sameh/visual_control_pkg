@@ -17,14 +17,14 @@
 namespace mappings
 {
     /**
-     * @brief Converts a flattened vector data representation into an Eigen::Matrix.
+     * @brief Converts a flattened vector data representation into an `Eigen::Matrix`.
      *
      * @tparam T Float type of the vector and matrix.
      * @tparam A Storage alignment of the data in the vector.
-     * @param vec Flattened vector of size = `n_rows` * `n_cols` to read data from.
-     * @param n_rows Number of row for the matrix.
-     * @param n_cols Number of columns for the matrix.
-     * @param mat Output matrix of type `Eigen::Matrix<T, n_rows, n_cols, align>`.
+     * @param[in] vec Flattened vector of size = `n_rows` * `n_cols` to read data from.
+     * @param[in] n_rows Number of row for the matrix.
+     * @param[in] n_cols Number of columns for the matrix.
+     * @param[out] mat Output matrix of type `Eigen::Matrix<T, n_rows, n_cols, align>`.
      */
     template <typename T, Eigen::StorageOptions A>
     void vec_to_eigen_matrix(std::vector<T> &vec, const std::size_t n_rows,
@@ -37,12 +37,12 @@ namespace mappings
     }
 
     /**
-     * @brief Converts a flattened vector data representation into a square Eigen::Matrix.
+     * @brief Converts a flattened vector data representation into a square `Eigen::Matrix`.
      *
      * @tparam T Float type of the vector and matrix.
      * @tparam A Storage alignment of the data in the vector.
-     * @param vec Flattened vector of size = `n_rows` * `n_cols` to read data from.
-     * @param mat Output matrix of type `Eigen::Matrix<T, n_rows, n_cols, align>`.
+     * @param[in] vec Flattened vector of size = `n_rows` * `n_cols` to read data from.
+     * @param[out] mat Output matrix of type `Eigen::Matrix<T, n_rows, n_cols, align>`.
      */
     template <typename T, Eigen::StorageOptions A>
     void vec_to_sqr_eigen_matrix(std::vector<T> &vec,
@@ -54,10 +54,10 @@ namespace mappings
     }
 
     /**
-     * @brief Convert a vector to a KDL::JntArray
+     * @brief Convert a vector to a `KDL::JntArray`.
      *
-     * @param vec Vector to read data from.
-     * @param jntarray Output KDL::JntArray of the same size as the input vector.
+     * @param[in] vec Vector to read data from.
+     * @param[out] jntarray Output `KDL::JntArray` of the same size as the input vector.
      */
     inline void vec_to_kdl_jntarray(const std::vector<double> &vec, KDL::JntArray &jntarray)
     {
@@ -69,10 +69,10 @@ namespace mappings
     }
 
     /**
-     * @brief Convert a visp vpColVector to a KDL::JntArray
+     * @brief Convert a ViSP `vpColVector` to a `KDL::JntArray`.
      *
-     * @param vpcolvector vpColVector to read data from.
-     * @param jntarray Output KDL::JntArray of the same size as the input vpColVector.
+     * @param[in] vpcolvector `vpColVector` to read data from.
+     * @param[out] jntarray Output `KDL::JntArray` of the same size as the input `vpColVector`.
      */
     inline void visp_vpcolvector_to_kdl_jntarray(const vpColVector &vpcolvector,
                                                  KDL::JntArray &jntarray)
@@ -85,10 +85,10 @@ namespace mappings
     }
 
     /**
-     * @brief Convert a visp vpColVector to a KDL::Twist
+     * @brief Convert a ViSP `vpColVector` to a `KDL::Twist`.
      *
-     * @param vpcolvector vpColVector to read data from whose size = 6.
-     * @param twist Output KDL::Twist.
+     * @param[in] vpcolvector `vpColVector` to read data from whose size = 6.
+     * @param[out] twist Output `KDL::Twist`.
      */
     inline void visp_vpcolvector_to_kdl_twist(const vpColVector &vpcolvector, KDL::Twist &twist)
     {
@@ -101,10 +101,10 @@ namespace mappings
     }
 
     /**
-     * @brief Convert a KDL::JntArray to a visp vpColVector
+     * @brief Convert a `KDL::JntArray` to a ViSP `vpColVector`.
      *
-     * @param jntarray KDL::JntArray to read data from.
-     * @param vpcolvector Output vpColVector of the same size as the input KDL::JntArray.
+     * @param[in] jntarray `KDL::JntArray` to read data from.
+     * @param[out] vpcolvector Output `vpColVector` of the same size as the input `KDL::JntArray`.
      */
     inline void kdl_jntarray_to_visp_vpcolvector(const KDL::JntArray &jntarray,
                                                  vpColVector &vpcolvector)

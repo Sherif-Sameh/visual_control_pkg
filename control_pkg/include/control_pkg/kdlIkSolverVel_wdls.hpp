@@ -28,6 +28,19 @@ namespace vc
 {
     namespace solver
     {
+        /**
+         * @brief Wrapper around `KDL::ChainIkSolverVel_wdls` inverse velocity kinematics solver
+         * from OROCOS KDL.
+         *
+         * To initialize the solver, the `initIkSolver()` member function should be called with a
+         * URDF description string. Afterwards, the IK solver can be used normally provided
+         * `solveIk()` member function. The kinematic chain used by the solver is defined through
+         * the names of its root and tip links, which must exist within the provided URDF
+         * description.
+         *
+         * For more details on the IK solver, refer to the OROCOS KDL
+         * project: https://github.com/orocos/orocos_kinematics_dynamics.
+         */
         class KdlIkSolverVel_wlds
         {
         public:
@@ -56,6 +69,15 @@ namespace vc
             void setChainTip(const std::string &chain_tip);
             void setSolverParams(const IkSolverParams &solver_params);
             void initIkSolver(const std::string &urdf_description);
+            /**
+             * @brief Solve inverse velocity kinematics for the given twist vector at the given
+             * joint configuration.
+             *
+             * @param[in] q Current joint configuration for solving inverse velocity kinematics.
+             * @param[in] v Desired twist vector in the task space.
+             * @param[out] qdot Output joint velocities computed by the IK solver. Set to zeros if
+             * the solver fails.
+             */
             void solveIk(const KDL::JntArray &q, const KDL::Twist &v, KDL::JntArray &qdot) const;
 
         private:

@@ -16,11 +16,6 @@
  *
  *  3) Velocity commands are allowed to be set only in the camera frame. This also follows from the
  * Visual Servoing assumption.
- *
- *  4) After velocity commands are given through the setVelocity member function, they are converted
- * to joint velocities through an IK solver and stored in a command vector that should be retreived
- * through the getJointVelocity member function and sent to the robot's ROS driver. This is done
- * since not all robot drivers support sending twist commands but all support joint velocities.
  */
 
 #ifndef VP_ROBOT_ROS
@@ -43,6 +38,36 @@ namespace vc
 {
     namespace visp
     {
+        /**
+         * @brief Derived class from the ViSP `vpRobot` class to facilitate robot control through a
+         * ROS-based architecture.
+         *
+         * This class makes the following assumptions that deviate from the typical design of
+         * vpRobot classes available in ViSP. These assumption can be summarized as the following
+         *
+         *  1) Poses between the end-effector and base frame as well as between the camera and the
+         * end-effector are given to the Robot object and not read from it. This is a natural
+         * assumption for a ROS-based robot since these transformation will typically come from the
+         * ROS TF tree.
+         *
+         *  2) Only velocity control mode is allowed for controlling the target robot. This is done
+         * since this class is intended for use in Visual Servoing applications, where only velocity
+         * control is needed.
+         *
+         *  3) Velocity commands are allowed to be set only in the camera frame. This also follows
+         * from the Visual Servoing assumption.
+         *
+         * To initialize the this class, first the `init()` member function must be called with the
+         * URDF description string. Then, the `set_eMC()` member function must be called once to
+         * initialize the fixed pose between the camera and end-effctor. Afterwards, the
+         * `setJointPosition()` and `computeJointVelocity()` member functions can be used regularly
+         * to update the joint configuration then convert camera twist commands to robot joint
+         * velocity commands respectively.
+         *
+         * Several member functions require by the ViSP `vpRobot` base class exist but will throw
+         * exceptions if used. These are the following functions: `init` (without arguments),
+         * `get_eJe`, `get_fJe`, `getDisplacement`, `getPosition` and `setPosition`.
+         */
         class vpRobotRos : public vpRobot
         {
         public:
@@ -70,6 +95,14 @@ namespace vc
             void setIkSolver(const solver::KdlIkSolverVel_wlds &solver);
             void setJointPosition(const std::vector<double> &q);
 
+            /**
+             * @brief Compute joint velocity command from input camera twist command.
+             *
+             * @param[in] fMe Homogeneous transformation of the robot's end-effector wrt its base.
+             * @param[in] vel Camera twist command.
+             * @return `std::vector<double>` joint velocity command corresponding to given camera
+             * twist command.
+             */
             std::vector<double> computeJointVelocity(const vpHomogeneousMatrix &fMe,
                                                      const vpColVector &vel);
 
