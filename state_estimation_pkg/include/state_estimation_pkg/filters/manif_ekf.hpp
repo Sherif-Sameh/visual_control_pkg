@@ -24,7 +24,8 @@ namespace se
      * The Q and R covariance matrices can be set through their respective setter member functions.
      * Similarly, the initial state and error covariance P can be set through setter member
      * functions. The EKF provides the two member functions `predict()` and `update()` to perform
-     * the two main steps of the EKF algorithm.
+     * the two main steps of the EKF algorithm. The state and covariance of the EKF can be retrieved
+     * at any time through the `getStateAndCovariance()` member function.
      *
      * Note that all process models are constrained to the following structure: `x_k+1` =
      * `x_k`.rplus(f(`x_k`, `u_k`, `w_k`)), where f(`x_k`, `u_k`, `w_k`) is the given action model.
@@ -69,6 +70,7 @@ namespace se
         ManifEKF();
         ManifEKF(const Covariance &P0, const CovarianceA &Q, const CovarianceM &R);
 
+        void getStateAndCovariance(State &x, Covariance &P) const;
         auto getProcessCovariance() const -> CovarianceA;
         auto getMeasurementCovariance() const -> CovarianceM;
         void setState(const State &x0);
@@ -80,23 +82,17 @@ namespace se
          * @brief Peform prediction step of the EKF given the latest action `u`.
          *
          * @param[in] u Latest action whose type is determined by the action model.
-         * @param[out] x_out State after performing the prediction step.
-         * @param[out] P_out Error covariance after performing the prediction step.
          * @param[in] u_func Action model instance to use for mapping actions to the tangent space.
          */
-        void predict(const Action &u, State &x_out, Covariance &P_out,
-                     const _Action &u_func = u_default);
+        void predict(const Action &u, const _Action &u_func = u_default);
         /**
          * @brief Perform update step of the EKF given the latest measurement `y`.
          *
          * @param[in] y Latest measurement whose type is determined by the measurement model.
-         * @param[out] x_out State after performing update step.
-         * @param[out] P_out Error covariance after performing update step.
          * @param[in] h_func Measurement model instance to use for mapping state to expected
          * measurement.
          */
-        void update(const Measurement &y, State &x_out, Covariance &P_out,
-                    const _Measure &h_func = h_default);
+        void update(const Measurement &y, const _Measure &h_func = h_default);
 
     protected:
         template <typename _Covariance>
@@ -123,6 +119,13 @@ namespace se
                                                   const CovarianceM &R)
         : m_x(State::Identity()), m_P(P0), m_Q(Q), m_R(R)
     {
+    }
+
+    template <class _Group, class _Action, class _Measure>
+    void ManifEKF<_Group, _Action, _Measure>::getStateAndCovariance(State &x, Covariance &P) const
+    {
+        x = m_x;
+        P = m_P;
     }
 
     template <class _Group, class _Action, class _Measure>
@@ -165,8 +168,7 @@ namespace se
     }
 
     template <class _Group, class _Action, class _Measure>
-    void ManifEKF<_Group, _Action, _Measure>::predict(const Action &u, State &x_out,
-                                                      Covariance &P_out, const _Action &u_func)
+    void ManifEKF<_Group, _Action, _Measure>::predict(const Action &u, const _Action &u_func)
     {
         JacobianA J_uw;
         Tangent tan = u_func(m_x, u, J_uw);
@@ -175,13 +177,10 @@ namespace se
         m_x = m_x.plus(tan, J_fx, J_fu);
         m_P =
             J_fx * m_P * J_fx.transpose() + J_fu * J_uw * m_Q * J_uw.transpose() * J_fu.transpose();
-        x_out = m_x;
-        P_out = m_P;
     }
 
     template <class _Group, class _Action, class _Measure>
-    void ManifEKF<_Group, _Action, _Measure>::update(const Measurement &y, State &x_out,
-                                                     Covariance &P_out, const _Measure &h_func)
+    void ManifEKF<_Group, _Action, _Measure>::update(const Measurement &y, const _Measure &h_func)
     {
         JacobianM J_hx;
         Measurement y_exp = h_func(m_x, J_hx);
@@ -191,8 +190,6 @@ namespace se
         KalmanGain K = m_P * J_hx.transpose() * Z.inverse();
         m_x = m_x.plus(K * z);
         m_P = m_P - K * Z * K.transpose();
-        x_out = m_x;
-        P_out = m_P;
     }
 
     template <class _Group, class _Action, class _Measure>

@@ -25,7 +25,6 @@
   <depend>tf2_geometry_msgs</depend>
 
   <depend>eigen</depend>
-  <depend>visp</depend>
 
   <exec_depend>launch</exec_depend>
   <exec_depend>launch_ros</exec_depend>
