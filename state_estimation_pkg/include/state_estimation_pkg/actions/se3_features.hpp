@@ -55,6 +55,21 @@ namespace se
     {
         return x.inverse().adj();
     }
+
+    // Internal traits definition
+    namespace internal
+    {
+        template <typename _Scalar>
+        struct traits<ActionSE3Features<_Scalar>>
+        {
+            static constexpr int DoF = manif::SE3<_Scalar>::DoF;
+
+            using Scalar = _Scalar;
+            using Action = Eigen::Matrix<_Scalar, 6, 1>;
+            using Jacobian = Eigen::Matrix<_Scalar, DoF, DoF>;
+            using Interaction = Eigen::Matrix<_Scalar, DoF, 6>;
+        };
+    } // namespace internal
 } // namespace se
 
 #endif

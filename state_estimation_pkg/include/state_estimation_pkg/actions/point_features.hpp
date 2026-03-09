@@ -75,6 +75,21 @@ namespace se
         }
         return L;
     }
+
+    // Internal traits definition
+    namespace internal
+    {
+        template <typename _Scalar, unsigned int NumPts>
+        struct traits<ActionPointFeatures<_Scalar, NumPts>>
+        {
+            static constexpr int DoF = manif::Rn<_Scalar, 2 * NumPts>::DoF;
+
+            using Scalar = _Scalar;
+            using Action = Eigen::Matrix<_Scalar, 6, 1>;
+            using Jacobian = Eigen::Matrix<_Scalar, DoF, DoF>;
+            using Interaction = Eigen::Matrix<_Scalar, DoF, 6>;
+        };
+    } // namespace internal
 } // namespace se
 
 #endif

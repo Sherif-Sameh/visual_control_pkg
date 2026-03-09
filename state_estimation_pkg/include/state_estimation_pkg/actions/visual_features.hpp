@@ -40,7 +40,6 @@ namespace se
         using Action = typename Base::Action;
         using Jacobian = typename Base::Jacobian;
 
-        using Scalar = typename internal::traits<_Feature>::Scalar;
         using Interaction = typename internal::traits<_Feature>::Interaction;
 
         using OptJacobianRef = typename Base::OptJacobianRef;
@@ -92,21 +91,6 @@ namespace se
     {
         return derived().interaction();
     }
-
-    // Internal traits definition
-    namespace internal
-    {
-        template <class _Group, class _Feature>
-        struct traits<ActionVisualFeatures<_Group, _Feature>>
-        {
-            static constexpr int DoF = manif::LieGroupBase<_Group>::DoF;
-
-            using Scalar = typename manif::LieGroupBase<_Group>::Scalar;
-            using Action = Eigen::Matrix<Scalar, 6, 1>;
-            using Jacobian = Eigen::Matrix<Scalar, DoF, DoF>;
-            using Interaction = Eigen::Matrix<Scalar, DoF, 6>;
-        };
-    } // namespace internal
 } // namespace se
 
 #endif
