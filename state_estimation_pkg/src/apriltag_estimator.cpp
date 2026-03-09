@@ -210,7 +210,7 @@ AprilTagDetection ApriltagEstimator::create_tag_detection(const std::string &fam
 {
     auto img_pts = project_points(T_tag_cam);
     Eigen::Vector2d ctr_pt =
-        std::accumulate(img_pts.cbegin(), img_pts.cend(), Eigen::Vector2d::Zero()) / 4;
+        std::accumulate(img_pts.cbegin(), img_pts.cend(), Eigen::Vector2d::Zero().eval()) / 4;
 
     AprilTagDetection tag_dtn;
     tag_dtn.family = family;
@@ -223,7 +223,8 @@ AprilTagDetection ApriltagEstimator::create_tag_detection(const std::string &fam
         tag_dtn.corners[i].y = img_pts[i].y();
     }
     tag_dtn.pose.pose.pose = tf2::toMsg(T_tag_cam);
-    tag_dtn.pose.pose.covariance = flatten_row_major(cov);
+    tag_dtn.pose.pose.covariance = flatten_covariance(cov);
+    return tag_dtn;
 }
 
 std::array<Eigen::Vector2d, 4> ApriltagEstimator::project_points(const Eigen::Isometry3d &T_tag_cam)
@@ -237,15 +238,12 @@ std::array<Eigen::Vector2d, 4> ApriltagEstimator::project_points(const Eigen::Is
     return img_pts;
 }
 
-template <typename Mat>
-auto ApriltagEstimator::flatten_row_major(const Mat &mat)
+auto ApriltagEstimator::flatten_covariance(const Covariance &mat)
+    -> std::array<double, Covariance::RowsAtCompileTime * Covariance::ColsAtCompileTime>
 {
-    using Scalar = typename Mat::Scalar;
-    constexpr int N = Mat::RowsAtCompileTime * Mat::ColsAtCompileTime;
-    std::array<Scalar, N> arr;
-    Eigen::Map<
-        Eigen::Matrix<Scalar, Mat::RowsAtCompileTime, Mat::ColsAtCompileTime, Eigen::RowMajor>>(
-        arr.data()) = mat;
+    std::array<double, Covariance::RowsAtCompileTime * Covariance::ColsAtCompileTime> arr;
+    Eigen::Map<Eigen::Matrix<double, Covariance::RowsAtCompileTime, Covariance::ColsAtCompileTime,
+                             Eigen::RowMajor>>(arr.data()) = mat;
     return arr;
 }
 

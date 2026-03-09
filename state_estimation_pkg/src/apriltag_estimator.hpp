@@ -17,7 +17,7 @@
 #include "rcl_interfaces/msg/set_parameters_result.hpp"
 #include "rclcpp/rclcpp.hpp"
 #include "sensor_msgs/msg/camera_info.hpp"
-#include "tf2_eigen.hpp"
+#include "tf2_eigen/tf2_eigen.hpp"
 #include "tf2_ros/transform_broadcaster.hpp"
 
 #include "actions/se3_features.hpp"
@@ -59,8 +59,8 @@ private:
                                            const Eigen::Isometry3d &T_tag_cam,
                                            const Covariance &cov);
     std::array<Eigen::Vector2d, 4> project_points(const Eigen::Isometry3d &T_tag_cam);
-    template <typename Mat>
-    static auto flatten_row_major(const Mat &mat);
+    static auto flatten_covariance(const Covariance &mat)
+        -> std::array<double, Covariance::RowsAtCompileTime * Covariance::ColsAtCompileTime>;
 
 private:
     // General Attributes

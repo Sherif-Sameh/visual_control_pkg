@@ -20,8 +20,10 @@ find_package(ament_cmake REQUIRED)
 find_package(ament_cmake_python REQUIRED)
 find_package(rclcpp REQUIRED)
 # find_package(rclpy REQUIRED)
+find_package(sensor_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(tf2 REQUIRED)
+find_package(tf2_eigen REQUIRED)
 find_package(tf2_ros REQUIRED)
 find_package(tf2_geometry_msgs REQUIRED)
 
@@ -35,17 +37,27 @@ include_directories(${EIGEN3_INCLUDE_DIRS})
 include_directories(${manif_INCLUDE_DIRS})
 
 # Create C++ executables
-# add_executable(main src/main.cpp)
-# target_link_libraries(pbvs_controller vc_lib)
-# ament_target_dependencies(main 
-#   rclcpp
-# )
+add_executable(apriltag_estimator src/apriltag_estimator.cpp)
+ament_target_dependencies(apriltag_estimator 
+  rclcpp
+  geometry_msgs
+  sensor_msgs
+  tf2
+  tf2_eigen
+  tf2_ros
+  tf2_geometry_msgs
+  isaac_ros_apriltag
+)
 
 # Install C++ executables
-# install(TARGETS
-#   main
-#   DESTINATION lib/${PROJECT_NAME}
-# )
+install(TARGETS
+  apriltag_estimator
+  DESTINATION lib/${PROJECT_NAME}
+)
+
+# Install launch and config directories
+install(DIRECTORY launch config
+  DESTINATION share/${PROJECT_NAME})
 
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
