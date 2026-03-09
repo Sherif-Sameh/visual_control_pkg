@@ -44,6 +44,9 @@ namespace se
 
         using OptJacobianRef = typename Base::OptJacobianRef;
 
+    protected:
+        using Base::derived;
+
     public:
         MANIF_DEFAULT_CONSTRUCTOR(ActionVisualFeatures)
 
@@ -59,9 +62,6 @@ namespace se
          */
         auto operator()(const State &x, const Action &u, OptJacobianRef J_uout_w = {}) const
             -> Tangent;
-
-    protected:
-        using Base::derived;
 
         /**
          * @brief Compute and return the feature's interaction matrix at the current state.
@@ -83,13 +83,13 @@ namespace se
         {
             (*J_uout_w) = Jacobian::Identity();
         }
-        return interaction() * u;
+        return Tangent(interaction(x) * u);
     }
 
     template <class _Group, class _Feature>
     auto ActionVisualFeatures<_Group, _Feature>::interaction(const State &x) const -> Interaction
     {
-        return derived().interaction();
+        return derived().interaction(x);
     }
 } // namespace se
 

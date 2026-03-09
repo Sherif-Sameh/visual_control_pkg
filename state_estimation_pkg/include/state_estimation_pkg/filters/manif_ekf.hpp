@@ -45,19 +45,21 @@ namespace se
 
         using Scalar = typename manif::LieGroupBase<_Group>::Scalar;
         using State = typename manif::LieGroupBase<_Group>::LieGroup;
-        using Tangent = typename manif::LieGroupBase<_Group>::Tangent;
-        using Jacobian = typename manif::LieGroupBase<_Group>::Jacobian;
-        using Covariance = Eigen::Matrix<Scalar, xDoF, xDoF>;
-        using KalmanGain = Eigen::Matrix<Scalar, xDoF, yDoF>;
+        using Covariance = Eigen::Matrix<Scalar, ManifEKF<_Group, _Action, _Measure>::xDoF, xDoF>;
 
         using Action = typename ActionBase<_Group, _Action>::Action;
-        using JacobianA = typename ActionBase<_Group, _Action>::Jacobian;
         using CovarianceA = Eigen::Matrix<Scalar, wDoF, wDoF>;
 
         using Measurement = typename MeasurementBase<_Group, _Measure>::Measurement;
+        using CovarianceM = Eigen::Matrix<Scalar, yDoF, yDoF>;
+
+    protected:
+        using Tangent = typename manif::LieGroupBase<_Group>::Tangent;
+        using Jacobian = typename manif::LieGroupBase<_Group>::Jacobian;
+        using KalmanGain = Eigen::Matrix<Scalar, xDoF, yDoF>;
+        using JacobianA = typename ActionBase<_Group, _Action>::Jacobian;
         using DeltaMeasurement = typename MeasurementBase<_Group, _Measure>::DeltaMeasurement;
         using JacobianM = typename MeasurementBase<_Group, _Measure>::Jacobian;
-        using CovarianceM = Eigen::Matrix<Scalar, yDoF, yDoF>;
 
     protected:
         static constexpr _Action u_default = ActionUnit<_Group>();

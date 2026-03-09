@@ -48,7 +48,6 @@ namespace se
         void setZ(const std::array<_Scalar, NumPts> &z) { m_z = z; }
         void setZ(const std::array<_Scalar, NumPts> &&z) { m_z = std::move(z); }
 
-    protected:
         /**
          * @brief Compute and return the feature's interaction matrix at the current state.
          *

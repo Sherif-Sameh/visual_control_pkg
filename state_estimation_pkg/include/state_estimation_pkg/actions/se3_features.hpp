@@ -17,8 +17,8 @@ namespace se
      * An action model for visual features in SE3. It provides the mapping from input
      * actions represented in the observing camera's tangent space to the tangent space of the
      * visual features. Since both are in SE3, this only requires a change of basis for the input.
-     * This is achieved through the Adjoint mapping of the inverse of the current state of the
-     * visual features.
+     * This is achieved through the negative of the Adjoint mapping of the inverse of the current
+     * state of the visual features.
      *
      * @tparam _Scalar Scalar type of the visual features (e.g., `double`).
      */
@@ -38,7 +38,7 @@ namespace se
 
         using OptJacobianRef = typename Base::OptJacobianRef;
 
-    protected:
+    public:
         /**
          * @brief Compute and return the feature's interaction matrix at the current state.
          *
@@ -53,7 +53,7 @@ namespace se
     template <typename _Scalar>
     auto ActionSE3Features<_Scalar>::interaction(const State &x) const -> Interaction
     {
-        return x.inverse().adj();
+        return -x.inverse().adj();
     }
 
     // Internal traits definition
