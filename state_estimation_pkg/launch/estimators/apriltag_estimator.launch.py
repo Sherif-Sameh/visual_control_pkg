@@ -48,6 +48,32 @@ def declare_arguments() -> list[DeclareLaunchArgument]:
 
 
 def get_composable_node(**kwargs) -> ComposableNode:
+    # Initialize argument defaults for missing arguments
+    defaults = {a.name: a.default_value for a in declare_arguments()}
+
+    # Load configuration from toml
+    pkg_share = get_package_share_directory("state_estimation_pkg")
+    config_path = os.path.join(pkg_share, "config", "apriltag_estimator.toml")
+    config = toml.load(config_path)
+
+    # Initialize composable node
+    get_arg = lambda name: kwargs.get(name, defaults[name])  # noqa: E731
+    return ComposableNode(
+        package="state_estimation_pkg",
+        plugin="ApriltagEstimator",
+        parameters=[{"tag.size": get_arg("tag_size"), **config["estimator"]}],
+        remappings=[
+            ("/camera_info", get_arg("camera_info_topic_name")),
+            ("/camera_twist", get_arg("camera_twist_topic_name")),
+            ("/detections", get_arg("detections_topic_name")),
+        ],
+    )
+
+
+def generate_launch_description() -> LaunchDescription:
+    # Declare arguments
+    declared_arguments = declare_arguments()
+
     # Initialize Arguments
     tag_size = LaunchConfiguration("tag_size")
 
@@ -61,24 +87,16 @@ def get_composable_node(**kwargs) -> ComposableNode:
     config = toml.load(config_path)
 
     # Initialize composable node
-    return ComposableNode(
+    apriltag_estimator_node = ComposableNode(
         package="state_estimation_pkg",
         plugin="ApriltagEstimator",
-        parameters=[{"tag.size": kwargs.get("tag_size", tag_size), **config["estimator"]}],
+        parameters=[{"tag.size": tag_size, **config["estimator"]}],
         remappings=[
-            ("/camera_info", kwargs.get("camera_info_topic_name", camera_info_topic_name)),
-            ("/camera_twist", kwargs.get("camera_twist_topic_name", camera_twist_topic_name)),
-            ("/detections", kwargs.get("detections_topic_name", detections_topic_name)),
+            ("/camera_info", camera_info_topic_name),
+            ("/camera_twist", camera_twist_topic_name),
+            ("/detections", detections_topic_name),
         ],
     )
-
-
-def generate_launch_description() -> LaunchDescription:
-    # Declare arguments
-    declared_arguments = declare_arguments()
-
-    # Initialize composable node
-    apriltag_estimator_node = get_composable_node()
 
     # Initialize standalone composable node container
     apriltag_estimator_container = ComposableNodeContainer(

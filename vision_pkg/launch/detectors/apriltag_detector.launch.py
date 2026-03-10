@@ -80,6 +80,36 @@ def declare_arguments() -> list[DeclareLaunchArgument]:
 
 
 def get_composable_node(**kwargs) -> ComposableNode:
+    # Initialize argument defaults for missing arguments
+    defaults = {a.name: a.default_value for a in declare_arguments()}
+
+    # Initialize composable node
+    get_arg = lambda name: kwargs.get(name, defaults[name])  # noqa: E731
+    return ComposableNode(
+        package="isaac_ros_apriltag",
+        plugin="nvidia::isaac_ros::apriltag::AprilTagNode",
+        name="apriltag_detector",
+        parameters=[
+            {
+                "size": get_arg("tag_size"),
+                "max_tags": get_arg("max_tags"),
+                "tile_size": get_arg("tile_size"),
+                "tag_family": get_arg("tag_family"),
+                "backends": get_arg("backends"),
+            }
+        ],
+        remappings=[
+            ("/image", get_arg("image_topic_name")),
+            ("/camera_info", get_arg("camera_info_topic_name")),
+            ("/tag_detections", "/apriltag_detector/detections"),
+        ],
+    )
+
+
+def generate_launch_description() -> LaunchDescription:
+    # Declare arguments
+    declared_arguments = declare_arguments()
+
     # Initialize Arguments
     tag_size = LaunchConfiguration("tag_size")
     max_tags = LaunchConfiguration("max_tags")
@@ -90,34 +120,26 @@ def get_composable_node(**kwargs) -> ComposableNode:
     image_topic_name = LaunchConfiguration("image_topic_name")
     camera_info_topic_name = LaunchConfiguration("camera_info_topic_name")
 
-    # Initialize composable node
-    return ComposableNode(
+    # Initialize nodes to start
+    apriltag_node = ComposableNode(
         package="isaac_ros_apriltag",
         plugin="nvidia::isaac_ros::apriltag::AprilTagNode",
         name="apriltag",
         parameters=[
             {
-                "size": kwargs.get("tag_size", tag_size),
-                "max_tags": kwargs.get("max_tags", max_tags),
-                "tile_size": kwargs.get("tile_size", tile_size),
-                "tag_family": kwargs.get("tag_family", tag_family),
-                "backends": kwargs.get("backends", backends),
+                "size": tag_size,
+                "max_tags": max_tags,
+                "tile_size": tile_size,
+                "tag_family": tag_family,
+                "backends": backends,
             }
         ],
         remappings=[
-            ("/image", kwargs.get("image_topic_name", image_topic_name)),
-            ("/camera_info", kwargs.get("camera_info_topic_name", camera_info_topic_name)),
+            ("/image", image_topic_name),
+            ("/camera_info", camera_info_topic_name),
             ("/tag_detections", "/apriltag_detector/detections"),
         ],
     )
-
-
-def generate_launch_description() -> LaunchDescription:
-    # Declare arguments
-    declared_arguments = declare_arguments()
-
-    # Initialize composable node
-    apriltag_node = get_composable_node()
 
     # Initialize standalone composable node container
     apriltag_detector_container = ComposableNodeContainer(
