@@ -36,6 +36,31 @@ def declare_arguments() -> list[DeclareLaunchArgument]:
             description="Group name for run to use for WandB logger. Default is PBVS|ideal.",
         )
     )
+
+    # General arguments
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "joint_states_topic_name",
+            default_value="/joint_states",
+            description="Joint states (sensor_msgs/JointState) topic name."
+            " Default is /joint_states.",
+        )
+    )
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "pose_error_topic_name",
+            default_value="/pose_error",
+            description="Pose error (geometry_msgs/PoseStamped) topic name."
+            " Default is /pose_error.",
+        )
+    )
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "restart_topic_name",
+            default_value="/ros_sweeper/restart",
+            description="Restart (std_msgs/Empty) topic name. Default is /ros_sweeper/restart.",
+        )
+    )
     return declared_arguments
 
 
@@ -48,6 +73,10 @@ def generate_launch_description() -> LaunchDescription:
     sweep_id = LaunchConfiguration("sweep_id")
     wandb_group = LaunchConfiguration("wandb_group")
     wandb_dir = PathJoinSubstitution([FindPackageShare("sweep_pkg"), "../../../../logs/wandb"])
+
+    joint_states_topic_name = LaunchConfiguration("joint_states_topic_name")
+    pose_error_topic_name = LaunchConfiguration("pose_error_topic_name")
+    restart_topic_name = LaunchConfiguration("restart_topic_name")
 
     # Load configuration from toml
     pkg_share = get_package_share_directory("sweep_pkg")
@@ -70,9 +99,9 @@ def generate_launch_description() -> LaunchDescription:
             }
         ],
         remappings=[
-            ("/joint_states", "/isaaclab/joint_states"),
-            ("/pose_error", "/isaaclab/pose_error"),
-            ("/ros_sweeper/restart", "/isaaclab/reset"),
+            ("/joint_states", joint_states_topic_name),
+            ("/pose_error", pose_error_topic_name),
+            ("/ros_sweeper/restart", restart_topic_name),
         ],
     )
 
