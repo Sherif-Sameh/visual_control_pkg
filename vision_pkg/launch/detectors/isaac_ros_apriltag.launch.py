@@ -79,10 +79,7 @@ def declare_arguments() -> list[DeclareLaunchArgument]:
     return declared_arguments
 
 
-def generate_launch_description() -> LaunchDescription:
-    # Declare arguments
-    declared_arguments = declare_arguments()
-
+def get_composable_node(**kwargs) -> ComposableNode:
     # Initialize Arguments
     size = LaunchConfiguration("size")
     max_tags = LaunchConfiguration("max_tags")
@@ -93,35 +90,44 @@ def generate_launch_description() -> LaunchDescription:
     image_topic_name = LaunchConfiguration("image_topic_name")
     camera_info_topic_name = LaunchConfiguration("camera_info_topic_name")
 
-    # Initialize nodes to start
-    apriltag_node = ComposableNode(
+    # Initialize composable node
+    return ComposableNode(
         package="isaac_ros_apriltag",
         plugin="nvidia::isaac_ros::apriltag::AprilTagNode",
         name="apriltag",
         parameters=[
             {
-                "size": size,
-                "max_tags": max_tags,
-                "tile_size": tile_size,
-                "tag_family": tag_family,
-                "backends": backends,
+                "size": kwargs.get("size", size),
+                "max_tags": kwargs.get("max_tags", max_tags),
+                "tile_size": kwargs.get("tile_size", tile_size),
+                "tag_family": kwargs.get("tag_family", tag_family),
+                "backends": kwargs.get("backends", backends),
             }
         ],
         remappings=[
-            ("/image", image_topic_name),
-            ("/camera_info", camera_info_topic_name),
+            ("/image", kwargs.get("image_topic_name", image_topic_name)),
+            ("/camera_info", kwargs.get("camera_info_topic_name", camera_info_topic_name)),
             ("/tag_detections", "/detector/tag_detections"),
         ],
     )
 
-    apriltag_container = ComposableNodeContainer(
+
+def generate_launch_description() -> LaunchDescription:
+    # Declare arguments
+    declared_arguments = declare_arguments()
+
+    # Initialize composable node
+    apriltag_node = get_composable_node()
+
+    # Initialize standalone composable node container
+    apriltag_detector_container = ComposableNodeContainer(
         package="rclcpp_components",
-        name="apriltag_container",
+        name="apriltag_detector_container",
         namespace="",
         executable="component_container_mt",
         composable_node_descriptions=[apriltag_node],
         output="screen",
     )
 
-    nodes_to_start = [apriltag_container]
+    nodes_to_start = [apriltag_detector_container]
     return LaunchDescription(declared_arguments + nodes_to_start)
