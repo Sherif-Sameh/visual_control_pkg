@@ -22,6 +22,8 @@
 
 #include "actions/se3_features.hpp"
 #include "filters/manif_ekf.hpp"
+#include "utils/mappings.hpp"
+#include "utils/structs.hpp"
 
 using isaac_ros_apriltag_interfaces::msg::AprilTagDetection;
 using isaac_ros_apriltag_interfaces::msg::AprilTagDetectionArray;
@@ -30,13 +32,9 @@ using std::placeholders::_1;
 class ApriltagEstimator : public rclcpp::Node
 {
 public:
-    struct ManifEKFStamped
-    {
-        rclcpp::Time stamp;
-        se::ManifEKF<manif::SE3d, se::ActionSE3Features<double>> ekf;
-    };
+    using ManifEKFStamped =
+        utils::structs::AnyStamped<se::ManifEKF<manif::SE3d, se::ActionSE3Features<double>>>;
 
-public:
     using State = se::ManifEKF<manif::SE3d, se::ActionSE3Features<double>>::State;
     using Action = se::ManifEKF<manif::SE3d, se::ActionSE3Features<double>>::Action;
     using Measurement = se::ManifEKF<manif::SE3d, se::ActionSE3Features<double>>::Measurement;
@@ -59,13 +57,12 @@ private:
                                            const Eigen::Isometry3d &T_tag_cam,
                                            const Covariance &cov);
     std::array<Eigen::Vector2d, 4> project_points(const Eigen::Isometry3d &T_tag_cam);
-    static auto flatten_covariance(const Covariance &mat)
-        -> std::array<double, Covariance::RowsAtCompileTime * Covariance::ColsAtCompileTime>;
 
 private:
     // General Attributes
     double m_tag_timeout;
     std::pair<double, double> m_tag_P_thr;
+    utils::structs::PeriodEMACalculator<double> m_tag_cb_pc;
     std::optional<Eigen::Matrix3d> m_cam_K;
     std::array<Eigen::Vector3d, 4> m_tag_pts;
 

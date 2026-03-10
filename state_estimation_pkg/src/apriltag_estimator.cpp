@@ -6,6 +6,7 @@ ApriltagEstimator::ApriltagEstimator() : Node("apriltag_estimator")
     this->declare_parameter("tag.timeout", rclcpp::PARAMETER_DOUBLE);
     this->declare_parameter("tag.P_tthr", rclcpp::PARAMETER_DOUBLE);
     this->declare_parameter("tag.P_rthr", rclcpp::PARAMETER_DOUBLE);
+    this->declare_parameter("tag.ema_alpha", rclcpp::PARAMETER_DOUBLE);
     this->declare_parameter("tag.size", rclcpp::PARAMETER_DOUBLE);
     this->declare_parameter("ekf.P0_diag", rclcpp::PARAMETER_DOUBLE_ARRAY);
     this->declare_parameter("ekf.Q_diag", rclcpp::PARAMETER_DOUBLE_ARRAY);
@@ -15,6 +16,7 @@ ApriltagEstimator::ApriltagEstimator() : Node("apriltag_estimator")
     m_tag_timeout = this->get_parameter("tag.timeout").as_double();
     m_tag_P_thr.first = this->get_parameter("tag.P_tthr").as_double();
     m_tag_P_thr.second = this->get_parameter("tag.P_rthr").as_double();
+    m_tag_cb_pc.m_period_ema.m_alpha = this->get_parameter("tag.ema_alpha").as_double();
     double tag_size = this->get_parameter("tag.size").as_double();
     m_tag_pts[0] << -tag_size / 2, -tag_size / 2, 0;
     m_tag_pts[1] << tag_size / 2, -tag_size / 2, 0;
@@ -46,7 +48,7 @@ void ApriltagEstimator::publish_tag(const std_msgs::msg::Header &header,
     {
         State x;
         Covariance P;
-        ekf_stamped.ekf.getStateAndCovariance(x, P);
+        ekf_stamped.m_wrapped.getStateAndCovariance(x, P);
         if (P.topLeftCorner<3, 3>().maxCoeff() > m_tag_P_thr.first ||
             P.bottomRightCorner<3, 3>().maxCoeff() > m_tag_P_thr.second)
         {
@@ -65,7 +67,7 @@ void ApriltagEstimator::make_tag_tfs(const std_msgs::msg::Header &header,
     {
         State x;
         Covariance P;
-        ekf_stamped.ekf.getStateAndCovariance(x, P);
+        ekf_stamped.m_wrapped.getStateAndCovariance(x, P);
         if (P.topLeftCorner<3, 3>().maxCoeff() > m_tag_P_thr.first ||
             P.bottomRightCorner<3, 3>().maxCoeff() > m_tag_P_thr.second)
         {
@@ -91,11 +93,14 @@ void ApriltagEstimator::callback_cam_info(const sensor_msgs::msg::CameraInfo::Sh
 
 void ApriltagEstimator::callback_cam_twist(const geometry_msgs::msg::TwistStamped::SharedPtr msg)
 {
-    Action action;
-    tf2::fromMsg(msg->twist, action);
+    std::optional<double> dt = m_tag_cb_pc.get();
+    if (!dt.has_value()) return;
+
+    Action cam_twist;
+    tf2::fromMsg(msg->twist, cam_twist);
     for (auto &[_, ekf_stamped] : m_ekf_map)
     {
-        ekf_stamped.ekf.predict(action, action_fn);
+        ekf_stamped.m_wrapped.predict(cam_twist * (*dt), action_fn);
     }
 }
 
@@ -103,8 +108,11 @@ void ApriltagEstimator::callback_tag(const AprilTagDetectionArray::SharedPtr msg
 {
     if (msg->detections.size() == 0) return;
 
-    // Update existing and new tag IDs
+    // Update callback period EMA
     rclcpp::Time stamp_now = this->get_clock()->now();
+    m_tag_cb_pc.update(stamp_now);
+
+    // Update existing and new tag IDs
     for (const auto &tag : msg->detections)
     {
         Eigen::Isometry3d T_tag_cam;
@@ -112,21 +120,21 @@ void ApriltagEstimator::callback_tag(const AprilTagDetectionArray::SharedPtr msg
         auto it = m_ekf_map.find(tag.id);
         if (it != m_ekf_map.end()) // existing tag IDs
         {
-            (*it).second.stamp = stamp_now;
-            (*it).second.ekf.update(Measurement(T_tag_cam));
+            (*it).second.m_stamp = stamp_now;
+            (*it).second.m_wrapped.update(Measurement(T_tag_cam));
         }
         else // new tag IDs
         {
             using ManifEKF = se::ManifEKF<manif::SE3d, se::ActionSE3Features<double>>;
             m_ekf_map.insert({tag.id, {stamp_now, ManifEKF(m_ekf_P0, m_ekf_Q, m_ekf_R)}});
-            m_ekf_map[tag.id].ekf.setState(State(T_tag_cam));
+            m_ekf_map[tag.id].m_wrapped.setState(State(T_tag_cam));
         }
     }
 
     // Erase old tags that have timed-out
     for (auto it = m_ekf_map.begin(); it != m_ekf_map.end();)
     {
-        if ((stamp_now - (*it).second.stamp).seconds() > m_tag_timeout)
+        if ((stamp_now - (*it).second.m_stamp).seconds() > m_tag_timeout)
             it = m_ekf_map.erase(it);
         else
             ++it;
@@ -223,7 +231,8 @@ AprilTagDetection ApriltagEstimator::create_tag_detection(const std::string &fam
         tag_dtn.corners[i].y = img_pts[i].y();
     }
     tag_dtn.pose.pose.pose = tf2::toMsg(T_tag_cam);
-    tag_dtn.pose.pose.covariance = flatten_covariance(cov);
+    tag_dtn.pose.pose.covariance =
+        utils::mappings::eigen_matrix_to_array<Covariance, Eigen::RowMajor>(cov);
     return tag_dtn;
 }
 
@@ -236,15 +245,6 @@ std::array<Eigen::Vector2d, 4> ApriltagEstimator::project_points(const Eigen::Is
         img_pts[i] = img_pt_h.head<2>() / img_pt_h.z();
     }
     return img_pts;
-}
-
-auto ApriltagEstimator::flatten_covariance(const Covariance &mat)
-    -> std::array<double, Covariance::RowsAtCompileTime * Covariance::ColsAtCompileTime>
-{
-    std::array<double, Covariance::RowsAtCompileTime * Covariance::ColsAtCompileTime> arr;
-    Eigen::Map<Eigen::Matrix<double, Covariance::RowsAtCompileTime, Covariance::ColsAtCompileTime,
-                             Eigen::RowMajor>>(arr.data()) = mat;
-    return arr;
 }
 
 int main(int argc, char *argv[])
