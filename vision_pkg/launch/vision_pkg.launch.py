@@ -95,10 +95,10 @@ def _include_apriltag_detector() -> IncludeLaunchDescription:
         PythonLaunchDescriptionSource(
             PathJoinSubstitution(
                 [
-                    FindPackageShare("visualization_pkg"),
+                    FindPackageShare("vision_pkg"),
                     "launch",
-                    "estimators",
-                    "apriltag_estimator.launch.py",
+                    "detectors",
+                    "isaac_ros_apriltag.launch.py",
                 ]
             )
         ),

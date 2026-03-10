@@ -85,7 +85,7 @@ def _include_apriltag_estimator() -> IncludeLaunchDescription:
         PythonLaunchDescriptionSource(
             PathJoinSubstitution(
                 [
-                    FindPackageShare("visualization_pkg"),
+                    FindPackageShare("state_estimation_pkg"),
                     "launch",
                     "estimators",
                     "apriltag_estimator.launch.py",
