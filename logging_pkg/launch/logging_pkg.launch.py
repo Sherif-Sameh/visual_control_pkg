@@ -1,11 +1,7 @@
-import os
-
-import toml
-from ament_index_python.packages import get_package_share_directory
-from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument
+from launch import LaunchContext, LaunchDescription
+from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription, OpaqueFunction
+from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
-from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
 
 
@@ -53,12 +49,20 @@ def declare_arguments() -> list[DeclareLaunchArgument]:
     declared_arguments.append(
         DeclareLaunchArgument(
             "wandb_group",
-            default_value="PBVS|ideal",
-            description="Group name for run to use for WandB logger. Default is PBVS|ideal.",
+            default_value="group",
+            description="Group name for run to use for WandB logger. Default value group.",
         )
     )
 
     # General arguments
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "logger",
+            default_value="''",
+            description="Logger to launch. Default value '' is (empty string).",
+            choices=["pbvs", "ibvs", "''"],
+        )
+    )
     declared_arguments.append(
         DeclareLaunchArgument(
             "joint_states_topic_name",
@@ -101,20 +105,38 @@ def declare_arguments() -> list[DeclareLaunchArgument]:
     return declared_arguments
 
 
+def launch_setup(context: LaunchContext) -> list[IncludeLaunchDescription]:
+    logger = LaunchConfiguration("logger").perform(context)
+    # Launch chosen logger
+    match logger:
+        case "pbvs":
+            return [_include_pbvs_logger()]
+        case "ibvs":
+            return [_include_ibvs_logger()]
+        case _:
+            return []
+
+
 def generate_launch_description() -> LaunchDescription:
     # Declare arguments
     declared_arguments = declare_arguments()
 
-    # Initialize Arguments
+    # Add opaque functions
+    opaque_functions = [OpaqueFunction(function=launch_setup)]
+    return LaunchDescription(declared_arguments + opaque_functions)
+
+
+##
+# Private functions
+##
+
+
+def _include_pbvs_logger() -> IncludeLaunchDescription:
     n_runs = LaunchConfiguration("n_runs")
     smooth = LaunchConfiguration("smooth")
     console = LaunchConfiguration("console")
     csv = LaunchConfiguration("csv")
     wandb = LaunchConfiguration("wandb")
-    csv_dir = PathJoinSubstitution([FindPackageShare("logging_pkg"), "../../../../logs/csv/pbvs"])
-    wandb_dir = PathJoinSubstitution(
-        [FindPackageShare("logging_pkg"), "../../../../logs/wandb/pbvs"]
-    )
     wandb_group = LaunchConfiguration("wandb_group")
 
     joint_states_topic_name = LaunchConfiguration("joint_states_topic_name")
@@ -123,37 +145,59 @@ def generate_launch_description() -> LaunchDescription:
     setpoint_error_topic_name = LaunchConfiguration("setpoint_error_topic_name")
     restart_topic_name = LaunchConfiguration("restart_topic_name")
 
-    # Load configuration from toml
-    pkg_share = get_package_share_directory("logging_pkg")
-    config_path = os.path.join(pkg_share, "config", "pbvs_logger.toml")
-    config = toml.load(config_path)
-
-    # Initialize nodes to start
-    pbvs_logger_node = Node(
-        package="logging_pkg",
-        executable="ros_logger.py",
-        output="screen",
-        parameters=[
-            {
-                "n_runs": n_runs,
-                "smooth": smooth,
-                "log.console": console,
-                "log.csv": csv,
-                "log.wandb": wandb,
-                "csv.dir": csv_dir,
-                "wandb.config.group": wandb_group,
-                "wandb.config.dir": wandb_dir,
-                **config["logger"],
-            }
-        ],
-        remappings=[
-            ("/joint_states", joint_states_topic_name),
-            ("/joint_trajectory", joint_trajectory_topic_name),
-            ("/pose_error", pose_error_topic_name),
-            ("/setpoint_error", setpoint_error_topic_name),
-            ("/ros_logger/restart", restart_topic_name),
-        ],
+    return IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(
+            PathJoinSubstitution(
+                [FindPackageShare("logging_pkg"), "launch", "loggers", "pbvs_logger.launch.py"]
+            )
+        ),
+        launch_arguments={
+            "n_runs": n_runs,
+            "smooth": smooth,
+            "console": console,
+            "csv": csv,
+            "wandb": wandb,
+            "wandb_group": wandb_group,
+            "joint_states_topic_name": joint_states_topic_name,
+            "joint_trajectory_topic_name": joint_trajectory_topic_name,
+            "pose_error_topic_name": pose_error_topic_name,
+            "setpoint_error_topic_name": setpoint_error_topic_name,
+            "restart_topic_name": restart_topic_name,
+        }.items(),
     )
 
-    nodes_to_start = [pbvs_logger_node]
-    return LaunchDescription(declared_arguments + nodes_to_start)
+
+def _include_ibvs_logger() -> IncludeLaunchDescription:
+    n_runs = LaunchConfiguration("n_runs")
+    smooth = LaunchConfiguration("smooth")
+    console = LaunchConfiguration("console")
+    csv = LaunchConfiguration("csv")
+    wandb = LaunchConfiguration("wandb")
+    wandb_group = LaunchConfiguration("wandb_group")
+
+    joint_states_topic_name = LaunchConfiguration("joint_states_topic_name")
+    joint_trajectory_topic_name = LaunchConfiguration("joint_trajectory_topic_name")
+    pose_error_topic_name = LaunchConfiguration("pose_error_topic_name")
+    setpoint_error_topic_name = LaunchConfiguration("setpoint_error_topic_name")
+    restart_topic_name = LaunchConfiguration("restart_topic_name")
+
+    return IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(
+            PathJoinSubstitution(
+                [FindPackageShare("logging_pkg"), "launch", "loggers", "ibvs_logger.launch.py"]
+            )
+        ),
+        launch_arguments={
+            "n_runs": n_runs,
+            "smooth": smooth,
+            "console": console,
+            "csv": csv,
+            "wandb": wandb,
+            "wandb_group": wandb_group,
+            "joint_states_topic_name": joint_states_topic_name,
+            "joint_trajectory_topic_name": joint_trajectory_topic_name,
+            "pose_error_topic_name": pose_error_topic_name,
+            "setpoint_error_topic_name": setpoint_error_topic_name,
+            "restart_topic_name": restart_topic_name,
+        }.items(),
+    )

@@ -57,6 +57,47 @@ def declare_arguments() -> list[DeclareLaunchArgument]:
             description="Group name for run to use for WandB logger. Default is IBVS|ideal.",
         )
     )
+
+    # General arguments
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "joint_states_topic_name",
+            default_value="/joint_states",
+            description="Joint states (sensor_msgs/JointState) topic name."
+            " Default is /joint_states.",
+        )
+    )
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "joint_trajectory_topic_name",
+            default_value="/joint_trajectory_controller/joint_trajectory",
+            description="Joint trajectory (trajectory_msgs/JointTrajectory) topic name."
+            " Default is /joint_trajectory_controller/joint_trajectory.",
+        )
+    )
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "pose_error_topic_name",
+            default_value="/pose_error",
+            description="Pose error (geometry_msgs/PoseStamped) topic name."
+            " Default is /pose_error.",
+        )
+    )
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "setpoint_error_topic_name",
+            default_value="/setpoint_error",
+            description="Setpoint error (geometry_msgs/PoseArray) topic name."
+            " Default is /setpoint_error.",
+        )
+    )
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "restart_topic_name",
+            default_value="/ros_logger/restart",
+            description="Restart (std_msgs/Empty) topic name. Default is /ros_logger/restart.",
+        )
+    )
     return declared_arguments
 
 
@@ -75,6 +116,12 @@ def generate_launch_description() -> LaunchDescription:
         [FindPackageShare("logging_pkg"), "../../../../logs/wandb/ibvs"]
     )
     wandb_group = LaunchConfiguration("wandb_group")
+
+    joint_states_topic_name = LaunchConfiguration("joint_states_topic_name")
+    joint_trajectory_topic_name = LaunchConfiguration("joint_trajectory_topic_name")
+    pose_error_topic_name = LaunchConfiguration("pose_error_topic_name")
+    setpoint_error_topic_name = LaunchConfiguration("setpoint_error_topic_name")
+    restart_topic_name = LaunchConfiguration("restart_topic_name")
 
     # Load configuration from toml
     pkg_share = get_package_share_directory("logging_pkg")
@@ -100,11 +147,11 @@ def generate_launch_description() -> LaunchDescription:
             }
         ],
         remappings=[
-            ("/joint_states", "/isaaclab/joint_states"),
-            ("/joint_trajectory", "/isaaclab/joint_trajectory_controller/joint_trajectory"),
-            ("/pose_error", "/isaaclab/pose_error"),
-            ("/setpoint_error", "/ibvs_controller/pose_error"),
-            ("/ros_logger/restart", "/isaaclab/reset"),
+            ("/joint_states", joint_states_topic_name),
+            ("/joint_trajectory", joint_trajectory_topic_name),
+            ("/pose_error", pose_error_topic_name),
+            ("/setpoint_error", setpoint_error_topic_name),
+            ("/ros_logger/restart", restart_topic_name),
         ],
     )
 
