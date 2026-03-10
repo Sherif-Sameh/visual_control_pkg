@@ -16,6 +16,7 @@
 #include "isaac_ros_apriltag_interfaces/msg/april_tag_detection_array.hpp"
 #include "rcl_interfaces/msg/set_parameters_result.hpp"
 #include "rclcpp/rclcpp.hpp"
+#include "rclcpp_components/register_node_macro.hpp"
 #include "sensor_msgs/msg/camera_info.hpp"
 #include "tf2_eigen/tf2_eigen.hpp"
 #include "tf2_ros/transform_broadcaster.hpp"
@@ -41,7 +42,7 @@ public:
     using Covariance = se::ManifEKF<manif::SE3d, se::ActionSE3Features<double>>::Covariance;
 
 public:
-    ApriltagEstimator();
+    ApriltagEstimator(const rclcpp::NodeOptions &options);
 
 private:
     void publish_tag(const std_msgs::msg::Header &header, const std::string &tag_family);

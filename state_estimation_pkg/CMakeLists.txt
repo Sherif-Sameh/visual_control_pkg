@@ -19,6 +19,7 @@ endif()
 find_package(ament_cmake REQUIRED)
 find_package(ament_cmake_python REQUIRED)
 find_package(rclcpp REQUIRED)
+find_package(rclcpp_components REQUIRED)
 # find_package(rclpy REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
@@ -36,10 +37,11 @@ include_directories(include/state_estimation_pkg)
 include_directories(${EIGEN3_INCLUDE_DIRS})
 include_directories(${manif_INCLUDE_DIRS})
 
-# Create C++ executables
-add_executable(apriltag_estimator src/apriltag_estimator.cpp)
-ament_target_dependencies(apriltag_estimator 
+# Create C++ library for composable nodes
+add_library(apriltag_estimator_component SHARED src/apriltag_estimator.cpp)
+ament_target_dependencies(apriltag_estimator_component 
   rclcpp
+  rclcpp_components
   geometry_msgs
   sensor_msgs
   tf2
@@ -48,11 +50,19 @@ ament_target_dependencies(apriltag_estimator
   tf2_geometry_msgs
   isaac_ros_apriltag
 )
+rclcpp_components_register_node(
+    apriltag_estimator_component
+    PLUGIN "ApriltagEstimator"
+    EXECUTABLE apriltag_estimator
+)
 
-# Install C++ executables
-install(TARGETS
-  apriltag_estimator
-  DESTINATION lib/${PROJECT_NAME}
+# Install C++ composable nodes
+ament_export_targets(export_apriltag_estimator_component)
+install(TARGETS apriltag_estimator_component
+        EXPORT export_apriltag_estimator_component
+        ARCHIVE DESTINATION lib
+        LIBRARY DESTINATION lib
+        RUNTIME DESTINATION bin
 )
 
 # Install launch and config directories

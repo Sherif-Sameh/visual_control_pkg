@@ -1,6 +1,7 @@
 #include "apriltag_estimator.hpp"
 
-ApriltagEstimator::ApriltagEstimator() : Node("apriltag_estimator")
+ApriltagEstimator::ApriltagEstimator(const rclcpp::NodeOptions &options)
+    : Node("apriltag_estimator", options)
 {
     // Declare ROS parameters
     this->declare_parameter("tag.timeout", rclcpp::PARAMETER_DOUBLE);
@@ -25,7 +26,8 @@ ApriltagEstimator::ApriltagEstimator() : Node("apriltag_estimator")
     init_ekf();
 
     // Initialize ROS attributes
-    m_pub_tag = this->create_publisher<AprilTagDetectionArray>("/detections_filtered", 0);
+    m_pub_tag = this->create_publisher<AprilTagDetectionArray>(
+        "/apriltag_estimator/detections_filtered", 0);
     m_sub_cam_info = this->create_subscription<sensor_msgs::msg::CameraInfo>(
         "/camera_info", 0, std::bind(&ApriltagEstimator::callback_cam_info, this, _1));
     m_sub_cam_twist = this->create_subscription<geometry_msgs::msg::TwistStamped>(
@@ -247,11 +249,4 @@ std::array<Eigen::Vector2d, 4> ApriltagEstimator::project_points(const Eigen::Is
     return img_pts;
 }
 
-int main(int argc, char *argv[])
-{
-    rclcpp::init(argc, argv);
-    auto apriltag_estimator = std::make_shared<ApriltagEstimator>();
-    rclcpp::spin(apriltag_estimator);
-    rclcpp::shutdown();
-    return 0;
-}
+RCLCPP_COMPONENTS_REGISTER_NODE(ApriltagEstimator)
