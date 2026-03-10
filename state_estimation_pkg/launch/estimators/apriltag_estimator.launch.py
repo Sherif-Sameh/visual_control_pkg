@@ -80,8 +80,8 @@ def generate_launch_description() -> LaunchDescription:
     # Initialize composable node
     apriltag_estimator_node = get_composable_node()
 
-    # Initialize standalong composable node container
-    apriltag_container = ComposableNodeContainer(
+    # Initialize standalone composable node container
+    apriltag_estimator_container = ComposableNodeContainer(
         package="rclcpp_components",
         name="apriltag_estimator_container",
         namespace="",
@@ -90,5 +90,5 @@ def generate_launch_description() -> LaunchDescription:
         output="screen",
     )
 
-    nodes_to_start = [apriltag_container]
+    nodes_to_start = [apriltag_estimator_container]
     return LaunchDescription(declared_arguments + nodes_to_start)
