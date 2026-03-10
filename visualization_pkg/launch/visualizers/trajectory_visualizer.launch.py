@@ -14,14 +14,14 @@ def declare_arguments() -> list[DeclareLaunchArgument]:
     # Trajectory visualizer arguments
     declared_arguments.append(
         DeclareLaunchArgument(
-            "target",
+            "target_frames",
             default_value="['base_link']",
             description="Names of target frames for each tracked frame. Default is ['base_link'].",
         )
     )
     declared_arguments.append(
         DeclareLaunchArgument(
-            "source",
+            "source_frames",
             default_value="['ee_link']",
             description="Names of source frames for each tracked frame. Default is ['ee_link'].",
         )
@@ -30,9 +30,9 @@ def declare_arguments() -> list[DeclareLaunchArgument]:
     # General arguments
     declared_arguments.append(
         DeclareLaunchArgument(
-            "reset_topic_name",
-            default_value="/trajectory_visualizer/reset",
-            description="Reset (std_msgs/Empty) topic name. Default is /trajectory_visualizer/reset",
+            "restart_topic_name",
+            default_value="/trajectory_visualizer/restart",
+            description="Restart (std_msgs/Empty) topic name. Default is /trajectory_visualizer/restart",
         )
     )
     return declared_arguments
@@ -43,10 +43,10 @@ def generate_launch_description() -> LaunchDescription:
     declared_arguments = declare_arguments()
 
     # Initialize Arguments
-    target = LaunchConfiguration("target")
-    source = LaunchConfiguration("source")
+    target_frames = LaunchConfiguration("target_frames")
+    source_frames = LaunchConfiguration("source_frames")
 
-    reset_topic_name = LaunchConfiguration("reset_topic_name")
+    restart_topic_name = LaunchConfiguration("restart_topic_name")
 
     # Load configuration from toml
     pkg_share = get_package_share_directory("visualization_pkg")
@@ -58,8 +58,10 @@ def generate_launch_description() -> LaunchDescription:
         package="visualization_pkg",
         executable="trajectory_visualizer.py",
         output="screen",
-        parameters=[{"frame.target": target, "frame.source": source, **config["visualizer"]}],
-        remappings=[("/trajectory_visualizer/reset", reset_topic_name)],
+        parameters=[
+            {"frame.target": target_frames, "frame.source": source_frames, **config["visualizer"]}
+        ],
+        remappings=[("/trajectory_visualizer/restart", restart_topic_name)],
     )
 
     nodes_to_start = [trajectory_visualizer_node]

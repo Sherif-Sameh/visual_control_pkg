@@ -67,14 +67,14 @@ class TrajectoryVisualizer(Node):
             MarkerArray, "/trajectory_visualizer/trajectory", 1
         )
         self._sub_rst = self.create_subscription(
-            Empty, "/trajectory_visualizer/reset", self.callback_rst, 10
+            Empty, "/trajectory_visualizer/restart", self.callback_rst, 10
         )
         self._tf_buffer = Buffer()
         self._tf_listener = TransformListener(self._tf_buffer, self)
         self._timer = self.create_timer(self.TIMER_PERIOD, self.callback_timer)
 
     def callback_rst(self, msg: Empty) -> None:
-        """Callback function for reset message.
+        """Callback function for restart message.
 
         Clears all stored trajectories and time stamps.
         """
