@@ -11,7 +11,7 @@ def declare_arguments() -> list[DeclareLaunchArgument]:
     # Isaac ROS Apriltag detector arguments
     declared_arguments.append(
         DeclareLaunchArgument(
-            "size",
+            "tag_size",
             default_value="0.08",
             description="The tag edge size in meters, assuming square markers."
             " Default value is 0.08.",
@@ -84,7 +84,7 @@ def generate_launch_description() -> LaunchDescription:
 
 
 def _include_apriltag_detector() -> IncludeLaunchDescription:
-    size = LaunchConfiguration("size")
+    tag_size = LaunchConfiguration("tag_size")
     tag_family = LaunchConfiguration("tag_family")
     backends = LaunchConfiguration("backends")
 
@@ -98,12 +98,12 @@ def _include_apriltag_detector() -> IncludeLaunchDescription:
                     FindPackageShare("vision_pkg"),
                     "launch",
                     "detectors",
-                    "isaac_ros_apriltag.launch.py",
+                    "apriltag_detector.launch.py",
                 ]
             )
         ),
         launch_arguments={
-            "size": size,
+            "tag_size": tag_size,
             "tag_family": tag_family,
             "backends": backends,
             "image_topic_name": image_topic_name,

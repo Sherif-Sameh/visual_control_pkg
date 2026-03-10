@@ -11,7 +11,7 @@ def declare_arguments() -> list[DeclareLaunchArgument]:
     # Isaac ROS Apriltag detector arguments
     declared_arguments.append(
         DeclareLaunchArgument(
-            "size",
+            "tag_size",
             default_value="0.08",
             description="The tag edge size in meters, assuming square markers."
             " Default value is 0.08.",
@@ -81,7 +81,7 @@ def declare_arguments() -> list[DeclareLaunchArgument]:
 
 def get_composable_node(**kwargs) -> ComposableNode:
     # Initialize Arguments
-    size = LaunchConfiguration("size")
+    tag_size = LaunchConfiguration("tag_size")
     max_tags = LaunchConfiguration("max_tags")
     tile_size = LaunchConfiguration("tile_size")
     tag_family = LaunchConfiguration("tag_family")
@@ -97,7 +97,7 @@ def get_composable_node(**kwargs) -> ComposableNode:
         name="apriltag",
         parameters=[
             {
-                "size": kwargs.get("size", size),
+                "size": kwargs.get("tag_size", tag_size),
                 "max_tags": kwargs.get("max_tags", max_tags),
                 "tile_size": kwargs.get("tile_size", tile_size),
                 "tag_family": kwargs.get("tag_family", tag_family),
@@ -107,7 +107,7 @@ def get_composable_node(**kwargs) -> ComposableNode:
         remappings=[
             ("/image", kwargs.get("image_topic_name", image_topic_name)),
             ("/camera_info", kwargs.get("camera_info_topic_name", camera_info_topic_name)),
-            ("/tag_detections", "/detector/tag_detections"),
+            ("/tag_detections", "/apriltag_detector/detections"),
         ],
     )
 
