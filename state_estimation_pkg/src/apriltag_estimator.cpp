@@ -77,7 +77,7 @@ void ApriltagEstimator::make_tag_tfs(const std_msgs::msg::Header &header,
         };
         geometry_msgs::msg::TransformStamped t = tf2::eigenToTransform(x.isometry());
         t.header = header;
-        t.child_frame_id = tag_family + ":" + std::to_string(id);
+        t.child_frame_id = tag_family + ":" + std::to_string(id) + "f";
         transforms.push_back(t);
     }
     m_tf_broadcaster->sendTransform(transforms);
@@ -117,19 +117,20 @@ void ApriltagEstimator::callback_tag(const AprilTagDetectionArray::SharedPtr msg
     // Update existing and new tag IDs
     for (const auto &tag : msg->detections)
     {
-        Eigen::Isometry3d T_tag_cam;
-        tf2::fromMsg(tag.pose.pose.pose, T_tag_cam);
+        Eigen::Vector3d t;
+        Eigen::Quaterniond q;
+        utils::mappings::gm_pose_to_eigen_tq<double, true>(tag.pose.pose.pose, t, q);
         auto it = m_ekf_map.find(tag.id);
         if (it != m_ekf_map.end()) // existing tag IDs
         {
             (*it).second.m_stamp = stamp_now;
-            (*it).second.m_wrapped.update(Measurement(T_tag_cam));
+            (*it).second.m_wrapped.update(Measurement(t, q));
         }
         else // new tag IDs
         {
             using ManifEKF = se::ManifEKF<manif::SE3d, se::ActionSE3Features<double>>;
             m_ekf_map.insert({tag.id, {stamp_now, ManifEKF(m_ekf_P0, m_ekf_Q, m_ekf_R)}});
-            m_ekf_map[tag.id].m_wrapped.setState(State(T_tag_cam));
+            m_ekf_map[tag.id].m_wrapped.setState(State(t, q));
         }
     }
 
