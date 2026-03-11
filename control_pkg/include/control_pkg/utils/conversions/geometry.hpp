@@ -19,68 +19,70 @@
 #include <tf2/LinearMath/Quaternion.h>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
 
-namespace geometry
+namespace utils
 {
-
-    /**
-     * @brief Convert pose from `geometry_msgs::msg::Pose` to ViSP `vpHomogeneousMatrix`.
-     *
-     * @param[in] pose Input pose to initialize `vpHomogeneousMatrix` from.
-     * @return ViSP `vpHomogeneousMatrix` initialized from input pose.
-     */
-    inline vpHomogeneousMatrix gm_pose_to_vp_hmatrix(const geometry_msgs::msg::Pose &pose)
+    namespace geometry
     {
-        return vpHomogeneousMatrix(
-            vpTranslationVector(pose.position.x, pose.position.y, pose.position.z),
-            vpQuaternionVector(pose.orientation.x, pose.orientation.y, pose.orientation.z,
-                               pose.orientation.w));
-    }
-
-    /**
-     * @brief Convert pose from `geometry_msgs::msg::Transform` to ViSP `vpHomogeneousMatrix`.
-     *
-     * @param[in] transform Input transform to initialize `vpHomogeneousMatrix` from.
-     * @return ViSP `vpHomogeneousMatrix` initialized from input pose
-     */
-    inline vpHomogeneousMatrix
-    gm_transform_to_vp_hmatrix(const geometry_msgs::msg::Transform &transform)
-    {
-        return vpHomogeneousMatrix(vpTranslationVector(transform.translation.x,
-                                                       transform.translation.y,
-                                                       transform.translation.z),
-                                   vpQuaternionVector(transform.rotation.x, transform.rotation.y,
-                                                      transform.rotation.z, transform.rotation.w));
-    }
-
-    /**
-     * @brief Convert rotation from (x, y, z) 3D axis-angle to `geometry_msgs::msg::Quaternion`.
-     *
-     * @param[in] x x-component of the axis-angle representation.
-     * @param[in] y y-component of the axis-angle representation.
-     * @param[in] z z-component of the axis-angle representation.
-     * @return `geometry_msgs::msg::Quaternion` initialized from input axis-angle.
-     */
-    inline geometry_msgs::msg::Quaternion xyz_aa_to_gm_quat(const double x, const double y,
-                                                            const double z)
-    {
-        constexpr double angle_threshold = 1e-6;
-
-        // Construct tf2 Quaternion from axis-angle representation
-        tf2::Quaternion tf2_quat;
-        tf2::Vector3 axis(x, y, z);
-        double angle = axis.length();
-        if (angle < angle_threshold)
+        /**
+         * @brief Convert pose from `geometry_msgs::msg::Pose` to ViSP `vpHomogeneousMatrix`.
+         *
+         * @param[in] pose Input pose to initialize `vpHomogeneousMatrix` from.
+         * @return ViSP `vpHomogeneousMatrix` initialized from input pose.
+         */
+        inline vpHomogeneousMatrix gm_pose_to_vp_hmatrix(const geometry_msgs::msg::Pose &pose)
         {
-            tf2_quat.setRPY(0, 0, 0);
-        }
-        else
-        {
-            axis /= angle;
-            tf2_quat.setRotation(axis, angle);
+            return vpHomogeneousMatrix(
+                vpTranslationVector(pose.position.x, pose.position.y, pose.position.z),
+                vpQuaternionVector(pose.orientation.x, pose.orientation.y, pose.orientation.z,
+                                   pose.orientation.w));
         }
 
-        return tf2::toMsg(tf2_quat);
-    }
-} // namespace geometry
+        /**
+         * @brief Convert pose from `geometry_msgs::msg::Transform` to ViSP `vpHomogeneousMatrix`.
+         *
+         * @param[in] transform Input transform to initialize `vpHomogeneousMatrix` from.
+         * @return ViSP `vpHomogeneousMatrix` initialized from input pose
+         */
+        inline vpHomogeneousMatrix
+        gm_transform_to_vp_hmatrix(const geometry_msgs::msg::Transform &transform)
+        {
+            return vpHomogeneousMatrix(
+                vpTranslationVector(transform.translation.x, transform.translation.y,
+                                    transform.translation.z),
+                vpQuaternionVector(transform.rotation.x, transform.rotation.y, transform.rotation.z,
+                                   transform.rotation.w));
+        }
+
+        /**
+         * @brief Convert rotation from (x, y, z) 3D axis-angle to `geometry_msgs::msg::Quaternion`.
+         *
+         * @param[in] x x-component of the axis-angle representation.
+         * @param[in] y y-component of the axis-angle representation.
+         * @param[in] z z-component of the axis-angle representation.
+         * @return `geometry_msgs::msg::Quaternion` initialized from input axis-angle.
+         */
+        inline geometry_msgs::msg::Quaternion xyz_aa_to_gm_quat(const double x, const double y,
+                                                                const double z)
+        {
+            constexpr double angle_threshold = 1e-6;
+
+            // Construct tf2 Quaternion from axis-angle representation
+            tf2::Quaternion tf2_quat;
+            tf2::Vector3 axis(x, y, z);
+            double angle = axis.length();
+            if (angle < angle_threshold)
+            {
+                tf2_quat.setRPY(0, 0, 0);
+            }
+            else
+            {
+                axis /= angle;
+                tf2_quat.setRotation(axis, angle);
+            }
+
+            return tf2::toMsg(tf2_quat);
+        }
+    } // namespace geometry
+} // namespace utils
 
 #endif
