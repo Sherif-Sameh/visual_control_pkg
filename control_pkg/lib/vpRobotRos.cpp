@@ -187,7 +187,7 @@ namespace vc
         void vpRobotRos::setJointPosition(const std::vector<double> &q)
         {
             // Update joint configuration in KDL JntArray format
-            mappings::vec_to_kdl_jntarray(q, m_q_kdl);
+            utils::mappings::vec_to_kdl_jntarray(q, m_q_kdl);
         }
 
         std::vector<double> vpRobotRos::computeJointVelocity(const vpHomogeneousMatrix &fMe,
@@ -217,12 +217,12 @@ namespace vc
 
             // Convert to joint velocities using IK solver
             KDL::Twist vel_base_kdl;
-            mappings::visp_vpcolvector_to_kdl_twist(vel_base, vel_base_kdl);
+            utils::mappings::visp_vpcolvector_to_kdl_twist(vel_base, vel_base_kdl);
             KDL::JntArray qdot_kdl(nDof);
             m_solver.solveIk(m_q_kdl, vel_base_kdl, qdot_kdl);
 
             // Update joint velocity and apply velocity saturation
-            mappings::kdl_jntarray_to_visp_vpcolvector(qdot_kdl, m_qdot);
+            utils::mappings::kdl_jntarray_to_visp_vpcolvector(qdot_kdl, m_qdot);
             m_qdot = vpRobot::saturateVelocities(m_qdot, m_max_qdot, verbose_);
         }
     } // namespace visp

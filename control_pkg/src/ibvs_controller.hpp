@@ -6,6 +6,7 @@
 #include <chrono>
 #include <functional>
 #include <memory>
+#include <optional>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -17,19 +18,19 @@
 
 #include "geometry_msgs/msg/pose_array.hpp"
 #include "geometry_msgs/msg/transform_stamped.hpp"
-#include "isaac_ros_apriltag_interfaces/msg/april_tag_detection.hpp"
+#include "geometry_msgs/msg/twist_stamped.hpp"
 #include "isaac_ros_apriltag_interfaces/msg/april_tag_detection_array.hpp"
 #include "rcl_interfaces/msg/set_parameters_result.hpp"
 #include "rclcpp/rclcpp.hpp"
 #include "sensor_msgs/msg/camera_info.hpp"
 #include "sensor_msgs/msg/joint_state.hpp"
-#include "tf2/exceptions.hpp"
 #include "tf2_ros/buffer.hpp"
 #include "tf2_ros/transform_listener.hpp"
 #include "trajectory_msgs/msg/joint_trajectory.hpp"
 
 #include "utils/conversions/geometry.hpp"
 #include "utils/conversions/mappings.hpp"
+#include "utils/tf2.hpp"
 #include "vpRobotRos.hpp"
 
 using isaac_ros_apriltag_interfaces::msg::AprilTagDetection;
@@ -48,23 +49,22 @@ private:
     void post_init();
     void publish_traj(const std::vector<double> &qdot);
     void publish_perr(const std::vector<double> &perr);
+    void publish_cam_twist(const vpColVector &v_c);
     void callback_js(const sensor_msgs::msg::JointState::SharedPtr msg);
     void callback_cam_info(const sensor_msgs::msg::CameraInfo::SharedPtr msg);
     void callback_tag(const AprilTagDetectionArray::SharedPtr msg);
     rcl_interfaces::msg::SetParametersResult
     callback_params(const std::vector<rclcpp::Parameter> &parameters);
+
     void init_robot();
     void init_controller();
     void update_desired_features();
     void update_features(const std::vector<AprilTagDetection> &detections,
                          std::vector<int> &valid_ids, std::vector<int> &invalid_ids);
     bool has_converged(const std::vector<int> &valid_ids);
-    bool lookup_transform(const std::string &target_frame, const std::string &source_frame,
-                          vpHomogeneousMatrix &t);
 
 private:
     // General Attributes
-    bool m_is_cam_init;
     std::string m_base_frame;
     std::string m_ee_frame;
     std::string m_cam_frame;
@@ -77,7 +77,7 @@ private:
     std::array<vpPoint, 4> m_points;
     std::unordered_map<int, std::array<vpFeaturePoint, 4>> m_p;
     std::unordered_map<int, std::array<vpFeaturePoint, 4>> m_pd;
-    vpCameraParameters m_cam_params;
+    std::optional<vpCameraParameters> m_cam_params;
     vpColVector m_lambda;
     vpRobotRos m_robot;
     vpServo m_controller;
@@ -86,6 +86,7 @@ private:
     rclcpp::TimerBase::SharedPtr m_timer_setup;
     rclcpp::Publisher<trajectory_msgs::msg::JointTrajectory>::SharedPtr m_pub_traj{nullptr};
     rclcpp::Publisher<geometry_msgs::msg::PoseArray>::SharedPtr m_pub_perr{nullptr};
+    rclcpp::Publisher<geometry_msgs::msg::TwistStamped>::SharedPtr m_pub_cam_twist{nullptr};
     rclcpp::Subscription<sensor_msgs::msg::JointState>::SharedPtr m_sub_js{nullptr};
     rclcpp::Subscription<sensor_msgs::msg::CameraInfo>::SharedPtr m_sub_cam_info{nullptr};
     rclcpp::Subscription<AprilTagDetectionArray>::SharedPtr m_sub_tag{nullptr};

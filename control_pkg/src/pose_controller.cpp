@@ -26,10 +26,10 @@ PoseController::PoseController() : Node("pose_controller")
     init_controller();
 
     // Initialize ROS attributes
-    m_pub_perr =
-        this->create_publisher<geometry_msgs::msg::PoseArray>("/pbvs_controller/pose_error", 10);
     m_pub_traj = this->create_publisher<trajectory_msgs::msg::JointTrajectory>(
         "/joint_trajectory_controller/joint_trajectory", 0);
+    m_pub_perr =
+        this->create_publisher<geometry_msgs::msg::PoseArray>("/pose_controller/pose_error", 10);
     m_sub_gp = this->create_subscription<geometry_msgs::msg::PoseStamped>(
         "/goal_pose", 0, std::bind(&PoseController::callback_gp, this, _1));
     m_sub_js = this->create_subscription<sensor_msgs::msg::JointState>(
@@ -46,19 +46,6 @@ PoseController::~PoseController()
     publish_traj(qdot_zero);
 }
 
-void PoseController::publish_perr(const vpPoseVector &edPe)
-{
-    geometry_msgs::msg::PoseArray msg;
-    msg.header.stamp = this->get_clock()->now();
-
-    msg.poses.resize(1);
-    msg.poses[0].position.x = edPe[0];
-    msg.poses[0].position.y = edPe[1];
-    msg.poses[0].position.z = edPe[2];
-    msg.poses[0].orientation = geometry::xyz_aa_to_gm_quat(edPe[3], edPe[4], edPe[5]);
-    m_pub_perr->publish(msg);
-}
-
 void PoseController::publish_traj(const std::vector<double> &qdot)
 {
     trajectory_msgs::msg::JointTrajectory msg;
@@ -73,9 +60,22 @@ void PoseController::publish_traj(const std::vector<double> &qdot)
     m_pub_traj->publish(msg);
 }
 
+void PoseController::publish_perr(const vpPoseVector &edPe)
+{
+    geometry_msgs::msg::PoseArray msg;
+    msg.header.stamp = this->get_clock()->now();
+
+    msg.poses.resize(1);
+    msg.poses[0].position.x = edPe[0];
+    msg.poses[0].position.y = edPe[1];
+    msg.poses[0].position.z = edPe[2];
+    msg.poses[0].orientation = utils::geometry::xyz_aa_to_gm_quat(edPe[3], edPe[4], edPe[5]);
+    m_pub_perr->publish(msg);
+}
+
 void PoseController::callback_gp(const geometry_msgs::msg::PoseStamped::SharedPtr msg)
 {
-    m_fMed = geometry::gm_pose_to_vp_hmatrix(msg->pose);
+    m_fMed = utils::geometry::gm_pose_to_vp_hmatrix(msg->pose);
 }
 
 void PoseController::callback_js(const sensor_msgs::msg::JointState::SharedPtr msg)
@@ -89,18 +89,18 @@ void PoseController::callback_js(const sensor_msgs::msg::JointState::SharedPtr m
     m_joint_names = msg->name;
     m_robot.setJointPosition(msg->position);
     vpHomogeneousMatrix fMe;
-    if (!lookup_transform(m_base_frame, m_ee_frame, fMe)) return;
+    if (!utils::ros_tf2::lookup_transform(m_base_frame, m_ee_frame, m_tf_buffer, fMe)) return;
 
     vpPoseVector edPe;
     edPe.buildFrom(m_fMed.value().inverse() * fMe);
     vpColVector v_e = -m_lambda.hadamard(edPe);
-    std::vector<double> qdot(m_robot.getNumDofs(), 0.0);
-    if (!has_converged(edPe))
+    std::vector<double> qdot = m_robot.computeJointVelocity(fMe, v_e);
+    if (has_converged(edPe))
     {
-        qdot = m_robot.computeJointVelocity(fMe, v_e);
+        std::fill(qdot.begin(), qdot.end(), 0.0);
     }
     publish_traj(qdot);
-    publish_perr(edPe); // log errors
+    publish_perr(edPe);
 }
 
 rcl_interfaces::msg::SetParametersResult
@@ -126,7 +126,6 @@ PoseController::callback_params(const std::vector<rclcpp::Parameter> &parameters
         {
             has_ik_params = true;
         }
-
         // Controller convergence tolerances
         if (param.get_name() == "ctrl.conv_ttol")
         {
@@ -146,7 +145,6 @@ PoseController::callback_params(const std::vector<rclcpp::Parameter> &parameters
             }
             m_conv_eps.second = std::pow(param.as_double(), 2);
         }
-
         // Controller lambda (gain)
         if (param.get_name() == "ctrl.lambda")
         {
@@ -159,7 +157,6 @@ PoseController::callback_params(const std::vector<rclcpp::Parameter> &parameters
             m_lambda = param.as_double_array();
         }
     }
-
     if (has_ik_params)
     {
         // Reintialize robot to update IK solver's parameters
@@ -177,7 +174,8 @@ void PoseController::init_robot()
     int ik_max_iters = static_cast<int>(this->get_parameter("ik.max_iters").as_int());
     std::vector<double> vec = this->get_parameter("ik.weight_js").as_double_array();
     Eigen::MatrixXd ik_weight_js;
-    mappings::vec_to_sqr_eigen_matrix<double, Eigen::StorageOptions::RowMajor>(vec, ik_weight_js);
+    utils::mappings::vec_to_sqr_eigen_matrix<double, Eigen::StorageOptions::RowMajor>(vec,
+                                                                                      ik_weight_js);
     vc::solver::KdlIkSolverVel_wlds solver(verbose, m_base_frame, m_ee_frame, ik_eps, ik_lambda,
                                            ik_max_iters, ik_weight_js);
 
@@ -207,25 +205,6 @@ bool PoseController::has_converged(const vpPoseVector &edPe)
 {
     return (edPe.getTranslationVector().sumSquare() < m_conv_eps.first &&
             edPe.getThetaUVector().sumSquare() < m_conv_eps.second);
-}
-
-bool PoseController::lookup_transform(const std::string &target_frame,
-                                      const std::string &source_frame, vpHomogeneousMatrix &t)
-{
-    geometry_msgs::msg::TransformStamped t_gm;
-    try
-    {
-        t_gm = m_tf_buffer->lookupTransform(target_frame, source_frame, tf2::TimePointZero);
-    }
-    catch (const tf2::TransformException &ex)
-    {
-        RCLCPP_DEBUG_STREAM(this->get_logger(), "Could not transform " << target_frame << " to "
-                                                                       << source_frame << ": "
-                                                                       << ex.what());
-        return false;
-    }
-    t = geometry::gm_transform_to_vp_hmatrix(t_gm.transform);
-    return true;
 }
 
 int main(int argc, char *argv[])

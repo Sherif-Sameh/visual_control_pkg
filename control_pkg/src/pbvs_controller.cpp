@@ -32,10 +32,11 @@ PbvsController::PbvsController() : Node("pbvs_controller")
                    [](int64_t id) { return static_cast<int>(id); });
     for (const int id : m_tag_ids)
     {
-        m_t.insert({id, vpFeatureTranslation(vpFeatureTranslation::cdMc)});
-        m_tu.insert({id, vpFeatureThetaU(vpFeatureThetaU::cdRc)});
-        m_t[id].buildFrom(vpHomogeneousMatrix());  // set error to zero
-        m_tu[id].buildFrom(vpHomogeneousMatrix()); // set error to zero
+        m_pf.insert({id,
+                     {vpFeatureTranslation(vpFeatureTranslation::cdMc),
+                      vpFeatureThetaU(vpFeatureThetaU::cdRc)}});
+        m_pf[id].m_t.buildFrom(vpHomogeneousMatrix());  // set error to zero
+        m_pf[id].m_tu.buildFrom(vpHomogeneousMatrix()); // set error to zero
     }
     init_robot();
     init_controller();
@@ -46,6 +47,8 @@ PbvsController::PbvsController() : Node("pbvs_controller")
         "/joint_trajectory_controller/joint_trajectory", 0);
     m_pub_perr =
         this->create_publisher<geometry_msgs::msg::PoseArray>("/pbvs_controller/pose_error", 10);
+    m_pub_cam_twist = this->create_publisher<geometry_msgs::msg::TwistStamped>(
+        "/pbvs_controller/camera_twist", 0);
     m_sub_js = this->create_subscription<sensor_msgs::msg::JointState>(
         "/joint_states", 0, std::bind(&PbvsController::callback_js, this, _1));
     m_sub_tag = this->create_subscription<AprilTagDetectionArray>(
@@ -65,7 +68,7 @@ PbvsController::~PbvsController()
 void PbvsController::post_init()
 {
     vpHomogeneousMatrix eMc;
-    if (!lookup_transform(m_ee_frame, m_cam_frame, eMc)) return;
+    if (!utils::ros_tf2::lookup_transform(m_ee_frame, m_cam_frame, m_tf_buffer, eMc)) return;
 
     // Finish initialization and cancel timer
     m_robot.set_eMc(eMc);
@@ -100,9 +103,24 @@ void PbvsController::publish_perr(const std::vector<double> &perr)
         msg.poses[i].position.z = perr[6 * i + 2];
 
         msg.poses[i].orientation =
-            geometry::xyz_aa_to_gm_quat(perr[6 * i + 3], perr[6 * i + 4], perr[6 * i + 5]);
+            utils::geometry::xyz_aa_to_gm_quat(perr[6 * i + 3], perr[6 * i + 4], perr[6 * i + 5]);
     }
     m_pub_perr->publish(msg);
+}
+
+void PbvsController::publish_cam_twist(const vpColVector &v_c)
+{
+    geometry_msgs::msg::TwistStamped msg;
+    msg.header.frame_id = m_cam_frame;
+    msg.header.stamp = this->get_clock()->now();
+
+    msg.twist.linear.x = v_c[0];
+    msg.twist.linear.y = v_c[1];
+    msg.twist.linear.z = v_c[2];
+    msg.twist.angular.x = v_c[3];
+    msg.twist.angular.y = v_c[4];
+    msg.twist.angular.z = v_c[5];
+    m_pub_cam_twist->publish(msg);
 }
 
 void PbvsController::callback_js(const sensor_msgs::msg::JointState::SharedPtr msg)
@@ -132,24 +150,27 @@ void PbvsController::callback_tag(const AprilTagDetectionArray::SharedPtr msg)
         // Replace invalid tags with valid duplicates if available
         for (const int id : invalid_ids)
         {
-            m_t[id] = m_t[valid_ids[0]];
-            m_tu[id] = m_tu[valid_ids[0]];
+            m_pf[id] = m_pf[valid_ids[0]];
         }
     }
 
     // Get end-effector pose relative to robot base from TF Tree
     vpHomogeneousMatrix fMe;
-    if (!(m_robot.isInitialized() && lookup_transform(m_base_frame, m_ee_frame, fMe))) return;
+    if (!(m_robot.isInitialized() &&
+          utils::ros_tf2::lookup_transform(m_base_frame, m_ee_frame, m_tf_buffer, fMe)))
+        return;
 
     // Compute camera velocity and convert to joint velocities
     vpColVector v_c = m_lambda.hadamard(m_controller.computeControlLaw());
-    std::vector<double> qdot(m_robot.getNumDofs(), 0.0);
-    if (!has_converged(valid_ids))
+    std::vector<double> qdot = m_robot.computeJointVelocity(fMe, v_c);
+    if (has_converged(valid_ids))
     {
-        qdot = m_robot.computeJointVelocity(fMe, v_c);
+        std::fill(qdot.begin(), qdot.end(), 0.0);
+        v_c = 0.0;
     }
     publish_traj(qdot);
-    publish_perr(m_controller.getError().toStdVector()); // log errors
+    publish_perr(m_controller.getError().toStdVector());
+    publish_cam_twist(v_c);
 }
 
 rcl_interfaces::msg::SetParametersResult
@@ -175,7 +196,6 @@ PbvsController::callback_params(const std::vector<rclcpp::Parameter> &parameters
         {
             has_ik_params = true;
         }
-
         // Controller convergence tolerances
         if (param.get_name() == "ctrl.conv_ttol")
         {
@@ -195,7 +215,6 @@ PbvsController::callback_params(const std::vector<rclcpp::Parameter> &parameters
             }
             m_conv_eps.second = std::pow(param.as_double(), 2);
         }
-
         // Controller lambda (gain)
         if (param.get_name() == "ctrl.lambda")
         {
@@ -208,7 +227,6 @@ PbvsController::callback_params(const std::vector<rclcpp::Parameter> &parameters
             m_lambda = param.as_double_array();
         }
     }
-
     if (has_ik_params)
     {
         // Reintialize robot to update IK solver's parameters
@@ -226,7 +244,8 @@ void PbvsController::init_robot()
     int ik_max_iters = static_cast<int>(this->get_parameter("ik.max_iters").as_int());
     std::vector<double> vec = this->get_parameter("ik.weight_js").as_double_array();
     Eigen::MatrixXd ik_weight_js;
-    mappings::vec_to_sqr_eigen_matrix<double, Eigen::StorageOptions::RowMajor>(vec, ik_weight_js);
+    utils::mappings::vec_to_sqr_eigen_matrix<double, Eigen::StorageOptions::RowMajor>(vec,
+                                                                                      ik_weight_js);
     vc::solver::KdlIkSolverVel_wlds solver(verbose, m_base_frame, m_ee_frame, ik_eps, ik_lambda,
                                            ik_max_iters, ik_weight_js);
 
@@ -252,10 +271,10 @@ void PbvsController::init_controller()
     m_controller.setLambda(1.0);
     m_controller.setServo(vpServo::EYEINHAND_CAMERA);
     m_controller.setInteractionMatrixType(vpServo::CURRENT);
-    for (const int id : m_tag_ids)
+    for (auto &[_, feature] : m_pf)
     {
-        m_controller.addFeature(m_t[id]);
-        m_controller.addFeature(m_tu[id]);
+        m_controller.addFeature(feature.m_t);
+        m_controller.addFeature(feature.m_tu);
     }
 }
 
@@ -268,7 +287,7 @@ void PbvsController::update_desired_features()
         std::string tag_id_frame = m_tag_family + ":" + std::to_string(id);
         std::string cam_d_frame = m_cam_frame + ":" + std::to_string(id);
         vpHomogeneousMatrix cdMo_id;
-        if (lookup_transform(cam_d_frame, tag_id_frame, cdMo_id))
+        if (utils::ros_tf2::lookup_transform(cam_d_frame, tag_id_frame, m_tf_buffer, cdMo_id))
         {
             m_cdMo[id] = cdMo_id;
         }
@@ -285,12 +304,12 @@ void PbvsController::update_features(const std::vector<AprilTagDetection> &detec
                                [id](const AprilTagDetection &dtn) { return dtn.id == id; });
         if (it != detections.cend())
         {
-            vpHomogeneousMatrix cMo = geometry::gm_pose_to_vp_hmatrix((*it).pose.pose.pose);
+            vpHomogeneousMatrix cMo = utils::geometry::gm_pose_to_vp_hmatrix((*it).pose.pose.pose);
             vpHomogeneousMatrix cdMc = cdMo * cMo.inverse();
             valid_ids.push_back(id);
             invalid_ids.pop_back();
-            m_t[id].buildFrom(cdMc);
-            m_tu[id].buildFrom(cdMc);
+            m_pf[id].m_t.buildFrom(cdMc);
+            m_pf[id].m_tu.buildFrom(cdMc);
         }
     }
 }
@@ -300,28 +319,9 @@ bool PbvsController::has_converged(const std::vector<int> &valid_ids)
     return std::all_of(valid_ids.cbegin(), valid_ids.cend(),
                        [this](int id)
                        {
-                           return m_t[id].get_s().sumSquare() < m_conv_eps.first &&
-                                  m_tu[id].get_s().sumSquare() < m_conv_eps.second;
+                           return m_pf[id].m_t.get_s().sumSquare() < m_conv_eps.first &&
+                                  m_pf[id].m_tu.get_s().sumSquare() < m_conv_eps.second;
                        });
-}
-
-bool PbvsController::lookup_transform(const std::string &target_frame,
-                                      const std::string &source_frame, vpHomogeneousMatrix &t)
-{
-    geometry_msgs::msg::TransformStamped t_gm;
-    try
-    {
-        t_gm = m_tf_buffer->lookupTransform(target_frame, source_frame, tf2::TimePointZero);
-    }
-    catch (const tf2::TransformException &ex)
-    {
-        RCLCPP_DEBUG_STREAM(this->get_logger(), "Could not transform " << target_frame << " to "
-                                                                       << source_frame << ": "
-                                                                       << ex.what());
-        return false;
-    }
-    t = geometry::gm_transform_to_vp_hmatrix(t_gm.transform);
-    return true;
 }
 
 int main(int argc, char *argv[])
