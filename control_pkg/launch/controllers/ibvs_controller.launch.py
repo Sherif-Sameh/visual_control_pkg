@@ -114,13 +114,6 @@ def declare_arguments() -> list[DeclareLaunchArgument]:
     )
     declared_arguments.append(
         DeclareLaunchArgument(
-            "tag_family",
-            default_value="tag36h11",
-            description="Tag family to use for tracking. Default value is tag36h11.",
-        )
-    )
-    declared_arguments.append(
-        DeclareLaunchArgument(
             "tag_size",
             default_value="0.08",
             description="Tag size in meters to use for tracking. Default value is 0.08.",
@@ -166,6 +159,14 @@ def declare_arguments() -> list[DeclareLaunchArgument]:
             " topic name. Default is /detections.",
         )
     )
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "desired_trajectory_topic_name",
+            default_value="/desired_trajectory",
+            description="Desired trajectory (trajectory_msgs/MultiDOFJointTrajectory) topic name."
+            " Default is /desired_trajectory.",
+        )
+    )
     return declared_arguments
 
 
@@ -186,7 +187,6 @@ def generate_launch_description() -> LaunchDescription:
     base_frame = LaunchConfiguration("base_frame")
     ee_frame = LaunchConfiguration("ee_frame")
     cam_frame = LaunchConfiguration("cam_frame")
-    tag_family = LaunchConfiguration("tag_family")
     tag_size = LaunchConfiguration("tag_size")
     tag_ids = LaunchConfiguration("tag_ids")
 
@@ -194,6 +194,7 @@ def generate_launch_description() -> LaunchDescription:
     joint_states_topic_name = LaunchConfiguration("joint_states_topic_name")
     camera_info_topic_name = LaunchConfiguration("camera_info_topic_name")
     detections_topic_name = LaunchConfiguration("detections_topic_name")
+    desired_trajectory_topic_name = LaunchConfiguration("desired_trajectory_topic_name")
 
     # Initialize robot_description parameter
     robot_description_content = Command(
@@ -240,7 +241,6 @@ def generate_launch_description() -> LaunchDescription:
                 "frame.base_frame": base_frame,
                 "frame.ee_frame": ee_frame,
                 "frame.cam_frame": cam_frame,
-                "tag.tag_family": tag_family,
                 "tag.tag_size": tag_size,
                 "tag.tag_ids": tag_ids,
                 **config["controller"],
@@ -251,6 +251,7 @@ def generate_launch_description() -> LaunchDescription:
             ("/joint_states", joint_states_topic_name),
             ("/camera_info", camera_info_topic_name),
             ("/detections", detections_topic_name),
+            ("/desired_trajectory", desired_trajectory_topic_name),
         ],
     )
 

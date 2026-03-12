@@ -8,7 +8,6 @@ IbvsController::IbvsController() : Node("ibvs_controller")
     this->declare_parameter("frame.base_frame", rclcpp::PARAMETER_STRING);
     this->declare_parameter("frame.ee_frame", rclcpp::PARAMETER_STRING);
     this->declare_parameter("frame.cam_frame", rclcpp::PARAMETER_STRING);
-    this->declare_parameter("tag.tag_family", rclcpp::PARAMETER_STRING);
     this->declare_parameter("tag.tag_size", rclcpp::PARAMETER_DOUBLE);
     this->declare_parameter("tag.tag_ids", rclcpp::PARAMETER_INTEGER_ARRAY);
     this->declare_parameter("ik.eps", rclcpp::PARAMETER_DOUBLE);
@@ -26,7 +25,6 @@ IbvsController::IbvsController() : Node("ibvs_controller")
     m_base_frame = this->get_parameter("frame.base_frame").as_string();
     m_ee_frame = this->get_parameter("frame.ee_frame").as_string();
     m_cam_frame = this->get_parameter("frame.cam_frame").as_string();
-    m_tag_family = this->get_parameter("tag.tag_family").as_string();
     double tag_size = this->get_parameter("tag.tag_size").as_double();
     std::vector<int64_t> tag_ids = this->get_parameter("tag.tag_ids").as_integer_array();
     std::transform(tag_ids.begin(), tag_ids.end(), std::back_inserter(m_tag_ids),
@@ -56,6 +54,8 @@ IbvsController::IbvsController() : Node("ibvs_controller")
         "/camera_info", 0, std::bind(&IbvsController::callback_cam_info, this, _1));
     m_sub_tag = this->create_subscription<AprilTagDetectionArray>(
         "/detections", 0, std::bind(&IbvsController::callback_tag, this, _1));
+    m_sub_traj_des = this->create_subscription<MultiDOFJointTrajectory>(
+        "/desired_trajectory", 0, std::bind(&IbvsController::callback_traj_des, this, _1));
     m_tf_buffer = std::make_unique<tf2_ros::Buffer>(this->get_clock());
     m_tf_listener = std::make_shared<tf2_ros::TransformListener>(*m_tf_buffer);
     m_cbh_param =
@@ -140,21 +140,12 @@ void IbvsController::callback_cam_info(const sensor_msgs::msg::CameraInfo::Share
 
 void IbvsController::callback_tag(const AprilTagDetectionArray::SharedPtr msg)
 {
-    update_desired_features();
-    if (m_pd.size() == 0)
-    {
-        RCLCPP_DEBUG_STREAM(this->get_logger(), "No desired features available.");
-        return;
-    }
+    if (m_pd.size() == 0) return;          // no desired features
+    if (!m_cam_params.has_value()) return; // camera not initialized
 
-    if (!m_cam_params.has_value()) return;
     std::vector<int> valid_ids, invalid_ids;
     update_features(msg->detections, valid_ids, invalid_ids);
-    if (valid_ids.size() == 0)
-    {
-        RCLCPP_DEBUG_STREAM(this->get_logger(), "No valid tags detected.");
-        return;
-    }
+    if (valid_ids.size() == 0) return; // no valid tags
     if (invalid_ids.size() > 0)
     {
         // Replace invalid tags with valid duplicates if available
@@ -172,7 +163,7 @@ void IbvsController::callback_tag(const AprilTagDetectionArray::SharedPtr msg)
         return;
 
     // Compute camera velocity and convert to joint velocities
-    vpColVector v_c = m_lambda.hadamard(m_controller.computeControlLaw());
+    vpColVector v_c = m_lambda.hadamard(m_controller.computeControlLaw()) + m_v_cam_ff;
     std::vector<double> qdot = m_robot.computeJointVelocity(fMe, v_c);
     if (has_converged(valid_ids))
     {
@@ -182,6 +173,40 @@ void IbvsController::callback_tag(const AprilTagDetectionArray::SharedPtr msg)
     publish_traj(qdot);
     publish_perr(m_controller.getError().toStdVector());
     publish_cam_twist(v_c);
+}
+
+void IbvsController::callback_traj_des(const MultiDOFJointTrajectory::SharedPtr msg)
+{
+    std::vector<int> tag_ids(msg->joint_names.size());
+    std::transform(msg->joint_names.cbegin(), msg->joint_names.cend(), tag_ids.begin(),
+                   [](const std::string &s_id) { return std::stoi(s_id); });
+    bool has_valid_ids = false;
+    for (std::size_t i = 0; i < tag_ids.size(); i++)
+    {
+        int id = tag_ids[i];
+        auto it = std::find(m_tag_ids.cbegin(), m_tag_ids.cend(), id);
+        if (it == m_tag_ids.cend()) continue;
+
+        has_valid_ids = true;
+        auto oMcd_id = utils::geometry::gm_transform_to_vp_hmatrix(msg->points[0].transforms[i]);
+        auto cdMo_id = oMcd_id.inverse();
+        if (m_pd.find(id) == m_pd.end()) // initialize new tag
+        {
+            m_pd.insert({id, std::array<vpFeaturePoint, 4>()});
+            for (std::size_t i = 0; i < 4; i++)
+            {
+                m_controller.addFeature(m_p[id][i], m_pd[id][i]);
+            }
+        }
+        for (std::size_t i = 0; i < 4; i++) // update desired feature points
+        {
+            m_points[i].track(cdMo_id);
+            vpFeatureBuilder::create(m_pd[id][i], m_points[i]);
+        }
+    }
+    m_v_cam_ff = 0.0;
+    geometry_msgs::msg::Twist v_cam_ff = msg->points[0].velocities[0];
+    m_v_cam_ff = has_valid_ids ? utils::geometry::gm_twist_to_vp_vpcolvector(v_cam_ff) : m_v_cam_ff;
 }
 
 rcl_interfaces::msg::SetParametersResult
@@ -269,40 +294,11 @@ void IbvsController::init_controller()
 {
     m_conv_eps = std::pow(this->get_parameter("ctrl.conv_ttol").as_double(), 2);
     m_lambda = this->get_parameter("ctrl.lambda").as_double_array();
+    m_v_cam_ff.resize(6);
+    m_v_cam_ff = 0.0;
     m_controller.setLambda(1.0);
     m_controller.setServo(vpServo::EYEINHAND_CAMERA);
     m_controller.setInteractionMatrixType(vpServo::CURRENT);
-}
-
-void IbvsController::update_desired_features()
-{
-    // Query transforms for tag transforms relative to desired camera frame
-    // and update the corresponding desired feature points
-    for (const int id : m_tag_ids)
-    {
-        std::string tag_id_frame = m_tag_family + ":" + std::to_string(id);
-        std::string cam_d_frame = m_cam_frame + ":" + std::to_string(id);
-        vpHomogeneousMatrix cdMo_id;
-        if (utils::ros_tf2::lookup_transform(cam_d_frame, tag_id_frame, m_tf_buffer, cdMo_id))
-        {
-            // Initialize new tag for controller to track
-            if (m_pd.find(id) == m_pd.end())
-            {
-                m_pd.insert({id, std::array<vpFeaturePoint, 4>()});
-                for (std::size_t i = 0; i < 4; i++)
-                {
-                    m_controller.addFeature(m_p[id][i], m_pd[id][i]);
-                }
-            }
-
-            // Update tag desired feature points
-            for (std::size_t i = 0; i < 4; i++)
-            {
-                m_points[i].track(cdMo_id);
-                vpFeatureBuilder::create(m_pd[id][i], m_points[i]);
-            }
-        }
-    }
 }
 
 void IbvsController::update_features(const std::vector<AprilTagDetection> &detections,

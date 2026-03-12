@@ -21,8 +21,9 @@ TAG_IDS = "[0, 1]"
 TAG_SIZE = "0.08"
 
 CAMERA_INFO_TOPIC_NAME = "/isaaclab/camera/camera_info"
-DETECTIONS_TOPIC_NAME = "/apriltag_detector/detections"
+DESIRED_TRAJECTORY_TOPIC_NAME = "/isaaclab/command"
 DETECTIONS_FILTERED_TOPIC_NAME = "/apriltag_estimator/detections_filtered"
+DETECTIONS_TOPIC_NAME = "/apriltag_detector/detections"
 IMAGE_TOPIC_NAME = "/isaaclab/camera/image_raw"
 JOINT_STATES_TOPIC_NAME = "/isaaclab/joint_states"
 JOINT_TRAJECTORY_TOPIC_NAME = "/isaaclab/joint_trajectory_controller/joint_trajectory"
@@ -235,7 +236,6 @@ def _launch_control_pkg() -> IncludeLaunchDescription:
             "base_frame": BASE_FRAME,
             "ee_frame": EE_FRAME,
             "cam_frame": CAM_FRAME,
-            "tag_family": TAG_FAMILY,
             "tag_size": TAG_SIZE,
             "tag_ids": TAG_IDS,
             "controller": controller,
@@ -243,6 +243,7 @@ def _launch_control_pkg() -> IncludeLaunchDescription:
             "joint_states_topic_name": JOINT_STATES_TOPIC_NAME,
             "camera_info_topic_name": CAMERA_INFO_TOPIC_NAME,
             "detections_topic_name": DETECTIONS_FILTERED_TOPIC_NAME,
+            "desired_trajectory_topic_name": DESIRED_TRAJECTORY_TOPIC_NAME,
         }.items(),
     )
 

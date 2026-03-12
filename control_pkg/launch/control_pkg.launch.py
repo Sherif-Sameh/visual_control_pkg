@@ -49,13 +49,6 @@ def declare_arguments() -> list[DeclareLaunchArgument]:
     )
     declared_arguments.append(
         DeclareLaunchArgument(
-            "tag_family",
-            default_value="tag36h11",
-            description="Tag family to use for tracking. Default value is tag36h11.",
-        )
-    )
-    declared_arguments.append(
-        DeclareLaunchArgument(
             "tag_ids",
             default_value="[0]",
             description="Tag IDS to use for tracking. Default value is [0].",
@@ -111,6 +104,14 @@ def declare_arguments() -> list[DeclareLaunchArgument]:
             " name. Default is /detections.",
         )
     )
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "desired_trajectory_topic_name",
+            default_value="/desired_trajectory",
+            description="Desired trajectory (trajectory_msgs/MultiDOFJointTrajectory) topic name."
+            " Default is /desired_trajectory.",
+        )
+    )
     return declared_arguments
 
 
@@ -147,12 +148,12 @@ def _include_pbvs_controller() -> IncludeLaunchDescription:
     base_frame = LaunchConfiguration("base_frame")
     ee_frame = LaunchConfiguration("ee_frame")
     cam_frame = LaunchConfiguration("cam_frame")
-    tag_family = LaunchConfiguration("tag_family")
     tag_ids = LaunchConfiguration("tag_ids")
 
     joint_trajectory_topic_name = LaunchConfiguration("joint_trajectory_topic_name")
     joint_states_topic_name = LaunchConfiguration("joint_states_topic_name")
     detections_topic_name = LaunchConfiguration("detections_topic_name")
+    desired_trajectory_topic_name = LaunchConfiguration("desired_trajectory_topic_name")
 
     return IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
@@ -171,11 +172,11 @@ def _include_pbvs_controller() -> IncludeLaunchDescription:
             "base_frame": base_frame,
             "ee_frame": ee_frame,
             "cam_frame": cam_frame,
-            "tag_family": tag_family,
             "tag_ids": tag_ids,
             "joint_trajectory_topic_name": joint_trajectory_topic_name,
             "joint_states_topic_name": joint_states_topic_name,
             "detections_topic_name": detections_topic_name,
+            "desired_trajectory_topic_name": desired_trajectory_topic_name,
         }.items(),
     )
 
@@ -186,7 +187,6 @@ def _include_ibvs_controller() -> IncludeLaunchDescription:
     base_frame = LaunchConfiguration("base_frame")
     ee_frame = LaunchConfiguration("ee_frame")
     cam_frame = LaunchConfiguration("cam_frame")
-    tag_family = LaunchConfiguration("tag_family")
     tag_size = LaunchConfiguration("tag_size")
     tag_ids = LaunchConfiguration("tag_ids")
 
@@ -194,6 +194,7 @@ def _include_ibvs_controller() -> IncludeLaunchDescription:
     joint_states_topic_name = LaunchConfiguration("joint_states_topic_name")
     camera_info_topic_name = LaunchConfiguration("camera_info_topic_name")
     detections_topic_name = LaunchConfiguration("detections_topic_name")
+    desired_trajectory_topic_name = LaunchConfiguration("desired_trajectory_topic_name")
 
     return IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
@@ -212,13 +213,13 @@ def _include_ibvs_controller() -> IncludeLaunchDescription:
             "base_frame": base_frame,
             "ee_frame": ee_frame,
             "cam_frame": cam_frame,
-            "tag_family": tag_family,
             "tag_size": tag_size,
             "tag_ids": tag_ids,
             "joint_trajectory_topic_name": joint_trajectory_topic_name,
             "joint_states_topic_name": joint_states_topic_name,
             "camera_info_topic_name": camera_info_topic_name,
             "detections_topic_name": detections_topic_name,
+            "desired_trajectory_topic_name": desired_trajectory_topic_name,
         }.items(),
     )
 
