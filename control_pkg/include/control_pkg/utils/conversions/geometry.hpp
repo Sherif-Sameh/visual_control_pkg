@@ -16,6 +16,7 @@
 #include <geometry_msgs/msg/pose.hpp>
 #include <geometry_msgs/msg/quaternion.hpp>
 #include <geometry_msgs/msg/transform.hpp>
+#include <geometry_msgs/msg/twist.hpp>
 #include <tf2/LinearMath/Quaternion.h>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
 
@@ -81,6 +82,12 @@ namespace utils
             }
 
             return tf2::toMsg(tf2_quat);
+        }
+
+        inline vpColVector gm_twist_to_vp_vpcolvector(const geometry_msgs::msg::Twist &twist)
+        {
+            return vpColVector({twist.linear.x, twist.linear.y, twist.linear.z, twist.angular.x,
+                                twist.angular.y, twist.angular.z});
         }
     } // namespace geometry
 } // namespace utils
