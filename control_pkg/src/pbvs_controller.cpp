@@ -152,13 +152,12 @@ void PbvsController::callback_tag(const AprilTagDetectionArray::SharedPtr msg)
         return;
 
     // Compute camera velocity and convert to joint velocities
-    vpColVector v_c = m_lambda.hadamard(m_controller.computeControlLaw()) + m_v_cam_ff;
-    std::vector<double> qdot = m_robot.computeJointVelocity(fMe, v_c);
-    if (has_converged(valid_ids))
+    vpColVector v_c = m_v_cam_ff;
+    if (!has_converged(valid_ids))
     {
-        std::fill(qdot.begin(), qdot.end(), 0.0);
-        v_c = 0.0;
+        v_c += m_lambda.hadamard(m_controller.computeControlLaw());
     }
+    std::vector<double> qdot = m_robot.computeJointVelocity(fMe, v_c);
     publish_traj(qdot);
     publish_perr(m_controller.getError().toStdVector());
     publish_cam_twist(v_c);

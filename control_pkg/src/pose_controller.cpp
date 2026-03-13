@@ -93,12 +93,12 @@ void PoseController::callback_js(const sensor_msgs::msg::JointState::SharedPtr m
 
     vpPoseVector edPe;
     edPe.buildFrom(m_fMed.value().inverse() * fMe);
-    vpColVector v_e = -m_lambda.hadamard(edPe);
-    std::vector<double> qdot = m_robot.computeJointVelocity(fMe, v_e);
-    if (has_converged(edPe))
+    vpColVector v_e(6, 0.0);
+    if (!has_converged(edPe))
     {
-        std::fill(qdot.begin(), qdot.end(), 0.0);
+        v_e = -m_lambda.hadamard(edPe);
     }
+    std::vector<double> qdot = m_robot.computeJointVelocity(fMe, v_e);
     publish_traj(qdot);
     publish_perr(edPe);
 }
