@@ -16,12 +16,12 @@ target_nodes = ["apriltag_detector", "apriltag_estimator", "pbvs_controller"]
 
 # CSV logger parameters
 "csv.n_log" = 1
-"csv.n_flush" = 4
+"csv.n_flush" = 100
 "csv.filter" = [""]
 
 # WandB logger parameters
-"wandb.n_log" = 2
-"wandb.n_flush" = 2
+"wandb.n_log" = 1
+"wandb.n_flush" = 40
 "wandb.filter" = ["JS", "JT", "PE"]
 "wandb.config.entity" = "u1999168-girona"
 "wandb.config.project" = "visual_control|VS"

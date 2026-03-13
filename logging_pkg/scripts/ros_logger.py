@@ -92,12 +92,12 @@ class ROSLogger(Node):
         self._start_time = None
 
         # Initialize ROS attributes
-        self._sub_js = self.create_subscription(JointState, "/joint_states", self.callback_js, 50)
+        self._sub_js = self.create_subscription(JointState, "/joint_states", self.callback_js, 10)
         self._sub_jt = self.create_subscription(
-            JointTrajectory, "/joint_trajectory", self.callback_jt, 50
+            JointTrajectory, "/joint_trajectory", self.callback_jt, 10
         )
-        self._sub_pe = self.create_subscription(PoseStamped, "/pose_error", self.callback_pe, 50)
-        self._sub_se = self.create_subscription(PoseArray, "/setpoint_error", self.callback_se, 50)
+        self._sub_pe = self.create_subscription(PoseStamped, "/pose_error", self.callback_pe, 10)
+        self._sub_se = self.create_subscription(PoseArray, "/setpoint_error", self.callback_se, 10)
         self._sub_rst = self.create_subscription(
             Empty, "/ros_logger/restart", self.callback_rst, 10
         )
@@ -138,6 +138,8 @@ class ROSLogger(Node):
         self._loggers.close()
 
     def callback_timer(self) -> None:
+        if len(self._metrics) < 4:
+            return
         for step, metric in self._metrics.values():
             self._loggers.log(step, metric.compute())
             metric.reset()
@@ -148,9 +150,9 @@ class ROSLogger(Node):
 
         self._metrics["js"][0] = self._get_timestep(msg.header)
         self._metrics["js"][1].update(
-            position=np.array(msg.position),
-            velocity=np.array(msg.velocity),
-            effort=np.array(msg.effort),
+            position=np.asarray(msg.position),
+            velocity=np.asarray(msg.velocity),
+            effort=np.asarray(msg.effort),
         )
 
     def callback_jt(self, msg: JointTrajectory) -> None:
@@ -160,10 +162,10 @@ class ROSLogger(Node):
 
         self._metrics["jt"][0] = self._get_timestep(msg.header)
         self._metrics["jt"][1].update(
-            position=np.array(msg.points[0].positions),
-            velocity=np.array(msg.points[0].velocities),
-            acceleration=np.array(msg.points[0].accelerations),
-            effort=np.array(msg.points[0].effort),
+            position=np.asarray(msg.points[0].positions),
+            velocity=np.asarray(msg.points[0].velocities),
+            acceleration=np.asarray(msg.points[0].accelerations),
+            effort=np.asarray(msg.points[0].effort),
         )
 
     def callback_pe(self, msg: PoseStamped) -> None:
