@@ -6,7 +6,7 @@
 # General parameters
 timer_period = 0.1
 n_runs_per_set = 3
-target_nodes = ["apriltag", "ibvs_controller"]
+target_nodes = ["apriltag_detector", "apriltag_estimator", "ibvs_controller"]
 
 # Objective function parameters
 "obj.flags" = [
@@ -17,8 +17,8 @@ target_nodes = ["apriltag", "ibvs_controller"]
     "pose",
 ]
 "obj.weights" = [
-    0.025,
     0.1,
+    0.25,
     0.0,
     0.0,
     1.0,
@@ -30,20 +30,18 @@ target_nodes = ["apriltag", "ibvs_controller"]
 "wandb.config.entity" = "u1999168-girona"
 "wandb.config.project" = "visual_control|VS_sweeps"
 "wandb.config.params" = [
-    "apriltag-size",
-    "apriltag-tile_size",
-    "apriltag-backends",
+    "apriltag_detector-size",
+    "apriltag_detector-tile_size",
+    "apriltag_detector-backends",
+    "apriltag_estimator-tag.P_tthr",
+    "apriltag_estimator-tag.P_rthr",
+    "apriltag_estimator-ekf.P0_diag",
+    "apriltag_estimator-ekf.R_diag",
     "ibvs_controller-tag.tag_ids",
-    "ibvs_controller-ik.eps",
-    "ibvs_controller-ik.lambda",
-    "ibvs_controller-ik.max_iters",
-    "ibvs_controller-ik.weight_js",
     "ibvs_controller-robot.max_tvel",
     "ibvs_controller-robot.max_rvel",
     "ibvs_controller-robot.max_vel_sf",
     "ibvs_controller-robot.max_qdot",
-    "ibvs_controller-ctrl.conv_ttol",
-    "ibvs_controller-ctrl.lambda",
 ]
 
 
@@ -57,10 +55,11 @@ name = "objective"
 goal = "minimize"
 
 [sweep.parameters]
+"apriltag_estimator-ekf.Q_diag.idx_02" = { distribution = "log_uniform_values", min = 5e-5, max = 1e-2}
+"apriltag_estimator-ekf.Q_diag.idx_35" = { distribution = "log_uniform_values", min = 5e-5, max = 1e-2}
+
 "ibvs_controller-ik.eps" = { distribution = "log_uniform_values", min = 1e-3, max = 0.1}
 "ibvs_controller-ik.lambda" = { distribution = "log_uniform_values", min = 1e-3, max = 0.1}
 "ibvs_controller-ctrl.conv_ttol" = {distribution = "log_uniform_values", min = 1e-3, max = 0.025}
-"ibvs_controller-ctrl.lambda.idx_01" = {min = 0.1, max = 2.0}
-"ibvs_controller-ctrl.lambda.idx_2" = {min = 0.1, max = 2.0}
-"ibvs_controller-ctrl.lambda.idx_34" = {min = 0.1, max = 2.0}
-"ibvs_controller-ctrl.lambda.idx_5" = {min = 0.1, max = 2.0}
+"ibvs_controller-ctrl.lambda.idx_02" = {min = 0.5, max = 4.0}
+"ibvs_controller-ctrl.lambda.idx_35" = {min = 0.5, max = 4.0}

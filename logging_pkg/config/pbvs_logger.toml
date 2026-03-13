@@ -4,7 +4,7 @@
 
 # General parameters
 timer_period = 0.1
-target_nodes = ["apriltag", "pbvs_controller"]
+target_nodes = ["apriltag_detector", "apriltag_estimator", "pbvs_controller"]
 
 # Console logger parameters
 "console.n_log" = 5
@@ -26,14 +26,17 @@ target_nodes = ["apriltag", "pbvs_controller"]
 "wandb.config.entity" = "u1999168-girona"
 "wandb.config.project" = "visual_control|VS"
 "wandb.config.params" = [
-    "apriltag-size",
-    "apriltag-tile_size",
-    "apriltag-backends",
+    "apriltag_detector-size",
+    "apriltag_detector-tile_size",
+    "apriltag_detector-backends",
+    "apriltag_estimator-tag.P_tthr",
+    "apriltag_estimator-tag.P_rthr",
+    "apriltag_estimator-ekf.P0_diag",
+    "apriltag_estimator-ekf.Q_diag",
+    "apriltag_estimator-ekf.R_diag",
     "pbvs_controller-tag.tag_ids",
     "pbvs_controller-ik.eps",
     "pbvs_controller-ik.lambda",
-    "pbvs_controller-ik.max_iters",
-    "pbvs_controller-ik.weight_js",
     "pbvs_controller-robot.max_tvel",
     "pbvs_controller-robot.max_rvel",
     "pbvs_controller-robot.max_vel_sf",
