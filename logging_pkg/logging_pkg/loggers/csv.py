@@ -28,6 +28,7 @@ class CSVLogger(Logger):
         self._dir = Path(dir) if isinstance(dir, str) else dir
         self._dir = self._dir.resolve()
         self._dir.mkdir(parents=True, exist_ok=True)
+        self._file = None
         self.restart()
 
     def flush(self) -> None:
@@ -40,7 +41,7 @@ class CSVLogger(Logger):
             for name, value in metrics.items():
                 records.append({"name": name, "step": step, "value": value.tolist()})
         df = pd.DataFrame(records, copy=False)
-        df.to_csv(self._path, index=False, mode="a", header=not self._path.exists())
+        df.to_csv(self._file, index=False, header=False)
         self._log.clear()
 
     def restart(self) -> None:
@@ -51,4 +52,14 @@ class CSVLogger(Logger):
         """
         super().restart()
         datetime_str = datetime.now().strftime("%Y-%m-%d %H-%M-%S")
-        self._path = self._dir / f"{datetime_str}.csv"
+        path = self._dir / f"{datetime_str}.csv"
+        if self._file is not None:
+            self._file.close()
+        self._file = open(path, mode="a", newline="")
+        pd.DataFrame(columns=["name", "step", "value"]).to_csv(self._file, index=False)
+
+    def close(self) -> None:
+        """Close the logger and any of its resources cleanly."""
+        super().close()
+        if self._file is not None:
+            self._file.close()
