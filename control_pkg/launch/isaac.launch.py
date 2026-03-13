@@ -81,9 +81,9 @@ def declare_arguments() -> list[DeclareLaunchArgument]:
     declared_arguments.append(
         DeclareLaunchArgument(
             "logger",
-            default_value="''",
+            default_value="",
             description="Logger to launch. Default value '' is (empty string).",
-            choices=["pbvs", "ibvs", "''"],
+            choices=["pbvs", "ibvs", ""],
         )
     )
     declared_arguments.append(
@@ -126,7 +126,7 @@ def declare_arguments() -> list[DeclareLaunchArgument]:
     declared_arguments.append(
         DeclareLaunchArgument(
             "wandb_group",
-            default_value="''",
+            default_value="",
             description="Group name for run to use for WandB logger. If an empty string, the group"
             " name is set to uppercase(controller)|default. Default value empty string.",
         )
@@ -136,15 +136,15 @@ def declare_arguments() -> list[DeclareLaunchArgument]:
     declared_arguments.append(
         DeclareLaunchArgument(
             "sweep",
-            default_value="''",
+            default_value="",
             description="Sweep to launch. Default value '' is (empty string).",
-            choices=["pbvs", "ibvs", "''"],
+            choices=["pbvs", "ibvs", ""],
         )
     )
     declared_arguments.append(
         DeclareLaunchArgument(
             "sweep_id",
-            default_value="''",
+            default_value="",
             description="Sweep ID for the WandB sweep. Should only be specified of continuing an"
             " existing sweep. Otherwise, it should be left empty. Default is '' (empty string).",
         )

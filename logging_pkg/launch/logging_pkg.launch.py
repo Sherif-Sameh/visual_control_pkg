@@ -58,9 +58,9 @@ def declare_arguments() -> list[DeclareLaunchArgument]:
     declared_arguments.append(
         DeclareLaunchArgument(
             "logger",
-            default_value="''",
+            default_value="",
             description="Logger to launch. Default value '' is (empty string).",
-            choices=["pbvs", "ibvs", "''"],
+            choices=["pbvs", "ibvs", ""],
         )
     )
     declared_arguments.append(

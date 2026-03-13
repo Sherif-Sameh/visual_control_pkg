@@ -24,7 +24,7 @@ def declare_arguments() -> list[DeclareLaunchArgument]:
     declared_arguments.append(
         DeclareLaunchArgument(
             "sweep_id",
-            default_value="''",
+            default_value="",
             description="Sweep ID for the WandB sweep. Should only be specified of continuing an"
             " existing sweep. Otherwise, it should be left empty. Default is '' (empty string).",
         )
