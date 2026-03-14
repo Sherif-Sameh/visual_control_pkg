@@ -1,10 +1,10 @@
 <?xml version="1.0"?>
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
-  <name>state_estimation_pkg</name>
+  <name>vc_core</name>
   <version>0.0.0</version>
   <description>
-    State estimation for vision-based control of robotic manipulators
+    Controllers for vision-based control of robotic manipulators
   </description>
 
   <author>Sherif Samy</author>
@@ -17,21 +17,16 @@
   <buildtool_depend>ament_cmake</buildtool_depend>
 
   <depend>rclcpp</depend>
-  <depend>rcl_interfaces</depend>
-  <depend>rclcpp_components</depend>
-  <depend>sensor_msgs</depend>
   <depend>geometry_msgs</depend>
-  <depend>tf2_eigen</depend>
-  <depend>tf2_ros</depend>
 
-  <depend>vc_core</depend>
+  <depend>eigen</depend>
+  <depend>visp</depend>
+  <depend>orocos_kdl_vendor</depend>
+  <depend>kdl_parser</depend>
 
-  <exec_depend>launch</exec_depend>
-  <exec_depend>launch_ros</exec_depend>
-  
   <test_depend>ament_lint_auto</test_depend>
   <test_depend>ament_lint_common</test_depend>
-
+  
   <export>
     <build_type>ament_cmake</build_type>
   </export>

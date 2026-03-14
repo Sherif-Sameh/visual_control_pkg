@@ -6,7 +6,7 @@
 #ifndef MEASUREMENT_UNIT
 #define MEASUREMENT_UNIT
 
-#include "measurements/base.hpp"
+#include "vc_core/measurements/base.hpp"
 
 namespace se
 {

@@ -11,7 +11,7 @@
 #include <manif/manif.h>
 #include <tl/optional.hpp>
 
-#include "traits.hpp"
+#include "vc_core/traits.hpp"
 
 namespace se
 {

@@ -21,10 +21,10 @@
 #include "tf2_eigen/tf2_eigen.hpp"
 #include "tf2_ros/transform_broadcaster.hpp"
 
-#include "actions/se3_features.hpp"
-#include "filters/manif_ekf.hpp"
-#include "utils/mappings.hpp"
-#include "utils/structs.hpp"
+#include "vc_core/actions/se3_features.hpp"
+#include "vc_core/filters/manif_ekf.hpp"
+#include "vc_core/utils/mappings.hpp"
+#include "vc_core/utils/structs.hpp"
 
 using isaac_ros_apriltag_interfaces::msg::AprilTagDetection;
 using isaac_ros_apriltag_interfaces::msg::AprilTagDetectionArray;

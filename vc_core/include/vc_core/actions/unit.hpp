@@ -6,8 +6,8 @@
 #ifndef ACTION_UNIT
 #define ACTION_UNIT
 
-#include "actions/base.hpp"
-#include "traits.hpp"
+#include "vc_core/actions/base.hpp"
+#include "vc_core/traits.hpp"
 
 namespace se
 {

@@ -17,37 +17,31 @@ endif()
 
 # Find dependencies
 find_package(ament_cmake REQUIRED)
-find_package(ament_cmake_python REQUIRED)
 find_package(rclcpp REQUIRED)
+find_package(rcl_interfaces REQUIRED)
 find_package(rclcpp_components REQUIRED)
-# find_package(rclpy REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
-find_package(tf2 REQUIRED)
 find_package(tf2_eigen REQUIRED)
 find_package(tf2_ros REQUIRED)
-find_package(tf2_geometry_msgs REQUIRED)
 
-find_package(Eigen3 REQUIRED)
-find_package(manif REQUIRED)
+find_package(vc_core REQUIRED)
 find_package(isaac_ros_apriltag REQUIRED)
 
 # Include C++ "include" directory
-include_directories(include/state_estimation_pkg)
-include_directories(${EIGEN3_INCLUDE_DIRS})
-include_directories(${manif_INCLUDE_DIRS})
+include_directories(include)
+include_directories(${vc_core_INCLUDE_DIRS})
 
 # Create C++ library for composable nodes
 add_library(apriltag_estimator_component SHARED src/apriltag_estimator.cpp)
 ament_target_dependencies(apriltag_estimator_component 
   rclcpp
+  rcl_interfaces
   rclcpp_components
   geometry_msgs
   sensor_msgs
-  tf2
   tf2_eigen
   tf2_ros
-  tf2_geometry_msgs
   isaac_ros_apriltag
 )
 rclcpp_components_register_node(

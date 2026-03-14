@@ -6,8 +6,8 @@
 #ifndef ACTION_VISUAL_FEATURES
 #define ACTION_VISUAL_FEATURES
 
-#include "actions/base.hpp"
-#include "traits.hpp"
+#include "vc_core/actions/base.hpp"
+#include "vc_core/traits.hpp"
 
 namespace se
 {

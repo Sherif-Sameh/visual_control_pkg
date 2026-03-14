@@ -12,8 +12,8 @@
 
 #include <manif/manif.h>
 
-#include "actions/unit.hpp"
-#include "measurements/unit.hpp"
+#include "vc_core/actions/unit.hpp"
+#include "vc_core/measurements/unit.hpp"
 
 namespace se
 {
