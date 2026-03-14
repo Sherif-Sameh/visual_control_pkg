@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Callable, Literal
 import numpy as np
 import pytest
 
-from logging_pkg.metrics import (
+from vc_core.metrics import (
     AccumulatorMetric,
     ComposeMetric,
     DeltaMetric,

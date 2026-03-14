@@ -5,10 +5,10 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from logging_pkg.loggers import ConsoleLogger
-from logging_pkg.loggers.csv import CSVLogger
-from logging_pkg.loggers.wandb import WandBLogger
-from logging_pkg.metrics import AccumulatorMetric, ComposeMetric
+from vc_core.loggers import ConsoleLogger
+from vc_core.loggers.csv import CSVLogger
+from vc_core.loggers.wandb import WandBLogger
+from vc_core.metrics import AccumulatorMetric, ComposeMetric
 
 
 @pytest.mark.unit

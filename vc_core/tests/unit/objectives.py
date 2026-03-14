@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 from scipy.spatial.transform import Rotation as R
 
-from logging_pkg.objectives import NormObjective, RotNormObjective, TfNormObjective
+from vc_core.objectives import NormObjective, RotNormObjective, TfNormObjective
 
 
 @pytest.mark.unit

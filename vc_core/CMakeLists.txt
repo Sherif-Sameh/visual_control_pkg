@@ -88,7 +88,7 @@ ament_export_include_directories(include)
 ament_export_libraries(${PROJECT_NAME})
 
 # Install Python library
-# ament_python_install_package(${PROJECT_NAME})
+ament_python_install_package(${PROJECT_NAME})
 
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)

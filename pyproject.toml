@@ -50,7 +50,7 @@ fixable = ["ALL"]
 unfixable = []
 
 [tool.ruff.lint.isort]
-known-first-party = ["logging_pkg"]
+known-first-party = ["vc_core"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"

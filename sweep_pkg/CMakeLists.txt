@@ -18,14 +18,13 @@ endif()
 # Find dependencies
 find_package(ament_cmake REQUIRED)
 find_package(ament_cmake_python REQUIRED)
-# find_package(rclcpp REQUIRED)
 find_package(rclpy REQUIRED)
+find_package(rcl_interfaces REQUIRED)
 find_package(std_msgs REQUIRED) 
 find_package(sensor_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
-find_package(trajectory_msgs REQUIRED)
 
-find_package(logging_pkg)
+find_package(vc_core REQUIRED)
 
 # Install Python executables
 install(PROGRAMS

@@ -24,7 +24,7 @@
   <depend>geometry_msgs</depend>
   <depend>trajectory_msgs</depend>
 
-  <depend>logging_pkg</depend>
+  <depend>vc_core</depend>
 
   <exec_depend>launch</exec_depend>
   <exec_depend>launch_ros</exec_depend>

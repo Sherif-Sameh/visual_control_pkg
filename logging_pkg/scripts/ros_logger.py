@@ -18,10 +18,10 @@ from sensor_msgs.msg import JointState
 from std_msgs.msg import Empty, Header
 from trajectory_msgs.msg import JointTrajectory
 
-from logging_pkg.loggers import ComposeLogger, ConsoleLogger, ROSWrapperLogger
-from logging_pkg.loggers.csv import CSVLogger
-from logging_pkg.loggers.wandb import WandBLogger
-from logging_pkg.metrics import AccumulatorMetric, ComposeMetric, UnitMetric
+from vc_core.loggers import ComposeLogger, ConsoleLogger, ROSWrapperLogger
+from vc_core.loggers.csv import CSVLogger
+from vc_core.loggers.wandb import WandBLogger
+from vc_core.metrics import AccumulatorMetric, ComposeMetric, UnitMetric
 
 
 class ROSLogger(Node):
