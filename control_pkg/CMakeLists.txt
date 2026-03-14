@@ -17,78 +17,55 @@ endif()
 
 # Find dependencies
 find_package(ament_cmake REQUIRED)
-find_package(ament_cmake_python REQUIRED)
 find_package(rclcpp REQUIRED)
-# find_package(rclpy REQUIRED)
-find_package(std_msgs REQUIRED) 
+find_package(rcl_interfaces REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
-find_package(tf2 REQUIRED)
 find_package(tf2_ros REQUIRED)
-find_package(tf2_geometry_msgs REQUIRED)
 find_package(trajectory_msgs REQUIRED)
 
-find_package(Eigen3 REQUIRED)
+find_package(vc_core REQUIRED)
 find_package(VISP COMPONENTS core robot visual_features vs REQUIRED)
-find_package(orocos_kdl_vendor REQUIRED)
-find_package(kdl_parser REQUIRED)
 find_package(isaac_ros_apriltag REQUIRED)
 
 # Include C++ "include" directory
-include_directories(include/control_pkg)
+include_directories(include)
+include_directories(${vc_core_INCLUDE_DIRS})
 include_directories(${VISP_INCLUDE_DIRS})
-
-## Declare a C++ library
-add_library(vc_lib STATIC 
-  lib/kdlIkSolverVel_wdls.cpp 
-  lib/vpRobotRos.cpp
-)
-
-ament_target_dependencies(vc_lib 
-  VISP 
-  orocos_kdl_vendor 
-  kdl_parser
-)
 
 # Create C++ executables
 add_executable(pbvs_controller src/pbvs_controller.cpp)
-target_link_libraries(pbvs_controller vc_lib)
 ament_target_dependencies(pbvs_controller 
   rclcpp
   geometry_msgs
   sensor_msgs
-  tf2
   tf2_ros
-  tf2_geometry_msgs
   trajectory_msgs
-  isaac_ros_apriltag
+  vc_core
   VISP
+  isaac_ros_apriltag
 )
 
 add_executable(ibvs_controller src/ibvs_controller.cpp)
-target_link_libraries(ibvs_controller vc_lib)
 ament_target_dependencies(ibvs_controller 
   rclcpp
   geometry_msgs
   sensor_msgs
-  tf2
   tf2_ros
-  tf2_geometry_msgs
   trajectory_msgs
-  isaac_ros_apriltag
+  vc_core
   VISP
+  isaac_ros_apriltag
 )
 
 add_executable(pose_controller src/pose_controller.cpp)
-target_link_libraries(pose_controller vc_lib)
 ament_target_dependencies(pose_controller 
   rclcpp
   geometry_msgs
   sensor_msgs
-  tf2
   tf2_ros
-  tf2_geometry_msgs
   trajectory_msgs
+  vc_core
   VISP
 )
 
@@ -99,14 +76,6 @@ install(TARGETS
   pose_controller
   DESTINATION lib/${PROJECT_NAME}
 )
-
-# Install Python modules
-# ament_python_install_package(${PROJECT_NAME})
-
-# Install Python executables
-# install(PROGRAMS
-#   DESTINATION lib/${PROJECT_NAME}
-# )
 
 # Install launch and config directories
 install(DIRECTORY launch config

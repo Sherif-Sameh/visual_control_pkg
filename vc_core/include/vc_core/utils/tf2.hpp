@@ -3,8 +3,8 @@
  * Utility functions related to ROS TF2.
  */
 
-#ifndef CONTROL_UTILS_TF2
-#define CONTROL_UTILS_TF2
+#ifndef VC_UTILS_TF2
+#define VC_UTILS_TF2
 
 #include <memory>
 
@@ -13,7 +13,7 @@
 #include "tf2/exceptions.hpp"
 #include "tf2_ros/buffer.hpp"
 
-#include "utils/conversions/geometry.hpp"
+#include "vc_core/utils/geometry.hpp"
 
 namespace utils
 {

@@ -1,4 +1,4 @@
-#include "kdlIkSolverVel_wdls.hpp"
+#include "vc_core/robot/kdlIkSolverVel_wdls.hpp"
 
 namespace vc
 {

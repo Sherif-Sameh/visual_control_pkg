@@ -15,22 +15,16 @@
   <url type="repository">https://github.com/Sherif-Sameh/visual_control_pkg</url>
   
   <buildtool_depend>ament_cmake</buildtool_depend>
-  <buildtool_depend>ament_cmake_python</buildtool_depend>
   
   <depend>rclcpp</depend>
-  <depend>rclpy</depend>
-  <depend>std_msgs</depend>
+  <depend>rcl_interfaces</depend>
   <depend>sensor_msgs</depend>
   <depend>geometry_msgs</depend>
-  <depend>tf2</depend>
   <depend>tf2_ros</depend>
-  <depend>tf2_geometry_msgs</depend>
   <depend>trajectory_msgs</depend>
   
-  <depend>eigen</depend>
+  <depend>vc_core</depend>
   <depend>visp</depend>
-  <depend>orocos_kdl_vendor</depend>
-  <depend>kdl_parser</depend>
 
   <exec_depend>launch</exec_depend>
   <exec_depend>launch_ros</exec_depend>

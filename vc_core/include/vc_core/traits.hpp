@@ -1,5 +1,5 @@
-#ifndef ACTIONS_TRAITS
-#define ACTIONS_TRAITS
+#ifndef VC_UTILS_TRAITS
+#define VC_UTILS_TRAITS
 
 namespace se
 {

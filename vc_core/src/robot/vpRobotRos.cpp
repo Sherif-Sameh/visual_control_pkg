@@ -1,4 +1,4 @@
-#include "vpRobotRos.hpp"
+#include "vc_core/robot/vpRobotRos.hpp"
 
 namespace vc
 {

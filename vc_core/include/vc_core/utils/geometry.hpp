@@ -3,8 +3,8 @@
  * Utility functions for converting between different geometrical pose representations.
  */
 
-#ifndef UTILS_CONVERSIONS_GEOMETRY
-#define UTILS_CONVERSIONS_GEOMETRY
+#ifndef VC_UTILS_GEOMETRY
+#define VC_UTILS_GEOMETRY
 
 #include <cassert>
 #include <vector>
@@ -13,12 +13,12 @@
 #include <visp3/core/vpQuaternionVector.h>
 #include <visp3/core/vpTranslationVector.h>
 
-#include <geometry_msgs/msg/pose.hpp>
-#include <geometry_msgs/msg/quaternion.hpp>
-#include <geometry_msgs/msg/transform.hpp>
-#include <geometry_msgs/msg/twist.hpp>
-#include <tf2/LinearMath/Quaternion.h>
-#include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
+#include "geometry_msgs/msg/pose.hpp"
+#include "geometry_msgs/msg/quaternion.hpp"
+#include "geometry_msgs/msg/transform.hpp"
+#include "geometry_msgs/msg/twist.hpp"
+#include "tf2/LinearMath/Quaternion.h"
+#include "tf2_geometry_msgs/tf2_geometry_msgs.hpp"
 
 namespace utils
 {

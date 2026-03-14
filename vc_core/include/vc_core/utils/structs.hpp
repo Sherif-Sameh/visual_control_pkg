@@ -3,10 +3,13 @@
  * Utility structs for grouping data or performing simple common functionalities.
  */
 
-#ifndef SE_UTILS_STRUCTS
-#define SE_UTILS_STRUCTS
+#ifndef VC_UTILS_STRUCTS
+#define VC_UTILS_STRUCTS
 
 #include <optional>
+
+#include <visp3/visual_features/vpFeatureThetaU.h>
+#include <visp3/visual_features/vpFeatureTranslation.h>
 
 #include "rclcpp/rclcpp.hpp"
 
@@ -96,6 +99,17 @@ namespace utils
                 }
                 return std::nullopt;
             }
+        };
+
+        /**
+         * @brief Struct grouping visp SE3 pose features together.
+         *
+         * Groups both a `vpFeatureTranslation` and a `vpFeatureThetaU` together.
+         */
+        struct vpPoseFeature
+        {
+            vpFeatureTranslation m_t;
+            vpFeatureThetaU m_tu;
         };
     } // namespace structs
 } // namespace utils

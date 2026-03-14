@@ -28,10 +28,10 @@
 #include "trajectory_msgs/msg/joint_trajectory.hpp"
 #include "trajectory_msgs/msg/multi_dof_joint_trajectory.hpp"
 
-#include "utils/conversions/geometry.hpp"
-#include "utils/conversions/mappings.hpp"
-#include "utils/tf2.hpp"
-#include "vpRobotRos.hpp"
+#include "vc_core/robot/vpRobotRos.hpp"
+#include "vc_core/utils/geometry.hpp"
+#include "vc_core/utils/mappings.hpp"
+#include "vc_core/utils/tf2.hpp"
 
 using isaac_ros_apriltag_interfaces::msg::AprilTagDetection;
 using isaac_ros_apriltag_interfaces::msg::AprilTagDetectionArray;

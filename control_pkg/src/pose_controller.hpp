@@ -22,10 +22,10 @@
 #include "tf2_ros/transform_listener.hpp"
 #include "trajectory_msgs/msg/joint_trajectory.hpp"
 
-#include "utils/conversions/geometry.hpp"
-#include "utils/conversions/mappings.hpp"
-#include "utils/tf2.hpp"
-#include "vpRobotRos.hpp"
+#include "vc_core/robot/vpRobotRos.hpp"
+#include "vc_core/utils/geometry.hpp"
+#include "vc_core/utils/mappings.hpp"
+#include "vc_core/utils/tf2.hpp"
 
 using std::placeholders::_1;
 using vc::visp::vpRobotRos;
