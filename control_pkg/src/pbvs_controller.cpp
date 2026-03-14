@@ -181,7 +181,7 @@ void PbvsController::callback_traj_des(const MultiDOFJointTrajectory::SharedPtr 
     }
     m_v_cam_ff = 0.0;
     geometry_msgs::msg::Twist v_cam_ff = msg->points[0].velocities[0];
-    m_v_cam_ff = has_valid_ids ? utils::geometry::gm_twist_to_vp_vpcolvector(v_cam_ff) : m_v_cam_ff;
+    m_v_cam_ff = has_valid_ids ? utils::mappings::gm_twist_to_vp_vpcolvector(v_cam_ff) : m_v_cam_ff;
 }
 
 rcl_interfaces::msg::SetParametersResult

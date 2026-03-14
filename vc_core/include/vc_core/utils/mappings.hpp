@@ -1,6 +1,6 @@
 /*
  * Description:
- * Utility functions for mapping data between different equivalent memory format.
+ * Utility functions for mapping data between different equivalent memory formats.
  */
 
 #ifndef VC_UTILS_MAPPINGS
@@ -15,6 +15,7 @@
 #include <visp3/core/vpColVector.h>
 
 #include "geometry_msgs/msg/pose.hpp"
+#include "geometry_msgs/msg/twist.hpp"
 
 namespace utils
 {
@@ -83,32 +84,6 @@ namespace utils
         }
 
         /**
-         * @brief Convert a `geometry_msgs::msg::Pose` into a separate Eigen translation vector and
-         * quaternion.
-         *
-         * @tparam Scalar Scalar type of the output Eigen arguments.
-         * @tparam normalize Normalize quaternion after conversion.
-         * @param[in] pose Input `geometry_msgs::msg::Pose` to read data from.
-         * @param[out] t Output translation vector.
-         * @param[out] q Output quaternion rotation.
-         */
-        template <typename Scalar, bool normalize>
-        void gm_pose_to_eigen_tq(const geometry_msgs::msg::Pose &pose,
-                                 Eigen::Matrix<Scalar, 3, 1> &t, Eigen::Quaternion<Scalar> &q)
-        {
-            t << static_cast<Scalar>(pose.position.x), static_cast<Scalar>(pose.position.y),
-                static_cast<Scalar>(pose.position.z);
-            Eigen::Quaternion<Scalar> q_tmp(
-                static_cast<Scalar>(pose.orientation.w), static_cast<Scalar>(pose.orientation.x),
-                static_cast<Scalar>(pose.orientation.y), static_cast<Scalar>(pose.orientation.z));
-            if constexpr (normalize)
-            {
-                q_tmp.normalize();
-            }
-            q = std::move(q_tmp);
-        }
-
-        /**
          * @brief Convert a vector to a `KDL::JntArray`.
          *
          * @param[in] vec Vector to read data from.
@@ -170,6 +145,12 @@ namespace utils
             {
                 vpcolvector[i] = jntarray(i);
             }
+        }
+
+        inline vpColVector gm_twist_to_vp_vpcolvector(const geometry_msgs::msg::Twist &twist)
+        {
+            return vpColVector({twist.linear.x, twist.linear.y, twist.linear.z, twist.angular.x,
+                                twist.angular.y, twist.angular.z});
         }
     } // namespace mappings
 } // namespace utils

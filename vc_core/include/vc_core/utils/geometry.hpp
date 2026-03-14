@@ -1,6 +1,6 @@
 /*
  * Description:
- * Utility functions for converting between different geometrical pose representations.
+ * Utility functions for converting between different geometrical representations.
  */
 
 #ifndef VC_UTILS_GEOMETRY
@@ -9,6 +9,7 @@
 #include <cassert>
 #include <vector>
 
+#include <Eigen/Core>
 #include <visp3/core/vpHomogeneousMatrix.h>
 #include <visp3/core/vpQuaternionVector.h>
 #include <visp3/core/vpTranslationVector.h>
@@ -84,10 +85,30 @@ namespace utils
             return tf2::toMsg(tf2_quat);
         }
 
-        inline vpColVector gm_twist_to_vp_vpcolvector(const geometry_msgs::msg::Twist &twist)
+        /**
+         * @brief Convert a `geometry_msgs::msg::Pose` into a separate Eigen translation vector and
+         * quaternion.
+         *
+         * @tparam Scalar Scalar type of the output Eigen arguments.
+         * @tparam normalize Normalize quaternion after conversion.
+         * @param[in] pose Input `geometry_msgs::msg::Pose` to read data from.
+         * @param[out] t Output translation vector.
+         * @param[out] q Output quaternion rotation.
+         */
+        template <typename Scalar, bool normalize>
+        void gm_pose_to_eigen_tq(const geometry_msgs::msg::Pose &pose,
+                                 Eigen::Matrix<Scalar, 3, 1> &t, Eigen::Quaternion<Scalar> &q)
         {
-            return vpColVector({twist.linear.x, twist.linear.y, twist.linear.z, twist.angular.x,
-                                twist.angular.y, twist.angular.z});
+            t << static_cast<Scalar>(pose.position.x), static_cast<Scalar>(pose.position.y),
+                static_cast<Scalar>(pose.position.z);
+            Eigen::Quaternion<Scalar> q_tmp(
+                static_cast<Scalar>(pose.orientation.w), static_cast<Scalar>(pose.orientation.x),
+                static_cast<Scalar>(pose.orientation.y), static_cast<Scalar>(pose.orientation.z));
+            if constexpr (normalize)
+            {
+                q_tmp.normalize();
+            }
+            q = std::move(q_tmp);
         }
     } // namespace geometry
 } // namespace utils

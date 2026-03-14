@@ -119,7 +119,7 @@ void ApriltagEstimator::callback_tag(const AprilTagDetectionArray::SharedPtr msg
     {
         Eigen::Vector3d t;
         Eigen::Quaterniond q;
-        utils::mappings::gm_pose_to_eigen_tq<double, true>(tag.pose.pose.pose, t, q);
+        utils::geometry::gm_pose_to_eigen_tq<double, true>(tag.pose.pose.pose, t, q);
         auto it = m_ekf_map.find(tag.id);
         if (it != m_ekf_map.end()) // existing tag IDs
         {
