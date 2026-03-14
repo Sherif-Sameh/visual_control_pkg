@@ -117,20 +117,18 @@ void ApriltagEstimator::callback_tag(const AprilTagDetectionArray::SharedPtr msg
     // Update existing and new tag IDs
     for (const auto &tag : msg->detections)
     {
-        Eigen::Vector3d t;
-        Eigen::Quaterniond q;
-        utils::geometry::gm_pose_to_eigen_tq<double, true>(tag.pose.pose.pose, t, q);
+        Measurement y = utils::geometry::to_mnf_se3<double, true>(tag.pose.pose.pose);
         auto it = m_ekf_map.find(tag.id);
         if (it != m_ekf_map.end()) // existing tag IDs
         {
             (*it).second.m_stamp = stamp_now;
-            (*it).second.m_wrapped.update(Measurement(t, q));
+            (*it).second.m_wrapped.update(y);
         }
         else // new tag IDs
         {
             using EKF = se::EKF<manif::SE3d, se::ActionSE3Features<double>>;
             m_ekf_map.insert({tag.id, {stamp_now, EKF(m_ekf_P0, m_ekf_Q, m_ekf_R)}});
-            m_ekf_map[tag.id].m_wrapped.setState(State(t, q));
+            m_ekf_map[tag.id].m_wrapped.setState(y);
         }
     }
 
@@ -234,8 +232,7 @@ AprilTagDetection ApriltagEstimator::create_tag_detection(const std::string &fam
         tag_dtn.corners[i].y = img_pts[i].y();
     }
     tag_dtn.pose.pose.pose = tf2::toMsg(T_tag_cam);
-    tag_dtn.pose.pose.covariance =
-        utils::mappings::eigen_matrix_to_array<Covariance, Eigen::RowMajor>(cov);
+    tag_dtn.pose.pose.covariance = utils::mappings::to_array<Covariance, Eigen::RowMajor>(cov);
     return tag_dtn;
 }
 

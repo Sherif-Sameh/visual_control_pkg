@@ -32,7 +32,7 @@ namespace utils
          * @param[in] pose Input pose to initialize `vpHomogeneousMatrix` from.
          * @return ViSP `vpHomogeneousMatrix` initialized from input pose.
          */
-        inline vpHomogeneousMatrix gm_pose_to_vp_hmatrix(const geometry_msgs::msg::Pose &pose)
+        inline vpHomogeneousMatrix to_vp_hmatrix(const geometry_msgs::msg::Pose &pose)
         {
             return vpHomogeneousMatrix(
                 vpTranslationVector(pose.position.x, pose.position.y, pose.position.z),
@@ -44,10 +44,9 @@ namespace utils
          * @brief Convert pose from `geometry_msgs::msg::Transform` to ViSP `vpHomogeneousMatrix`.
          *
          * @param[in] transform Input transform to initialize `vpHomogeneousMatrix` from.
-         * @return ViSP `vpHomogeneousMatrix` initialized from input pose
+         * @return ViSP `vpHomogeneousMatrix` initialized from input pose.
          */
-        inline vpHomogeneousMatrix
-        gm_transform_to_vp_hmatrix(const geometry_msgs::msg::Transform &transform)
+        inline vpHomogeneousMatrix to_vp_hmatrix(const geometry_msgs::msg::Transform &transform)
         {
             return vpHomogeneousMatrix(
                 vpTranslationVector(transform.translation.x, transform.translation.y,
@@ -56,8 +55,15 @@ namespace utils
                                    transform.rotation.w));
         }
 
+        /**
+         * @brief Convert pose from `manif::SE3` to ViSP `vpHomogeneousMatrix`.
+         *
+         * @tparam Scalar Scalar type of the input `manif::SE3` Lie group.
+         * @param[in] x Input SE3 pose to initialize `vpHomogeneousMatrix` from.
+         * @return ViSP `vpHomogeneousMatrix` initialized from input pose.
+         */
         template <typename Scalar>
-        vpHomogeneousMatrix mnf_se3_to_vp_hmatrix(const manif::SE3<Scalar> &x)
+        vpHomogeneousMatrix to_vp_hmatrix(const manif::SE3<Scalar> &x)
         {
             Eigen::Matrix<Scalar, 7, 1> x_coeffs = x.coeffs();
             return vpHomogeneousMatrix(
@@ -65,8 +71,37 @@ namespace utils
                 vpQuaternionVector(x_coeffs(3), x_coeffs(4), x_coeffs(5), x_coeffs(6)));
         }
 
+        /**
+         * @brief Convert pose from `geometry_msgs::msg::Pose` to `manif::SE3`.
+         *
+         * @tparam Scalar Scalar type of the output `manif::SE3` Lie group.
+         * @tparam normalize Normalize quaternion after conversion. Defaults to false.
+         * @param[in] pose Input pose to initialize SE3 pose from.
+         * @return `manif::SE3<Scalar>` initialized from input pose.
+         */
         template <typename Scalar, bool normalize = false>
-        manif::SE3<Scalar> gm_transform_to_mnf_se3(const geometry_msgs::msg::Transform &transform)
+        manif::SE3<Scalar> to_mnf_se3(const geometry_msgs::msg::Pose &pose)
+        {
+            Eigen::Matrix<Scalar, 3, 1> t{pose.position.x, pose.position.y, pose.position.z};
+            Eigen::Quaternion<Scalar> q(pose.orientation.w, pose.orientation.x, pose.orientation.y,
+                                        pose.orientation.z);
+            if constexpr (normalize)
+            {
+                q.normalize();
+            }
+            return manif::SE3<Scalar>(t, q);
+        }
+
+        /**
+         * @brief Convert pose from `geometry_msgs::msg::Transform` to `manif::SE3`.
+         *
+         * @tparam Scalar Scalar type of the output `manif::SE3` Lie group.
+         * @tparam normalize Normalize quaternion after conversion. Defaults to false.
+         * @param[in] transform Input transform to initialize SE3 pose from.
+         * @return `manif::SE3<Scalar>` initialized from input pose.
+         */
+        template <typename Scalar, bool normalize = false>
+        manif::SE3<Scalar> to_mnf_se3(const geometry_msgs::msg::Transform &transform)
         {
             Eigen::Matrix<Scalar, 3, 1> t{transform.translation.x, transform.translation.y,
                                           transform.translation.z};
@@ -79,16 +114,28 @@ namespace utils
             return manif::SE3<Scalar>(t, q);
         }
 
-        template <typename Scalar>
-        manif::SE3<Scalar> vp_hmatrix_to_mnf_se3(const vpHomogeneousMatrix &hm)
+        /**
+         * @brief Convert pose from ViSP `vpHomogeneousMatrix` to `manif::SE3`.
+         *
+         * @tparam Scalar Scalar type of the output `manif::SE3` Lie group.
+         * @tparam normalize Normalize quaternion after conversion. Defaults to false.
+         * @param[in] hm Input homogeneous matrix to initialize SE3 pose from.
+         * @return `manif::SE3<Scalar>` initialized from input pose.
+         */
+        template <typename Scalar, bool normalize = false>
+        manif::SE3<Scalar> to_mnf_se3(const vpHomogeneousMatrix &hm)
         {
             std::vector<Scalar> hm_coeffs;
             hm.convert(hm_coeffs);
-            return manif::SE3<Scalar>(
-                Eigen::Matrix<Scalar, 3, 1>{hm_coeffs[3], hm_coeffs[7], hm_coeffs[11]},
-                Eigen::Quaternion<Scalar>(Eigen::Matrix<Scalar, 3, 3>{
-                    hm_coeffs[0], hm_coeffs[1], hm_coeffs[2], hm_coeffs[4], hm_coeffs[5],
-                    hm_coeffs[6], hm_coeffs[8], hm_coeffs[9], hm_coeffs[10]}));
+            Eigen::Matrix<Scalar, 3, 1> t{hm_coeffs[3], hm_coeffs[7], hm_coeffs[11]};
+            Eigen::Quaternion<Scalar> q(Eigen::Matrix<Scalar, 3, 3>{
+                hm_coeffs[0], hm_coeffs[1], hm_coeffs[2], hm_coeffs[4], hm_coeffs[5], hm_coeffs[6],
+                hm_coeffs[8], hm_coeffs[9], hm_coeffs[10]});
+            if constexpr (normalize)
+            {
+                q.normalize();
+            }
+            return manif::SE3<Scalar>(t, q);
         }
 
         /**
@@ -100,8 +147,8 @@ namespace utils
          * @param[in] z z-component of the axis-angle representation.
          * @return `geometry_msgs::msg::Quaternion` initialized from input axis-angle.
          */
-        inline geometry_msgs::msg::Quaternion xyz_aa_to_gm_quat(const double x, const double y,
-                                                                const double z)
+        inline geometry_msgs::msg::Quaternion to_gm_quat(const double x, const double y,
+                                                         const double z)
         {
             constexpr double angle_threshold = 1e-6;
 
@@ -120,32 +167,6 @@ namespace utils
             }
 
             return tf2::toMsg(tf2_quat);
-        }
-
-        /**
-         * @brief Convert a `geometry_msgs::msg::Pose` into a separate Eigen translation vector and
-         * quaternion.
-         *
-         * @tparam Scalar Scalar type of the output Eigen arguments.
-         * @tparam normalize Normalize quaternion after conversion.
-         * @param[in] pose Input `geometry_msgs::msg::Pose` to read data from.
-         * @param[out] t Output translation vector.
-         * @param[out] q Output quaternion rotation.
-         */
-        template <typename Scalar, bool normalize = false>
-        void gm_pose_to_eigen_tq(const geometry_msgs::msg::Pose &pose,
-                                 Eigen::Matrix<Scalar, 3, 1> &t, Eigen::Quaternion<Scalar> &q)
-        {
-            t << static_cast<Scalar>(pose.position.x), static_cast<Scalar>(pose.position.y),
-                static_cast<Scalar>(pose.position.z);
-            Eigen::Quaternion<Scalar> q_tmp(
-                static_cast<Scalar>(pose.orientation.w), static_cast<Scalar>(pose.orientation.x),
-                static_cast<Scalar>(pose.orientation.y), static_cast<Scalar>(pose.orientation.z));
-            if constexpr (normalize)
-            {
-                q_tmp.normalize();
-            }
-            q = std::move(q_tmp);
         }
     } // namespace geometry
 } // namespace utils

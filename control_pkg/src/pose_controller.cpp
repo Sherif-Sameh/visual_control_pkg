@@ -69,13 +69,13 @@ void PoseController::publish_perr(const vpPoseVector &edPe)
     msg.poses[0].position.x = edPe[0];
     msg.poses[0].position.y = edPe[1];
     msg.poses[0].position.z = edPe[2];
-    msg.poses[0].orientation = utils::geometry::xyz_aa_to_gm_quat(edPe[3], edPe[4], edPe[5]);
+    msg.poses[0].orientation = utils::geometry::to_gm_quat(edPe[3], edPe[4], edPe[5]);
     m_pub_perr->publish(msg);
 }
 
 void PoseController::callback_gp(const geometry_msgs::msg::PoseStamped::SharedPtr msg)
 {
-    m_fMed = utils::geometry::gm_pose_to_vp_hmatrix(msg->pose);
+    m_fMed = utils::geometry::to_vp_hmatrix(msg->pose);
 }
 
 void PoseController::callback_js(const sensor_msgs::msg::JointState::SharedPtr msg)
@@ -174,8 +174,7 @@ void PoseController::init_robot()
     int ik_max_iters = static_cast<int>(this->get_parameter("ik.max_iters").as_int());
     std::vector<double> vec = this->get_parameter("ik.weight_js").as_double_array();
     Eigen::MatrixXd ik_weight_js;
-    utils::mappings::vec_to_sqr_eigen_matrix<double, Eigen::StorageOptions::RowMajor>(vec,
-                                                                                      ik_weight_js);
+    utils::mappings::to_eigen_matrix<double, Eigen::StorageOptions::RowMajor>(vec, ik_weight_js);
     vc::solver::IkSolverVel_wlds solver(verbose, m_base_frame, m_ee_frame, ik_eps, ik_lambda,
                                         ik_max_iters, ik_weight_js);
 

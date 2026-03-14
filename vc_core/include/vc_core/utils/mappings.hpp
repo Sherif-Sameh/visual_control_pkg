@@ -32,9 +32,9 @@ namespace utils
          * @param[out] mat Output matrix of type `Eigen::Matrix<T, n_rows, n_cols, align>`.
          */
         template <typename T, Eigen::StorageOptions A>
-        void vec_to_eigen_matrix(std::vector<T> &vec, const std::size_t n_rows,
-                                 const std::size_t n_cols,
-                                 Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic> &mat)
+        void to_eigen_matrix(std::vector<T> &vec, const std::size_t n_rows,
+                             const std::size_t n_cols,
+                             Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic> &mat)
         {
             assert(vec.size() == (n_rows * n_cols));
             mat = Eigen::Map<Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic, A>>(
@@ -50,13 +50,13 @@ namespace utils
          * @param[out] mat Output matrix of type `Eigen::Matrix<T, n_rows, n_cols, align>`.
          */
         template <typename T, Eigen::StorageOptions A>
-        void vec_to_sqr_eigen_matrix(std::vector<T> &vec,
-                                     Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic> &mat)
+        void to_eigen_matrix(std::vector<T> &vec,
+                             Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic> &mat)
         {
             std::size_t n_rows =
                 static_cast<std::size_t>(std::sqrt(static_cast<double>(vec.size())));
             assert(vec.size() == (n_rows * n_rows));
-            return vec_to_eigen_matrix<T, A>(vec, n_rows, n_rows, mat);
+            return to_eigen_matrix<T, A>(vec, n_rows, n_rows, mat);
         }
 
         /**
@@ -72,7 +72,7 @@ namespace utils
         template <typename Derived, Eigen::StorageOptions Align>
         std::array<typename Derived::Scalar,
                    Derived::RowsAtCompileTime * Derived::ColsAtCompileTime>
-        eigen_matrix_to_array(const Eigen::MatrixBase<Derived> &mat)
+        to_array(const Eigen::MatrixBase<Derived> &mat)
         {
             using Scalar = typename Derived::Scalar;
             constexpr int Rows = Derived::RowsAtCompileTime;
@@ -89,7 +89,7 @@ namespace utils
          * @param[in] vec Vector to read data from.
          * @param[out] jntarray Output `KDL::JntArray` of the same size as the input vector.
          */
-        inline void vec_to_kdl_jntarray(const std::vector<double> &vec, KDL::JntArray &jntarray)
+        inline void to_kdl_jntarray(const std::vector<double> &vec, KDL::JntArray &jntarray)
         {
             assert(vec.size() == static_cast<std::size_t>(jntarray.data.size()));
             for (std::size_t i = 0; i < vec.size(); i++)
@@ -104,8 +104,7 @@ namespace utils
          * @param[in] vpcolvector `vpColVector` to read data from.
          * @param[out] jntarray Output `KDL::JntArray` of the same size as the input `vpColVector`.
          */
-        inline void visp_vpcolvector_to_kdl_jntarray(const vpColVector &vpcolvector,
-                                                     KDL::JntArray &jntarray)
+        inline void to_kdl_jntarray(const vpColVector &vpcolvector, KDL::JntArray &jntarray)
         {
             assert(vpcolvector.size() == static_cast<std::size_t>(jntarray.data.size()));
             for (std::size_t i = 0; i < vpcolvector.size(); i++)
@@ -120,7 +119,7 @@ namespace utils
          * @param[in] vpcolvector `vpColVector` to read data from whose size = 6.
          * @param[out] twist Output `KDL::Twist`.
          */
-        inline void visp_vpcolvector_to_kdl_twist(const vpColVector &vpcolvector, KDL::Twist &twist)
+        inline void to_kdl_twist(const vpColVector &vpcolvector, KDL::Twist &twist)
         {
             assert(vpcolvector.size() == 6);
             for (std::size_t i = 0; i < 3; i++)
@@ -137,8 +136,7 @@ namespace utils
          * @param[out] vpcolvector Output `vpColVector` of the same size as the input
          * `KDL::JntArray`.
          */
-        inline void kdl_jntarray_to_visp_vpcolvector(const KDL::JntArray &jntarray,
-                                                     vpColVector &vpcolvector)
+        inline void to_visp_vpcolvector(const KDL::JntArray &jntarray, vpColVector &vpcolvector)
         {
             assert(vpcolvector.size() == static_cast<std::size_t>(jntarray.data.size()));
             for (std::size_t i = 0; i < vpcolvector.size(); i++)
@@ -147,7 +145,7 @@ namespace utils
             }
         }
 
-        inline vpColVector gm_twist_to_vp_vpcolvector(const geometry_msgs::msg::Twist &twist)
+        inline vpColVector to_vp_vpcolvector(const geometry_msgs::msg::Twist &twist)
         {
             return vpColVector({twist.linear.x, twist.linear.y, twist.linear.z, twist.angular.x,
                                 twist.angular.y, twist.angular.z});

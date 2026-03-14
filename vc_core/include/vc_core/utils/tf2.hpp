@@ -43,7 +43,7 @@ namespace utils
             {
                 return false;
             }
-            t = geometry::gm_transform_to_vp_hmatrix(t_gm.transform);
+            t = geometry::to_vp_hmatrix(t_gm.transform);
             return true;
         }
     } // namespace ros_tf2

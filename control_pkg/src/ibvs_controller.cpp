@@ -189,8 +189,7 @@ void IbvsController::callback_traj_des(const MultiDOFJointTrajectory::SharedPtr 
 
         has_valid_ids = true;
         auto cdMo_id =
-            utils::geometry::gm_transform_to_mnf_se3<double, true>(msg->points[0].transforms[i])
-                .inverse();
+            utils::geometry::to_mnf_se3<double, true>(msg->points[0].transforms[i]).inverse();
         if (m_pd.find(id) == m_pd.end()) // initialize new tag
         {
             m_pd.insert({id, std::array<vpFeaturePoint, 4>()});
@@ -205,7 +204,7 @@ void IbvsController::callback_traj_des(const MultiDOFJointTrajectory::SharedPtr 
         {
             m_cdMo_lpf[id].update(cdMo_id);
         }
-        auto cdMo_id_f = utils::geometry::mnf_se3_to_vp_hmatrix(m_cdMo_lpf[id].getState());
+        auto cdMo_id_f = utils::geometry::to_vp_hmatrix(m_cdMo_lpf[id].getState());
         for (std::size_t i = 0; i < 4; i++) // update desired feature points
         {
             m_points[i].track(cdMo_id_f);
@@ -214,7 +213,7 @@ void IbvsController::callback_traj_des(const MultiDOFJointTrajectory::SharedPtr 
     }
     m_v_cam_ff = 0.0;
     geometry_msgs::msg::Twist v_cam_ff = msg->points[0].velocities[0];
-    m_v_cam_ff = has_valid_ids ? utils::mappings::gm_twist_to_vp_vpcolvector(v_cam_ff) : m_v_cam_ff;
+    m_v_cam_ff = has_valid_ids ? utils::mappings::to_vp_vpcolvector(v_cam_ff) : m_v_cam_ff;
 }
 
 rcl_interfaces::msg::SetParametersResult
@@ -279,8 +278,7 @@ void IbvsController::init_robot()
     int ik_max_iters = static_cast<int>(this->get_parameter("ik.max_iters").as_int());
     std::vector<double> vec = this->get_parameter("ik.weight_js").as_double_array();
     Eigen::MatrixXd ik_weight_js;
-    utils::mappings::vec_to_sqr_eigen_matrix<double, Eigen::StorageOptions::RowMajor>(vec,
-                                                                                      ik_weight_js);
+    utils::mappings::to_eigen_matrix<double, Eigen::StorageOptions::RowMajor>(vec, ik_weight_js);
     vc::solver::IkSolverVel_wlds solver(verbose, m_base_frame, m_ee_frame, ik_eps, ik_lambda,
                                         ik_max_iters, ik_weight_js);
 
@@ -320,7 +318,7 @@ void IbvsController::update_features(const std::vector<AprilTagDetection> &detec
         if (it != detections.cend())
         {
             valid_ids.push_back(id);
-            vpHomogeneousMatrix cMo = utils::geometry::gm_pose_to_vp_hmatrix((*it).pose.pose.pose);
+            vpHomogeneousMatrix cMo = utils::geometry::to_vp_hmatrix((*it).pose.pose.pose);
             for (std::size_t i = 0; i < 4; i++)
             {
                 vpImagePoint corner((*it).corners[i].y, (*it).corners[i].x);

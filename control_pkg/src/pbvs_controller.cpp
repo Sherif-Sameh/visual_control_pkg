@@ -104,7 +104,7 @@ void PbvsController::publish_perr(const std::vector<double> &perr)
         msg.poses[i].position.z = perr[6 * i + 2];
 
         msg.poses[i].orientation =
-            utils::geometry::xyz_aa_to_gm_quat(perr[6 * i + 3], perr[6 * i + 4], perr[6 * i + 5]);
+            utils::geometry::to_gm_quat(perr[6 * i + 3], perr[6 * i + 4], perr[6 * i + 5]);
     }
     m_pub_perr->publish(msg);
 }
@@ -178,8 +178,7 @@ void PbvsController::callback_traj_des(const MultiDOFJointTrajectory::SharedPtr 
 
         has_valid_ids = true;
         auto cdMo_id =
-            utils::geometry::gm_transform_to_mnf_se3<double, true>(msg->points[0].transforms[i])
-                .inverse();
+            utils::geometry::to_mnf_se3<double, true>(msg->points[0].transforms[i]).inverse();
         if (m_cdMo_lpf.find(id) == m_cdMo_lpf.end()) // initialize new tag
         {
             double lpf_coeff = this->get_parameter("ctrl.lpf_coeff").as_double();
@@ -192,7 +191,7 @@ void PbvsController::callback_traj_des(const MultiDOFJointTrajectory::SharedPtr 
     }
     m_v_cam_ff = 0.0;
     geometry_msgs::msg::Twist v_cam_ff = msg->points[0].velocities[0];
-    m_v_cam_ff = has_valid_ids ? utils::mappings::gm_twist_to_vp_vpcolvector(v_cam_ff) : m_v_cam_ff;
+    m_v_cam_ff = has_valid_ids ? utils::mappings::to_vp_vpcolvector(v_cam_ff) : m_v_cam_ff;
 }
 
 rcl_interfaces::msg::SetParametersResult
@@ -266,8 +265,7 @@ void PbvsController::init_robot()
     int ik_max_iters = static_cast<int>(this->get_parameter("ik.max_iters").as_int());
     std::vector<double> vec = this->get_parameter("ik.weight_js").as_double_array();
     Eigen::MatrixXd ik_weight_js;
-    utils::mappings::vec_to_sqr_eigen_matrix<double, Eigen::StorageOptions::RowMajor>(vec,
-                                                                                      ik_weight_js);
+    utils::mappings::to_eigen_matrix<double, Eigen::StorageOptions::RowMajor>(vec, ik_weight_js);
     vc::solver::IkSolverVel_wlds solver(verbose, m_base_frame, m_ee_frame, ik_eps, ik_lambda,
                                         ik_max_iters, ik_weight_js);
 
@@ -312,8 +310,8 @@ void PbvsController::update_features(const std::vector<AprilTagDetection> &detec
                                [id](const AprilTagDetection &dtn) { return dtn.id == id; });
         if (it != detections.cend())
         {
-            vpHomogeneousMatrix cdMo = utils::geometry::mnf_se3_to_vp_hmatrix(cdMo_lpf.getState());
-            vpHomogeneousMatrix cMo = utils::geometry::gm_pose_to_vp_hmatrix((*it).pose.pose.pose);
+            vpHomogeneousMatrix cdMo = utils::geometry::to_vp_hmatrix(cdMo_lpf.getState());
+            vpHomogeneousMatrix cMo = utils::geometry::to_vp_hmatrix((*it).pose.pose.pose);
             vpHomogeneousMatrix cdMc = cdMo * cMo.inverse();
             valid_ids.push_back(id);
             invalid_ids.pop_back();
