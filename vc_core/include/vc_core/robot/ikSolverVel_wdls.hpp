@@ -4,8 +4,8 @@
  * For more, check out the OROCOS KDL project: https://github.com/orocos/orocos_kinematics_dynamics
  */
 
-#ifndef KDL_IK_SOLVER_VEL_WDLS
-#define KDL_IK_SOLVER_VEL_WDLS
+#ifndef ROBOT_IK_SOLVER_VEL_WDLS
+#define ROBOT_IK_SOLVER_VEL_WDLS
 
 #include <cassert>
 #include <iostream>
@@ -41,7 +41,7 @@ namespace vc
          * For more details on the IK solver, refer to the OROCOS KDL
          * project: https://github.com/orocos/orocos_kinematics_dynamics.
          */
-        class KdlIkSolverVel_wlds
+        class IkSolverVel_wlds
         {
         public:
             struct IkSolverParams
@@ -52,15 +52,15 @@ namespace vc
                 Eigen::MatrixXd weight_js; // Joint space weighting symmetric matrix for WDLS
             };
 
-            KdlIkSolverVel_wlds();
-            KdlIkSolverVel_wlds(const bool verbose, const std::string &chain_root,
-                                const std::string &chain_tip, const IkSolverParams &solver_params);
-            KdlIkSolverVel_wlds(const bool verbose, const std::string &chain_root,
-                                const std::string &chain_tip, const double eps, const double lambda,
-                                const int max_iters, const Eigen::MatrixXd &weight_js);
-            KdlIkSolverVel_wlds(const KdlIkSolverVel_wlds &solver);
+            IkSolverVel_wlds();
+            IkSolverVel_wlds(const bool verbose, const std::string &chain_root,
+                             const std::string &chain_tip, const IkSolverParams &solver_params);
+            IkSolverVel_wlds(const bool verbose, const std::string &chain_root,
+                             const std::string &chain_tip, const double eps, const double lambda,
+                             const int max_iters, const Eigen::MatrixXd &weight_js);
+            IkSolverVel_wlds(const IkSolverVel_wlds &solver);
 
-            KdlIkSolverVel_wlds &operator=(const KdlIkSolverVel_wlds &other);
+            IkSolverVel_wlds &operator=(const IkSolverVel_wlds &other);
 
             bool isInitialized() const;
             int getNumJoints() const;

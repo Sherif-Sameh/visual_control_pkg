@@ -9,8 +9,7 @@ namespace vc
         }
 
         vpRobotRos::vpRobotRos(const bool verbose, const double max_tvel, const double max_rvel,
-                               const vpColVector &max_qdot,
-                               const solver::KdlIkSolverVel_wlds &solver)
+                               const vpColVector &max_qdot, const solver::IkSolverVel_wlds &solver)
             : vpRobot(), m_is_init(false), m_max_vel_sf(1.0), m_q_kdl(max_qdot.size()),
               m_qdot(max_qdot.size(), 0.0), m_max_qdot(max_qdot),
               m_max_vel(
@@ -179,10 +178,7 @@ namespace vc
             m_max_qdot = max_qdot;
         }
 
-        void vpRobotRos::setIkSolver(const solver::KdlIkSolverVel_wlds &solver)
-        {
-            m_solver = solver;
-        }
+        void vpRobotRos::setIkSolver(const solver::IkSolverVel_wlds &solver) { m_solver = solver; }
 
         void vpRobotRos::setJointPosition(const std::vector<double> &q)
         {

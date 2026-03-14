@@ -31,7 +31,7 @@
 #include <visp3/robot/vpRobot.h>
 #include <visp3/robot/vpRobotException.h>
 
-#include "vc_core/robot/kdlIkSolverVel_wdls.hpp"
+#include "vc_core/robot/ikSolverVel_wdls.hpp"
 #include "vc_core/utils/mappings.hpp"
 
 namespace vc
@@ -73,7 +73,7 @@ namespace vc
         public:
             vpRobotRos();
             vpRobotRos(const bool verbose, const double max_tvel, const double max_rvel,
-                       const vpColVector &max_qdot, const solver::KdlIkSolverVel_wlds &solver);
+                       const vpColVector &max_qdot, const solver::IkSolverVel_wlds &solver);
             ~vpRobotRos() override;
 
             void init() override;
@@ -92,7 +92,7 @@ namespace vc
             void setMaxVelocitySF(const double max_vel_sf);
             void setMaxVelocity(const double max_tvel, const double max_rvel);
             void setMaxJointVelocity(const vpColVector &max_qdot);
-            void setIkSolver(const solver::KdlIkSolverVel_wlds &solver);
+            void setIkSolver(const solver::IkSolverVel_wlds &solver);
             void setJointPosition(const std::vector<double> &q);
 
             /**
@@ -121,7 +121,7 @@ namespace vc
                 m_fVe; // Twist conversion matrix from end-effector frame to base frame
             vpVelocityTwistMatrix
                 m_eVc; // Twist conversion matrix from camera to end-effector frame
-            solver::KdlIkSolverVel_wlds m_solver; // Solver for inverse velocity kinematics
+            solver::IkSolverVel_wlds m_solver; // Solver for inverse velocity kinematics
         };
     } // namespace visp
 } // namespace vc

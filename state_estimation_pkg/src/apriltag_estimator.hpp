@@ -22,7 +22,7 @@
 #include "tf2_ros/transform_broadcaster.hpp"
 
 #include "vc_core/actions/se3_features.hpp"
-#include "vc_core/filters/manif_ekf.hpp"
+#include "vc_core/filters/ekf.hpp"
 #include "vc_core/utils/mappings.hpp"
 #include "vc_core/utils/structs.hpp"
 
@@ -34,12 +34,12 @@ class ApriltagEstimator : public rclcpp::Node
 {
 public:
     using ManifEKFStamped =
-        utils::structs::AnyStamped<se::ManifEKF<manif::SE3d, se::ActionSE3Features<double>>>;
+        utils::structs::AnyStamped<se::EKF<manif::SE3d, se::ActionSE3Features<double>>>;
 
-    using State = se::ManifEKF<manif::SE3d, se::ActionSE3Features<double>>::State;
-    using Action = se::ManifEKF<manif::SE3d, se::ActionSE3Features<double>>::Action;
-    using Measurement = se::ManifEKF<manif::SE3d, se::ActionSE3Features<double>>::Measurement;
-    using Covariance = se::ManifEKF<manif::SE3d, se::ActionSE3Features<double>>::Covariance;
+    using State = se::EKF<manif::SE3d, se::ActionSE3Features<double>>::State;
+    using Action = se::EKF<manif::SE3d, se::ActionSE3Features<double>>::Action;
+    using Measurement = se::EKF<manif::SE3d, se::ActionSE3Features<double>>::Measurement;
+    using Covariance = se::EKF<manif::SE3d, se::ActionSE3Features<double>>::Covariance;
 
 public:
     ApriltagEstimator(const rclcpp::NodeOptions &options);

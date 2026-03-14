@@ -1,18 +1,18 @@
-#include "vc_core/robot/kdlIkSolverVel_wdls.hpp"
+#include "vc_core/robot/ikSolverVel_wdls.hpp"
 
 namespace vc
 {
     namespace solver
     {
-        KdlIkSolverVel_wlds::KdlIkSolverVel_wlds()
+        IkSolverVel_wlds::IkSolverVel_wlds()
             : m_is_init(false), m_verbose(false), m_chain_root("root"), m_chain_tip("tip"),
               m_solver_params{1e-5, 0.0, 50, Eigen::MatrixXd::Identity(6, 6)}, m_solver(nullptr)
         {
         }
 
-        KdlIkSolverVel_wlds::KdlIkSolverVel_wlds(const bool verbose, const std::string &chain_root,
-                                                 const std::string &chain_tip,
-                                                 const IkSolverParams &solver_params)
+        IkSolverVel_wlds::IkSolverVel_wlds(const bool verbose, const std::string &chain_root,
+                                           const std::string &chain_tip,
+                                           const IkSolverParams &solver_params)
             : m_is_init(false), m_verbose(verbose), m_chain_root(chain_root),
               m_chain_tip(chain_tip), m_solver_params(solver_params), m_solver(nullptr)
         {
@@ -23,22 +23,21 @@ namespace vc
             }
         }
 
-        KdlIkSolverVel_wlds::KdlIkSolverVel_wlds(const bool verbose, const std::string &chain_root,
-                                                 const std::string &chain_tip, const double eps,
-                                                 const double lambda, const int max_iters,
-                                                 const Eigen::MatrixXd &weight_js)
-            : KdlIkSolverVel_wlds(verbose, chain_root, chain_tip,
-                                  {eps, lambda, max_iters, weight_js})
+        IkSolverVel_wlds::IkSolverVel_wlds(const bool verbose, const std::string &chain_root,
+                                           const std::string &chain_tip, const double eps,
+                                           const double lambda, const int max_iters,
+                                           const Eigen::MatrixXd &weight_js)
+            : IkSolverVel_wlds(verbose, chain_root, chain_tip, {eps, lambda, max_iters, weight_js})
         {
         }
 
-        KdlIkSolverVel_wlds::KdlIkSolverVel_wlds(const KdlIkSolverVel_wlds &solver)
-            : KdlIkSolverVel_wlds(solver.m_verbose, solver.m_chain_root, solver.m_chain_tip,
-                                  solver.m_solver_params)
+        IkSolverVel_wlds::IkSolverVel_wlds(const IkSolverVel_wlds &solver)
+            : IkSolverVel_wlds(solver.m_verbose, solver.m_chain_root, solver.m_chain_tip,
+                               solver.m_solver_params)
         {
         }
 
-        KdlIkSolverVel_wlds &KdlIkSolverVel_wlds::operator=(const KdlIkSolverVel_wlds &other)
+        IkSolverVel_wlds &IkSolverVel_wlds::operator=(const IkSolverVel_wlds &other)
         {
             m_is_init = false; // must be re-initialized due to unique_ptr
             m_verbose = other.m_verbose;
@@ -49,9 +48,9 @@ namespace vc
             return *this;
         }
 
-        bool KdlIkSolverVel_wlds::isInitialized() const { return m_is_init; }
+        bool IkSolverVel_wlds::isInitialized() const { return m_is_init; }
 
-        int KdlIkSolverVel_wlds::getNumJoints() const
+        int IkSolverVel_wlds::getNumJoints() const
         {
             if (!m_is_init)
             {
@@ -61,24 +60,24 @@ namespace vc
             return m_chain.getNrOfJoints();
         }
 
-        void KdlIkSolverVel_wlds::setVerbose(const bool verbose) { m_verbose = verbose; }
+        void IkSolverVel_wlds::setVerbose(const bool verbose) { m_verbose = verbose; }
 
-        void KdlIkSolverVel_wlds::setChainRoot(const std::string &chain_root)
+        void IkSolverVel_wlds::setChainRoot(const std::string &chain_root)
         {
             m_chain_root = chain_root;
         }
 
-        void KdlIkSolverVel_wlds::setChainTip(const std::string &chain_tip)
+        void IkSolverVel_wlds::setChainTip(const std::string &chain_tip)
         {
             m_chain_tip = chain_tip;
         }
 
-        void KdlIkSolverVel_wlds::setSolverParams(const IkSolverParams &solver_params)
+        void IkSolverVel_wlds::setSolverParams(const IkSolverParams &solver_params)
         {
             m_solver_params = solver_params;
         }
 
-        void KdlIkSolverVel_wlds::initIkSolver(const std::string &urdf_description)
+        void IkSolverVel_wlds::initIkSolver(const std::string &urdf_description)
         {
             // Construct KDL tree from URDF description string
             kdl_parser::treeFromString(urdf_description, m_tree);
@@ -128,8 +127,8 @@ namespace vc
             }
         }
 
-        void KdlIkSolverVel_wlds::solveIk(const KDL::JntArray &q, const KDL::Twist &v,
-                                          KDL::JntArray &qdot) const
+        void IkSolverVel_wlds::solveIk(const KDL::JntArray &q, const KDL::Twist &v,
+                                       KDL::JntArray &qdot) const
         {
             assert(m_is_init);
             assert(q.data.size() == m_chain.getNrOfJoints());

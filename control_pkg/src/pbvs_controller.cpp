@@ -257,8 +257,8 @@ void PbvsController::init_robot()
     Eigen::MatrixXd ik_weight_js;
     utils::mappings::vec_to_sqr_eigen_matrix<double, Eigen::StorageOptions::RowMajor>(vec,
                                                                                       ik_weight_js);
-    vc::solver::KdlIkSolverVel_wlds solver(verbose, m_base_frame, m_ee_frame, ik_eps, ik_lambda,
-                                           ik_max_iters, ik_weight_js);
+    vc::solver::IkSolverVel_wlds solver(verbose, m_base_frame, m_ee_frame, ik_eps, ik_lambda,
+                                        ik_max_iters, ik_weight_js);
 
     // Initialize robot
     std::string robot_description = this->get_parameter("robot_description").as_string();

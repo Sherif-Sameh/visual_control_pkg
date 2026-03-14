@@ -38,7 +38,7 @@ include_directories(${manif_INCLUDE_DIRS})
 
 # Add C++ library
 add_library(${PROJECT_NAME} SHARED
-  src/robot/kdlIkSolverVel_wdls.cpp
+  src/robot/ikSolverVel_wdls.cpp
   src/robot/vpRobotRos.cpp
 )
 target_include_directories(${PROJECT_NAME}

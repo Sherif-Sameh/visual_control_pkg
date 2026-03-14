@@ -128,8 +128,8 @@ void ApriltagEstimator::callback_tag(const AprilTagDetectionArray::SharedPtr msg
         }
         else // new tag IDs
         {
-            using ManifEKF = se::ManifEKF<manif::SE3d, se::ActionSE3Features<double>>;
-            m_ekf_map.insert({tag.id, {stamp_now, ManifEKF(m_ekf_P0, m_ekf_Q, m_ekf_R)}});
+            using EKF = se::EKF<manif::SE3d, se::ActionSE3Features<double>>;
+            m_ekf_map.insert({tag.id, {stamp_now, EKF(m_ekf_P0, m_ekf_Q, m_ekf_R)}});
             m_ekf_map[tag.id].m_wrapped.setState(State(t, q));
         }
     }

@@ -4,8 +4,8 @@
  * For more on manif, check out the GitHub page: https://github.com/artivis/manif
  */
 
-#ifndef MANIF_EKF
-#define MANIF_EKF
+#ifndef VC_SE_EKF
+#define VC_SE_EKF
 
 #include <algorithm>
 #include <cassert>
@@ -37,7 +37,7 @@ namespace se
      */
     template <class _Group, class _Action = ActionUnit<_Group>,
               class _Measure = MeasurementUnit<_Group>>
-    class ManifEKF
+    class EKF
     {
     public:
         static constexpr int xDoF = manif::LieGroupBase<_Group>::DoF;
@@ -46,7 +46,7 @@ namespace se
 
         using Scalar = typename manif::LieGroupBase<_Group>::Scalar;
         using State = typename manif::LieGroupBase<_Group>::LieGroup;
-        using Covariance = Eigen::Matrix<Scalar, ManifEKF<_Group, _Action, _Measure>::xDoF, xDoF>;
+        using Covariance = Eigen::Matrix<Scalar, EKF<_Group, _Action, _Measure>::xDoF, xDoF>;
 
         using Action = typename ActionBase<_Group, _Action>::Action;
         using CovarianceA = Eigen::Matrix<Scalar, wDoF, wDoF>;
@@ -67,8 +67,8 @@ namespace se
         static constexpr _Measure h_default = MeasurementUnit<_Group>();
 
     public:
-        ManifEKF();
-        ManifEKF(const Covariance &P0, const CovarianceA &Q, const CovarianceM &R);
+        EKF();
+        EKF(const Covariance &P0, const CovarianceA &Q, const CovarianceM &R);
 
         void getStateAndCovariance(State &x, Covariance &P) const;
         auto getProcessCovariance() const -> CovarianceA;
@@ -108,67 +108,67 @@ namespace se
     // Definitions
 
     template <class _Group, class _Action, class _Measure>
-    ManifEKF<_Group, _Action, _Measure>::ManifEKF()
+    EKF<_Group, _Action, _Measure>::EKF()
         : m_x(State::Identity()), m_P(Covariance::Zero()), m_Q(CovarianceA::Identity()),
           m_R(CovarianceM::Identity())
     {
     }
 
     template <class _Group, class _Action, class _Measure>
-    ManifEKF<_Group, _Action, _Measure>::ManifEKF(const Covariance &P0, const CovarianceA &Q,
-                                                  const CovarianceM &R)
+    EKF<_Group, _Action, _Measure>::EKF(const Covariance &P0, const CovarianceA &Q,
+                                        const CovarianceM &R)
         : m_x(State::Identity()), m_P(P0), m_Q(Q), m_R(R)
     {
     }
 
     template <class _Group, class _Action, class _Measure>
-    void ManifEKF<_Group, _Action, _Measure>::getStateAndCovariance(State &x, Covariance &P) const
+    void EKF<_Group, _Action, _Measure>::getStateAndCovariance(State &x, Covariance &P) const
     {
         x = m_x;
         P = m_P;
     }
 
     template <class _Group, class _Action, class _Measure>
-    auto ManifEKF<_Group, _Action, _Measure>::getProcessCovariance() const -> CovarianceA
+    auto EKF<_Group, _Action, _Measure>::getProcessCovariance() const -> CovarianceA
     {
         return m_Q;
     }
 
     template <class _Group, class _Action, class _Measure>
-    auto ManifEKF<_Group, _Action, _Measure>::getMeasurementCovariance() const -> CovarianceM
+    auto EKF<_Group, _Action, _Measure>::getMeasurementCovariance() const -> CovarianceM
     {
         return m_R;
     }
 
     template <class _Group, class _Action, class _Measure>
-    void ManifEKF<_Group, _Action, _Measure>::setState(const State &x0)
+    void EKF<_Group, _Action, _Measure>::setState(const State &x0)
     {
         m_x = x0;
     }
 
     template <class _Group, class _Action, class _Measure>
-    void ManifEKF<_Group, _Action, _Measure>::setErrorCovariance(const Covariance &P0)
+    void EKF<_Group, _Action, _Measure>::setErrorCovariance(const Covariance &P0)
     {
         assert(checkCovarianceMatrix(P0));
         m_P = P0;
     }
 
     template <class _Group, class _Action, class _Measure>
-    void ManifEKF<_Group, _Action, _Measure>::setProcessCovariance(const CovarianceA &Q)
+    void EKF<_Group, _Action, _Measure>::setProcessCovariance(const CovarianceA &Q)
     {
         assert(checkCovarianceMatrix(Q));
         m_Q = Q;
     }
 
     template <class _Group, class _Action, class _Measure>
-    void ManifEKF<_Group, _Action, _Measure>::setMeasurementCovariance(const CovarianceM &R)
+    void EKF<_Group, _Action, _Measure>::setMeasurementCovariance(const CovarianceM &R)
     {
         assert(checkCovarianceMatrix(R));
         m_R = R;
     }
 
     template <class _Group, class _Action, class _Measure>
-    void ManifEKF<_Group, _Action, _Measure>::predict(const Action &u, const _Action &u_func)
+    void EKF<_Group, _Action, _Measure>::predict(const Action &u, const _Action &u_func)
     {
         JacobianA J_uw;
         Tangent tan = u_func(m_x, u, J_uw);
@@ -180,7 +180,7 @@ namespace se
     }
 
     template <class _Group, class _Action, class _Measure>
-    void ManifEKF<_Group, _Action, _Measure>::update(const Measurement &y, const _Measure &h_func)
+    void EKF<_Group, _Action, _Measure>::update(const Measurement &y, const _Measure &h_func)
     {
         JacobianM J_hx;
         Measurement y_exp = h_func(m_x, J_hx);
@@ -194,7 +194,7 @@ namespace se
 
     template <class _Group, class _Action, class _Measure>
     template <typename _Covariance>
-    bool ManifEKF<_Group, _Action, _Measure>::checkCovarianceMatrix(const _Covariance &A)
+    bool EKF<_Group, _Action, _Measure>::checkCovarianceMatrix(const _Covariance &A)
     {
         assert(A.isApprox(A.transpose()));
         assert(
