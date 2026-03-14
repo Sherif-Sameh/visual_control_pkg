@@ -18,6 +18,7 @@ IbvsController::IbvsController() : Node("ibvs_controller")
     this->declare_parameter("robot.max_rvel", rclcpp::PARAMETER_DOUBLE);
     this->declare_parameter("robot.max_vel_sf", rclcpp::PARAMETER_DOUBLE);
     this->declare_parameter("robot.max_qdot", rclcpp::PARAMETER_DOUBLE_ARRAY);
+    this->declare_parameter("ctrl.lpf_coeff", rclcpp::PARAMETER_DOUBLE);
     this->declare_parameter("ctrl.conv_ttol", rclcpp::PARAMETER_DOUBLE);
     this->declare_parameter("ctrl.lambda", rclcpp::PARAMETER_DOUBLE_ARRAY);
 
@@ -187,8 +188,9 @@ void IbvsController::callback_traj_des(const MultiDOFJointTrajectory::SharedPtr 
         if (it == m_tag_ids.cend()) continue;
 
         has_valid_ids = true;
-        auto oMcd_id = utils::geometry::gm_transform_to_vp_hmatrix(msg->points[0].transforms[i]);
-        auto cdMo_id = oMcd_id.inverse();
+        auto cdMo_id =
+            utils::geometry::gm_transform_to_mnf_se3<double, true>(msg->points[0].transforms[i])
+                .inverse();
         if (m_pd.find(id) == m_pd.end()) // initialize new tag
         {
             m_pd.insert({id, std::array<vpFeaturePoint, 4>()});
@@ -196,10 +198,17 @@ void IbvsController::callback_traj_des(const MultiDOFJointTrajectory::SharedPtr 
             {
                 m_controller.addFeature(m_p[id][i], m_pd[id][i]);
             }
+            double lpf_coeff = this->get_parameter("ctrl.lpf_coeff").as_double();
+            m_cdMo_lpf.insert({id, se::LowPassFilter<manif::SE3d>(lpf_coeff, cdMo_id)});
         }
+        else
+        {
+            m_cdMo_lpf[id].update(cdMo_id);
+        }
+        auto cdMo_id_f = utils::geometry::mnf_se3_to_vp_hmatrix(m_cdMo_lpf[id].getState());
         for (std::size_t i = 0; i < 4; i++) // update desired feature points
         {
-            m_points[i].track(cdMo_id);
+            m_points[i].track(cdMo_id_f);
             vpFeatureBuilder::create(m_pd[id][i], m_points[i]);
         }
     }

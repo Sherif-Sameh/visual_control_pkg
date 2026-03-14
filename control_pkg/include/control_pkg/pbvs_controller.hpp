@@ -23,6 +23,7 @@
 #include "trajectory_msgs/msg/joint_trajectory.hpp"
 #include "trajectory_msgs/msg/multi_dof_joint_trajectory.hpp"
 
+#include "vc_core/filters/lowPassFilter.hpp"
 #include "vc_core/robot/vpRobotRos.hpp"
 #include "vc_core/utils/geometry.hpp"
 #include "vc_core/utils/mappings.hpp"
@@ -69,7 +70,7 @@ private:
 
     // ViSP Attributes
     std::unordered_map<int, utils::structs::vpPoseFeature> m_pf;
-    std::unordered_map<int, vpHomogeneousMatrix> m_cdMo;
+    std::unordered_map<int, se::LowPassFilter<manif::SE3d>> m_cdMo_lpf;
     std::pair<double, double> m_conv_eps;
     vpColVector m_lambda, m_v_cam_ff;
     vpRobotRos m_robot;

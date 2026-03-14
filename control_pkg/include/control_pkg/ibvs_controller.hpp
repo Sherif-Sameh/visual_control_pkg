@@ -28,6 +28,7 @@
 #include "trajectory_msgs/msg/joint_trajectory.hpp"
 #include "trajectory_msgs/msg/multi_dof_joint_trajectory.hpp"
 
+#include "vc_core/filters/lowPassFilter.hpp"
 #include "vc_core/robot/vpRobotRos.hpp"
 #include "vc_core/utils/geometry.hpp"
 #include "vc_core/utils/mappings.hpp"
@@ -77,6 +78,7 @@ private:
     std::array<vpPoint, 4> m_points;
     std::unordered_map<int, std::array<vpFeaturePoint, 4>> m_p;
     std::unordered_map<int, std::array<vpFeaturePoint, 4>> m_pd;
+    std::unordered_map<int, se::LowPassFilter<manif::SE3d>> m_cdMo_lpf;
     std::optional<vpCameraParameters> m_cam_params;
     vpColVector m_lambda, m_v_cam_ff;
     vpRobotRos m_robot;

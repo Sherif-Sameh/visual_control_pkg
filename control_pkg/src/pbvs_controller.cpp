@@ -17,6 +17,7 @@ PbvsController::PbvsController() : Node("pbvs_controller")
     this->declare_parameter("robot.max_rvel", rclcpp::PARAMETER_DOUBLE);
     this->declare_parameter("robot.max_vel_sf", rclcpp::PARAMETER_DOUBLE);
     this->declare_parameter("robot.max_qdot", rclcpp::PARAMETER_DOUBLE_ARRAY);
+    this->declare_parameter("ctrl.lpf_coeff", rclcpp::PARAMETER_DOUBLE);
     this->declare_parameter("ctrl.conv_ttol", rclcpp::PARAMETER_DOUBLE);
     this->declare_parameter("ctrl.conv_rtol", rclcpp::PARAMETER_DOUBLE);
     this->declare_parameter("ctrl.lambda", rclcpp::PARAMETER_DOUBLE_ARRAY);
@@ -131,7 +132,7 @@ void PbvsController::callback_js(const sensor_msgs::msg::JointState::SharedPtr m
 
 void PbvsController::callback_tag(const AprilTagDetectionArray::SharedPtr msg)
 {
-    if (m_cdMo.size() == 0) return; // no desired features
+    if (m_cdMo_lpf.size() == 0) return; // no desired features
 
     std::vector<int> valid_ids, invalid_ids;
     update_features(msg->detections, valid_ids, invalid_ids);
@@ -176,8 +177,18 @@ void PbvsController::callback_traj_des(const MultiDOFJointTrajectory::SharedPtr 
         if (it == m_tag_ids.cend()) continue;
 
         has_valid_ids = true;
-        auto oMcd_id = utils::geometry::gm_transform_to_vp_hmatrix(msg->points[0].transforms[i]);
-        m_cdMo[id] = oMcd_id.inverse();
+        auto cdMo_id =
+            utils::geometry::gm_transform_to_mnf_se3<double, true>(msg->points[0].transforms[i])
+                .inverse();
+        if (m_cdMo_lpf.find(id) == m_cdMo_lpf.end()) // initialize new tag
+        {
+            double lpf_coeff = this->get_parameter("ctrl.lpf_coeff").as_double();
+            m_cdMo_lpf.insert({id, se::LowPassFilter<manif::SE3d>(lpf_coeff, cdMo_id)});
+        }
+        else
+        {
+            m_cdMo_lpf[id].update(cdMo_id);
+        }
     }
     m_v_cam_ff = 0.0;
     geometry_msgs::msg::Twist v_cam_ff = msg->points[0].velocities[0];
@@ -294,13 +305,14 @@ void PbvsController::init_controller()
 void PbvsController::update_features(const std::vector<AprilTagDetection> &detections,
                                      std::vector<int> &valid_ids, std::vector<int> &invalid_ids)
 {
-    for (const auto &[id, cdMo] : m_cdMo)
+    for (const auto &[id, cdMo_lpf] : m_cdMo_lpf)
     {
         invalid_ids.push_back(id);
         auto it = std::find_if(detections.cbegin(), detections.cend(),
                                [id](const AprilTagDetection &dtn) { return dtn.id == id; });
         if (it != detections.cend())
         {
+            vpHomogeneousMatrix cdMo = utils::geometry::mnf_se3_to_vp_hmatrix(cdMo_lpf.getState());
             vpHomogeneousMatrix cMo = utils::geometry::gm_pose_to_vp_hmatrix((*it).pose.pose.pose);
             vpHomogeneousMatrix cdMc = cdMo * cMo.inverse();
             valid_ids.push_back(id);

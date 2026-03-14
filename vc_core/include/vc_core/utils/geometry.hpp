@@ -10,6 +10,7 @@
 #include <vector>
 
 #include <Eigen/Core>
+#include <manif/SE3.h>
 #include <visp3/core/vpHomogeneousMatrix.h>
 #include <visp3/core/vpQuaternionVector.h>
 #include <visp3/core/vpTranslationVector.h>
@@ -55,8 +56,44 @@ namespace utils
                                    transform.rotation.w));
         }
 
+        template <typename Scalar>
+        vpHomogeneousMatrix mnf_se3_to_vp_hmatrix(const manif::SE3<Scalar> &x)
+        {
+            Eigen::Matrix<Scalar, 7, 1> x_coeffs = x.coeffs();
+            return vpHomogeneousMatrix(
+                vpTranslationVector(x_coeffs(0), x_coeffs(1), x_coeffs(2)),
+                vpQuaternionVector(x_coeffs(3), x_coeffs(4), x_coeffs(5), x_coeffs(6)));
+        }
+
+        template <typename Scalar, bool normalize = false>
+        manif::SE3<Scalar> gm_transform_to_mnf_se3(const geometry_msgs::msg::Transform &transform)
+        {
+            Eigen::Matrix<Scalar, 3, 1> t{transform.translation.x, transform.translation.y,
+                                          transform.translation.z};
+            Eigen::Quaternion<Scalar> q(transform.rotation.w, transform.rotation.x,
+                                        transform.rotation.y, transform.rotation.z);
+            if constexpr (normalize)
+            {
+                q.normalize();
+            }
+            return manif::SE3<Scalar>(t, q);
+        }
+
+        template <typename Scalar>
+        manif::SE3<Scalar> vp_hmatrix_to_mnf_se3(const vpHomogeneousMatrix &hm)
+        {
+            std::vector<Scalar> hm_coeffs;
+            hm.convert(hm_coeffs);
+            return manif::SE3<Scalar>(
+                Eigen::Matrix<Scalar, 3, 1>{hm_coeffs[3], hm_coeffs[7], hm_coeffs[11]},
+                Eigen::Quaternion<Scalar>(Eigen::Matrix<Scalar, 3, 3>{
+                    hm_coeffs[0], hm_coeffs[1], hm_coeffs[2], hm_coeffs[4], hm_coeffs[5],
+                    hm_coeffs[6], hm_coeffs[8], hm_coeffs[9], hm_coeffs[10]}));
+        }
+
         /**
-         * @brief Convert rotation from (x, y, z) 3D axis-angle to `geometry_msgs::msg::Quaternion`.
+         * @brief Convert rotation from (x, y, z) 3D axis-angle to
+         * `geometry_msgs::msg::Quaternion`.
          *
          * @param[in] x x-component of the axis-angle representation.
          * @param[in] y y-component of the axis-angle representation.
@@ -95,7 +132,7 @@ namespace utils
          * @param[out] t Output translation vector.
          * @param[out] q Output quaternion rotation.
          */
-        template <typename Scalar, bool normalize>
+        template <typename Scalar, bool normalize = false>
         void gm_pose_to_eigen_tq(const geometry_msgs::msg::Pose &pose,
                                  Eigen::Matrix<Scalar, 3, 1> &t, Eigen::Quaternion<Scalar> &q)
         {
