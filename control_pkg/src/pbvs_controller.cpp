@@ -1,4 +1,4 @@
-#include "pbvs_controller.hpp"
+#include "control_pkg/pbvs_controller.hpp"
 
 PbvsController::PbvsController() : Node("pbvs_controller")
 {

@@ -1,4 +1,4 @@
-#include "ibvs_controller.hpp"
+#include "control_pkg/ibvs_controller.hpp"
 
 IbvsController::IbvsController() : Node("ibvs_controller")
 {

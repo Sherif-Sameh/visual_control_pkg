@@ -1,4 +1,4 @@
-#include "pose_controller.hpp"
+#include "control_pkg/pose_controller.hpp"
 
 PoseController::PoseController() : Node("pose_controller")
 {
