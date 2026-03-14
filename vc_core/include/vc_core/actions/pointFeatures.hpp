@@ -8,7 +8,7 @@
 
 #include <array>
 
-#include "vc_core/actions/visual_features.hpp"
+#include "vc_core/actions/visualFeatures.hpp"
 #include "vc_core/traits.hpp"
 
 namespace se

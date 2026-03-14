@@ -21,7 +21,7 @@
 #include "tf2_eigen/tf2_eigen.hpp"
 #include "tf2_ros/transform_broadcaster.hpp"
 
-#include "vc_core/actions/se3_features.hpp"
+#include "vc_core/actions/se3Features.hpp"
 #include "vc_core/filters/ekf.hpp"
 #include "vc_core/utils/mappings.hpp"
 #include "vc_core/utils/structs.hpp"
