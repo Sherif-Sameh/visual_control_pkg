@@ -1,20 +1,20 @@
 ### PBVS Controller Configuration ###
 
 # Tuned values derived from ideal simulation environment
-[controller]  # https://wandb.ai/u1999168-girona/visual_control|VS_sweeps/runs/mpncqxtq?nw=nwuseru1999168
+[controller]  # https://wandb.ai/u1999168-girona/visual_control|VS_sweeps/runs/rmrkz865?nw=nwuseru1999168
 
 # IK solver parameters
-"ik.eps" = 6.105e-2
-"ik.lambda" = 3.409e-3
+"ik.eps" = 8.732e-2
+"ik.lambda" = 1e-2
 "ik.max_iters" = 50
 "ik.weight_js" = [
-  0.8, 0.0, 0.0, 0.0, 0.0, 0.0,
-  0.0, 0.8, 0.0, 0.0, 0.0, 0.0,
+  1.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+  0.0, 1.0, 0.0, 0.0, 0.0, 0.0,
   0.0, 0.0, 1.0, 0.0, 0.0, 0.0,
   0.0, 0.0, 0.0, 1.0, 0.0, 0.0,
   0.0, 0.0, 0.0, 0.0, 1.0, 0.0,
   0.0, 0.0, 0.0, 0.0, 0.0, 1.0,
-]  # diag(0.8, 0.8, 1.0, 1.0, 1.0, 1.0)
+]  # diag(1.0, 1.0, 1.0, 1.0, 1.0, 1.0)
 
 # Robot parameters
 "robot.max_tvel" = 0.5
@@ -30,13 +30,14 @@
 ]
 
 # Controller parameters
-"ctrl.conv_ttol" = 1.654e-2
-"ctrl.conv_rtol" = 1.298e-3
+"ctrl.lpf_coeff" = 0.680
+"ctrl.conv_ttol" = 1.462e-3
+"ctrl.conv_rtol" = 4.880e-4
 "ctrl.lambda" = [
-  1.985,
-  1.985,
-  1.338,
-  1.966,
-  1.966,
-  1.249,
+  1.5,
+  1.5,
+  1.5,
+  1.0,
+  1.0,
+  1.0,
 ]

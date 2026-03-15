@@ -41,6 +41,7 @@ target_nodes = ["apriltag_detector", "apriltag_estimator", "ibvs_controller"]
     "ibvs_controller-robot.max_rvel",
     "ibvs_controller-robot.max_vel_sf",
     "ibvs_controller-robot.max_qdot",
+    "ibvs_controller-ctrl.lpf_coeff",
     "ibvs_controller-ctrl.conv_ttol",
     "ibvs_controller-ctrl.lambda",
 ]

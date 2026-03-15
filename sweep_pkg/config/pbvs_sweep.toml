@@ -17,16 +17,16 @@ target_nodes = ["apriltag_detector", "apriltag_estimator", "pbvs_controller"]
     "pose",
 ]
 "obj.weights" = [
+    0.02,
     0.1,
-    0.25,
     0.0,
     0.0,
     1.0,
 ]
 
 # WandB logger parameters
-"wandb.n_log" = 2
-"wandb.n_flush" = 2
+"wandb.n_log" = 1
+"wandb.n_flush" = 40
 "wandb.config.entity" = "u1999168-girona"
 "wandb.config.project" = "visual_control|VS_sweeps"
 "wandb.config.params" = [
@@ -38,10 +38,12 @@ target_nodes = ["apriltag_detector", "apriltag_estimator", "pbvs_controller"]
     "apriltag_estimator-ekf.P0_diag",
     "apriltag_estimator-ekf.R_diag",
     "pbvs_controller-tag.tag_ids",
+    "pbvs_controller-ik.lambda",
     "pbvs_controller-robot.max_tvel",
     "pbvs_controller-robot.max_rvel",
     "pbvs_controller-robot.max_vel_sf",
     "pbvs_controller-robot.max_qdot",
+    "pbvs_controller-ctrl.lambda",
 ]
 
 
@@ -55,12 +57,12 @@ name = "objective"
 goal = "minimize"
 
 [sweep.parameters]
-"apriltag_estimator-ekf.Q_diag.idx_02" = { distribution = "log_uniform_values", min = 5e-5, max = 1e-2}
-"apriltag_estimator-ekf.Q_diag.idx_35" = { distribution = "log_uniform_values", min = 5e-5, max = 1e-2}
+"apriltag_estimator-ekf.Q_diag.idx_01" = { distribution = "log_uniform_values", min = 1e-6, max = 1e-3 }
+"apriltag_estimator-ekf.Q_diag.idx_2" = { distribution = "log_uniform_values", min = 1e-6, max = 1e-3 }
+"apriltag_estimator-ekf.Q_diag.idx_34" = { distribution = "log_uniform_values", min = 1e-6, max = 1e-3 }
+"apriltag_estimator-ekf.Q_diag.idx_5" = { distribution = "log_uniform_values", min = 1e-6, max = 1e-3 }
 
-"pbvs_controller-ik.eps" = { distribution = "log_uniform_values", min = 1e-3, max = 0.1}
-"pbvs_controller-ik.lambda" = { distribution = "log_uniform_values", min = 1e-3, max = 0.1}
-"pbvs_controller-ctrl.conv_ttol" = {distribution = "log_uniform_values", min = 1e-3, max = 0.025}
-"pbvs_controller-ctrl.conv_rtol" = {distribution = "log_uniform_values", min = 1e-3, max = 0.02}
-"pbvs_controller-ctrl.lambda.idx_02" = {min = 0.5, max = 4.0}
-"pbvs_controller-ctrl.lambda.idx_35" = {min = 0.5, max = 4.0}
+"pbvs_controller-ik.eps" = { distribution = "log_uniform_values", min = 1e-4, max = 0.1 }
+"pbvs_controller-ctrl.lpf_coeff" = { min = 0.1, max = 1.0 }
+"pbvs_controller-ctrl.conv_ttol" = { distribution = "log_uniform_values", min = 1e-3, max = 1e-2 }
+"pbvs_controller-ctrl.conv_rtol" = { distribution = "log_uniform_values", min = 1e-4, max = 1e-2 }
