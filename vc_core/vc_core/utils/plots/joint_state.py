@@ -57,9 +57,9 @@ def plot_joint_position(
     for i, ax in enumerate(axes):
         ax.set_title(f"Joint {i}")
         ax.grid(True)
-        ax.set_xlim([0, 60])
+        ax.set_xlim([0, 36])
         ax.set_ylim([round(min_v - 0.1, 2), round(max_v + 0.1, 2)])
-        ax.set_xticks(np.linspace(0, 60, 6).astype(np.int64))
+        ax.set_xticks(np.linspace(0, 36, 6).astype(np.int64))
         ax.set_yticks(np.round(np.linspace(min_v - 0.1, max_v + 0.1, 7), 2))
         ax.get_yaxis().offsetText.set_visible(False)  # disable automatic offset
     plt.tight_layout()
@@ -84,6 +84,7 @@ def plot_joint_velocity(
         if key not in metrics:
             continue
         steps, values = metrics[key]
+        values *= 180 / np.pi
         for i, ax in enumerate(axes):
             ax.plot(
                 steps,
@@ -98,14 +99,14 @@ def plot_joint_velocity(
 
     # Configure plot
     fig.supxlabel(r"Time (sec)")
-    fig.supylabel(r"Joint Velocity (rad/s)")
+    fig.supylabel(r"Joint Velocity (deg/s)")
     axes[0].legend()
     for i, ax in enumerate(axes):
         ax.set_title(f"Joint {i}")
         ax.grid(True)
-        ax.set_xlim([0, 60])
+        ax.set_xlim([0, 36])
         ax.set_ylim([round(min_v - 0.1, 2), round(max_v + 0.1, 2)])
-        ax.set_xticks(np.linspace(0, 60, 6).astype(np.int64))
+        ax.set_xticks(np.linspace(0, 36, 6).astype(np.int64))
         ax.set_yticks(np.round(np.linspace(min_v - 0.1, max_v + 0.1, 7), 2))
         ax.get_yaxis().offsetText.set_visible(False)  # disable automatic offset
     plt.tight_layout()
