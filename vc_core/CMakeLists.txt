@@ -25,10 +25,12 @@ find_package(tf2_ros REQUIRED)
 find_package(tf2_geometry_msgs REQUIRED)
 
 find_package(Eigen3 REQUIRED)
+find_package(OpenCV REQUIRED)
 find_package(VISP COMPONENTS core robot visual_features vs REQUIRED)
 find_package(orocos_kdl_vendor REQUIRED)
 find_package(kdl_parser REQUIRED)
 find_package(manif REQUIRED)
+find_package(yaml_cpp_vendor REQUIRED)
 
 # Include C++ "include" directory
 include_directories(include)
