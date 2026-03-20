@@ -18,10 +18,45 @@ endif()
 # find dependencies
 find_package(ament_cmake REQUIRED)
 find_package(ament_cmake_python REQUIRED)
-# find_package(rclcpp REQUIRED)
-# find_package(rclpy REQUIRED)
+find_package(rclcpp REQUIRED)
+find_package(rcl_interfaces REQUIRED)
+find_package(geometry_msgs REQUIRED)
+find_package(sensor_msgs REQUIRED)
+find_package(tf2_ros REQUIRED)
+find_package(tf2_eigen REQUIRED)
 
-find_package(isaac_ros_apriltag)
+find_package(vc_core REQUIRED)
+find_package(Eigen3 REQUIRED)
+find_package(OpenCV REQUIRED)
+find_package(cv_bridge REQUIRED)
+find_package(isaac_ros_apriltag REQUIRED)
+
+# Include C++ "include" directory
+include_directories(include)
+include_directories(${vc_core_INCLUDE_DIRS})
+include_directories(${EIGEN3_INCLUDE_DIRS})
+
+# Create C++ executables
+add_executable(charuco_detector src/charuco_detector.cpp)
+ament_target_dependencies(charuco_detector 
+  rclcpp
+  rcl_interfaces
+  geometry_msgs
+  sensor_msgs
+  tf2_ros
+  tf2_eigen
+  vc_core
+  Eigen3
+  OpenCV
+  cv_bridge
+  isaac_ros_apriltag
+)
+
+# Install C++ executables
+install(TARGETS
+  charuco_detector
+  DESTINATION lib/${PROJECT_NAME}
+)
 
 # Install launch directory
 install(DIRECTORY launch
