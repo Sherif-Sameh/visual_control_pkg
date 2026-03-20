@@ -13,6 +13,15 @@
 
 namespace se
 {
+    /**
+     * @brief Generic Low Pass Filter (LPF) template for arbitrary Lie Groups.
+     *
+     * This class template implements discrete first-order LPFs for Lie Groups, where simple
+     * vector operations like addition and subtraction result in invalid group elements. The LPF
+     * implements the following update formula: `x_k+1` = `x_k` + `coeff` * (`y_k+1` - `x_k`). For
+     * Lie groups this translates to `x_k+1` = `x_k`.rplus(`coeff` * `y_k+1`.rminus(`x_k`)).
+     * @tparam _Group Lie group, a derived class from `manif::LieGroupBase`.
+     */
     template <class _Group>
     class LowPassFilter
     {
@@ -28,9 +37,21 @@ namespace se
         auto getState() const -> State;
         void getState(State &x) const;
         void setLPFCoeff(const Scalar coeff);
+        /**
+         * @brief Set the internal state of the LPF.
+         *
+         * @tparam StateArgs Types of input arguments.
+         * @param[in] args Any set of arguments from which a `State` object can be constructed.
+         */
         template <typename... StateArgs>
         void setState(StateArgs &&...args);
 
+        /**
+         * @brief Update the internal state of the LPF with the given inputs.
+         *
+         * @tparam StateArgs Types of input arguments.
+         * @param[in] args Any set of arguments from which a `State` object can be constructed.
+         */
         template <typename... StateArgs>
         void update(StateArgs &&...args);
 
