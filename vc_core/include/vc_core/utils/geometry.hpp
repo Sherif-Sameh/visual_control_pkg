@@ -9,7 +9,7 @@
 #include <cassert>
 #include <vector>
 
-#include <Eigen/Core>
+#include <Eigen/Geometry>
 #include <manif/SE3.h>
 #include <visp3/core/vpHomogeneousMatrix.h>
 #include <visp3/core/vpQuaternionVector.h>
@@ -139,20 +139,42 @@ namespace utils
         }
 
         /**
-         * @brief Convert rotation from (x, y, z) 3D axis-angle to
+         * @brief Convert rotation from (x, y, z) 3D rotation vector to `Eigen::AngleAxis`.
+         *
+         * @tparam Scalar Scalar type of the inputs components and output `Eigen::AngleAxis`.
+         * @param[in] x x-component of the rotation vector representation.
+         * @param[in] y y-component of the rotation vector representation.
+         * @param[in] z z-component of the rotation vector representation.
+         * @return `Eigen::AngleAxis<Scalar>` initialized from input rotation vector.
+         */
+        template <typename Scalar>
+        Eigen::AngleAxis<Scalar> to_eigen_angle_axis(const Scalar x, const Scalar y, const Scalar z)
+        {
+            constexpr double angle_threshold = 1e-6;
+            Eigen::Matrix<Scalar, 3, 1> rvec(x, y, z);
+            Scalar angle = rvec.norm();
+            if (angle < angle_threshold)
+            {
+                return Eigen::AngleAxis<Scalar>(Eigen::Quaternion<Scalar>::Identity());
+            }
+            return Eigen::AngleAxis<Scalar>(angle, rvec.normalized());
+        }
+
+        /**
+         * @brief Convert rotation from (x, y, z) 3D rotation vector to
          * `geometry_msgs::msg::Quaternion`.
          *
-         * @param[in] x x-component of the axis-angle representation.
-         * @param[in] y y-component of the axis-angle representation.
-         * @param[in] z z-component of the axis-angle representation.
-         * @return `geometry_msgs::msg::Quaternion` initialized from input axis-angle.
+         * @param[in] x x-component of the rotation vector representation.
+         * @param[in] y y-component of the rotation vector representation.
+         * @param[in] z z-component of the rotation vector representation.
+         * @return `geometry_msgs::msg::Quaternion` initialized from input rotation vector.
          */
         inline geometry_msgs::msg::Quaternion to_gm_quat(const double x, const double y,
                                                          const double z)
         {
             constexpr double angle_threshold = 1e-6;
 
-            // Construct tf2 Quaternion from axis-angle representation
+            // Construct tf2 Quaternion from rotation vector representation
             tf2::Quaternion tf2_quat;
             tf2::Vector3 axis(x, y, z);
             double angle = axis.length();
