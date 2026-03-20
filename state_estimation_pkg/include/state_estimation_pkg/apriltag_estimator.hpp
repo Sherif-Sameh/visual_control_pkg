@@ -12,7 +12,6 @@
 
 #include "geometry_msgs/msg/transform_stamped.hpp"
 #include "geometry_msgs/msg/twist_stamped.hpp"
-#include "isaac_ros_apriltag_interfaces/msg/april_tag_detection.hpp"
 #include "isaac_ros_apriltag_interfaces/msg/april_tag_detection_array.hpp"
 #include "rcl_interfaces/msg/set_parameters_result.hpp"
 #include "rclcpp/rclcpp.hpp"
@@ -79,7 +78,7 @@ private:
     rclcpp::Subscription<geometry_msgs::msg::TwistStamped>::SharedPtr m_sub_cam_twist{nullptr};
     rclcpp::Subscription<AprilTagDetectionArray>::SharedPtr m_sub_tag{nullptr};
     std::unique_ptr<tf2_ros::TransformBroadcaster> m_tf_broadcaster{nullptr};
-    rclcpp::node_interfaces::OnSetParametersCallbackHandle::SharedPtr m_cbh_param;
+    rclcpp::node_interfaces::OnSetParametersCallbackHandle::SharedPtr m_cbh_param{nullptr};
 };
 
 #endif

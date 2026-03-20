@@ -68,7 +68,7 @@ private:
     rclcpp::Subscription<sensor_msgs::msg::JointState>::SharedPtr m_sub_js{nullptr};
     std::shared_ptr<tf2_ros::TransformListener> m_tf_listener{nullptr};
     std::unique_ptr<tf2_ros::Buffer> m_tf_buffer;
-    rclcpp::node_interfaces::OnSetParametersCallbackHandle::SharedPtr m_cbh_param;
+    rclcpp::node_interfaces::OnSetParametersCallbackHandle::SharedPtr m_cbh_param{nullptr};
 };
 
 #endif
