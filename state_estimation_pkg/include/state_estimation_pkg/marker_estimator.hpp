@@ -1,5 +1,5 @@
-#ifndef APRILTAG_ESTIMATOR
-#define APRILTAG_ESTIMATOR
+#ifndef MARKER_ESTIMATOR
+#define MARKER_ESTIMATOR
 
 #include <array>
 #include <functional>
@@ -30,7 +30,7 @@ using isaac_ros_apriltag_interfaces::msg::AprilTagDetection;
 using isaac_ros_apriltag_interfaces::msg::AprilTagDetectionArray;
 using std::placeholders::_1;
 
-class ApriltagEstimator : public rclcpp::Node
+class MarkerEstimator : public rclcpp::Node
 {
 public:
     using ManifEKFStamped =
@@ -42,7 +42,7 @@ public:
     using Covariance = se::EKF<manif::SE3d, se::ActionSE3Features<double>>::Covariance;
 
 public:
-    ApriltagEstimator(const rclcpp::NodeOptions &options);
+    MarkerEstimator(const rclcpp::NodeOptions &options);
 
 private:
     void publish_tag(const std_msgs::msg::Header &header, const std::string &tag_family);

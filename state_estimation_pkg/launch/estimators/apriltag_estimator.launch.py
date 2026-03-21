@@ -60,7 +60,8 @@ def get_composable_node(**kwargs) -> ComposableNode:
     get_arg = lambda name: kwargs.get(name, defaults[name])  # noqa: E731
     return ComposableNode(
         package="state_estimation_pkg",
-        plugin="ApriltagEstimator",
+        plugin="MarkerEstimator",
+        name="apriltag_estimator",
         parameters=[{"tag.size": get_arg("tag_size"), **config["estimator"]}],
         remappings=[
             ("/camera_info", get_arg("camera_info_topic_name")),
@@ -89,7 +90,8 @@ def generate_launch_description() -> LaunchDescription:
     # Initialize composable node
     apriltag_estimator_node = ComposableNode(
         package="state_estimation_pkg",
-        plugin="ApriltagEstimator",
+        plugin="MarkerEstimator",
+        name="apriltag_estimator",
         parameters=[{"tag.size": tag_size, **config["estimator"]}],
         remappings=[
             ("/camera_info", camera_info_topic_name),
