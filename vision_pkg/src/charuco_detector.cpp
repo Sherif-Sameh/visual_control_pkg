@@ -89,13 +89,13 @@ void CharucoDetector::callback_image(const sensor_msgs::msg::Image::SharedPtr ms
 
     // Detect markers
     std::vector<int> marker_ids;
-    std::vector<std::vector<cv::Point2d>> marker_corners;
+    std::vector<std::vector<cv::Point2f>> marker_corners;
     cv::aruco::detectMarkers(cv_ptr->image, m_dict, marker_corners, marker_ids, m_params);
     if (marker_ids.size() == 0) return;
 
     // Detect ChArUco corners
     std::vector<int> charuco_ids;
-    std::vector<cv::Point2d> charuco_corners;
+    std::vector<cv::Point2f> charuco_corners;
     cv::aruco::interpolateCornersCharuco(marker_corners, marker_ids, cv_ptr->image, m_board,
                                          charuco_corners, charuco_ids, *m_cam_K);
     if (charuco_ids.size() == 0) return;
