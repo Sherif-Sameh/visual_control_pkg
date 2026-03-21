@@ -34,12 +34,57 @@ def declare_arguments() -> list[DeclareLaunchArgument]:
         )
     )
 
+    # ChArUco detector arguments
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "visualize",
+            default_value="false",
+            description="Enable ChArUco detection visualization topic. Default value is false.",
+        )
+    )
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "dict_name",
+            default_value="DICT_5X5_50",
+            description="Name of the predefined marker dictionary. Default value is DICT_5X5_50.",
+        )
+    )
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "board_xs",
+            default_value="10",
+            description="Number of chessboard squares in X direction. Default value is 10.",
+        )
+    )
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "board_ys",
+            default_value="10",
+            description="Number of chessboard squares in Y direction. Default value is 10.",
+        )
+    )
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "board_sq_len",
+            default_value="0.04",
+            description="Chessboard square side length in meters. Default value is 0.04.",
+        )
+    )
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "board_mk_len",
+            default_value="0.03",
+            description="Marker side length in meters. Default value is 0.03.",
+        )
+    )
+
     # General arguments
     declared_arguments.append(
         DeclareLaunchArgument(
-            "detectors",
+            "detector",
             default_value="apriltag",
-            description="Comma separated names of nodes to launch. Default value is apriltag.",
+            description="Name of detector node to launch. Default value is apriltag.",
+            choices=["apriltag", "charuco", ""],
         )
     )
     declared_arguments.append(
@@ -60,13 +105,15 @@ def declare_arguments() -> list[DeclareLaunchArgument]:
 
 
 def launch_setup(context: LaunchContext) -> list[IncludeLaunchDescription]:
-    detectors = LaunchConfiguration("detectors").perform(context)
-    detectors = detectors.replace(" ", "").split(",")
-    launch = []
-    # Launch chosen detectors
-    if "apriltag" in detectors:
-        launch.append(_include_apriltag_detector())
-    return launch
+    detector = LaunchConfiguration("detector").perform(context)
+    # Launch chosen detector
+    match detector:
+        case "apriltag":
+            return [_include_apriltag_detector()]
+        case "charuco":
+            return [_include_charuco_detector()]
+        case _:
+            return []
 
 
 def generate_launch_description() -> LaunchDescription:
@@ -106,6 +153,41 @@ def _include_apriltag_detector() -> IncludeLaunchDescription:
             "tag_size": tag_size,
             "tag_family": tag_family,
             "backends": backends,
+            "image_topic_name": image_topic_name,
+            "camera_info_topic_name": camera_info_topic_name,
+        }.items(),
+    )
+
+
+def _include_charuco_detector() -> IncludeLaunchDescription:
+    visualize = LaunchConfiguration("visualize")
+    dict_name = LaunchConfiguration("dict_name")
+    board_xs = LaunchConfiguration("board_xs")
+    board_ys = LaunchConfiguration("board_ys")
+    board_sq_len = LaunchConfiguration("board_sq_len")
+    board_mk_len = LaunchConfiguration("board_mk_len")
+
+    camera_info_topic_name = LaunchConfiguration("camera_info_topic_name")
+    image_topic_name = LaunchConfiguration("image_topic_name")
+
+    return IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(
+            PathJoinSubstitution(
+                [
+                    FindPackageShare("vision_pkg"),
+                    "launch",
+                    "detectors",
+                    "charuco_detector.launch.py",
+                ]
+            )
+        ),
+        launch_arguments={
+            "visualize": visualize,
+            "dict_name": dict_name,
+            "board_xs": board_xs,
+            "board_ys": board_ys,
+            "board_sq_len": board_sq_len,
+            "board_mk_len": board_mk_len,
             "image_topic_name": image_topic_name,
             "camera_info_topic_name": camera_info_topic_name,
         }.items(),

@@ -54,18 +54,20 @@ def declare_arguments() -> list[DeclareLaunchArgument]:
     # State estimation package arguments
     declared_arguments.append(
         DeclareLaunchArgument(
-            "estimators",
+            "estimator",
             default_value="apriltag",
-            description="Comma separated names of estimators to launch. Default value is apriltag.",
+            description="Name of estimator node to launch. Default value is apriltag.",
+            choices=["apriltag", ""],
         )
     )
 
     # Vision package arguments
     declared_arguments.append(
         DeclareLaunchArgument(
-            "detectors",
+            "detector",
             default_value="apriltag",
-            description="Comma separated names of detectors to launch. Default value is apriltag.",
+            description="Name of detector node to launch. Default value is apriltag.",
+            choices=["apriltag", ""],
         )
     )
     declared_arguments.append(
@@ -249,11 +251,11 @@ def _launch_control_pkg() -> IncludeLaunchDescription:
 
 
 def _launch_state_estimation_pkg(context: LaunchContext) -> IncludeLaunchDescription:
-    estimators = LaunchConfiguration("estimators").perform(context)
+    estimator = LaunchConfiguration("estimator").perform(context)
     controller = LaunchConfiguration("controller").perform(context)
     compose_apriltag = LaunchConfiguration("compose_apriltag").perform(context)
     if controller not in ["pbvs", "ibvs"] or compose_apriltag == "true":
-        estimators = estimators.replace("apriltag", "")
+        estimator = estimator.replace("apriltag", "")
 
     return IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
@@ -266,8 +268,8 @@ def _launch_state_estimation_pkg(context: LaunchContext) -> IncludeLaunchDescrip
             )
         ),
         launch_arguments={
-            "tag_size": TAG_SIZE,
-            "estimators": estimators,
+            "marker_size": TAG_SIZE,
+            "estimator": estimator,
             "camera_info_topic_name": CAMERA_INFO_TOPIC_NAME,
             "camera_twist_topic_name": f"{controller}_controller/camera_twist",
             "detections_topic_name": DETECTIONS_TOPIC_NAME,
@@ -276,12 +278,12 @@ def _launch_state_estimation_pkg(context: LaunchContext) -> IncludeLaunchDescrip
 
 
 def _launch_vision_pkg(context: LaunchContext) -> IncludeLaunchDescription:
-    detectors = LaunchConfiguration("detectors").perform(context)
+    detector = LaunchConfiguration("detector").perform(context)
     backends = LaunchConfiguration("backends")
     controller = LaunchConfiguration("controller").perform(context)
     compose_apriltag = LaunchConfiguration("compose_apriltag").perform(context)
     if controller not in ["pbvs", "ibvs"] or compose_apriltag == "true":
-        detectors = detectors.replace("apriltag", "")
+        detector = detector.replace("apriltag", "")
 
     return IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
@@ -291,7 +293,7 @@ def _launch_vision_pkg(context: LaunchContext) -> IncludeLaunchDescription:
             "tag_size": TAG_SIZE,
             "tag_family": TAG_FAMILY,
             "backends": backends,
-            "detectors": detectors,
+            "detector": detector,
             "image_topic_name": IMAGE_TOPIC_NAME,
             "camera_info_topic_name": CAMERA_INFO_TOPIC_NAME,
         }.items(),

@@ -8,21 +8,22 @@ from launch_ros.substitutions import FindPackageShare
 def declare_arguments() -> list[DeclareLaunchArgument]:
     declared_arguments = []
 
-    # Apriltag estimator arguments
+    # Apriltag/ChArUco estimator arguments
     declared_arguments.append(
         DeclareLaunchArgument(
-            "tag_size",
+            "marker_size",
             default_value="0.08",
-            description="Tag size in meters of tracked tags. Default value is 0.08.",
+            description="Marker size in meters. Default value is 0.08.",
         )
     )
 
     # General arguments
     declared_arguments.append(
         DeclareLaunchArgument(
-            "estimators",
+            "estimator",
             default_value="apriltag",
-            description="Comma separated names of nodes to launch. Default value is apriltag.",
+            description="Name of estimator node to launch. Default value is apriltag.",
+            choices=["apriltag", "charuco", ""],
         )
     )
     declared_arguments.append(
@@ -43,7 +44,7 @@ def declare_arguments() -> list[DeclareLaunchArgument]:
         DeclareLaunchArgument(
             "detections_topic_name",
             default_value="/detections",
-            description="AprilTag raw detections (isaac_ros_apriltag_interfaces/AprilTagDetectionArray)"
+            description="Raw detections (isaac_ros_apriltag_interfaces/AprilTagDetectionArray)"
             " topic name. Default is /detections.",
         )
     )
@@ -51,13 +52,15 @@ def declare_arguments() -> list[DeclareLaunchArgument]:
 
 
 def launch_setup(context: LaunchContext) -> list[IncludeLaunchDescription]:
-    estimators = LaunchConfiguration("estimators").perform(context)
-    estimators = estimators.replace(" ", "").split(",")
-    launch = []
-    # Launch chosen estimators
-    if "apriltag" in estimators:
-        launch.append(_include_apriltag_estimator())
-    return launch
+    estimator = LaunchConfiguration("estimator").perform(context)
+    # Launch chosen estimator
+    match estimator:
+        case "apriltag":
+            return [_include_apriltag_estimator()]
+        case "charuco":
+            return [_include_charuco_estimator()]
+        case _:
+            return []
 
 
 def generate_launch_description() -> LaunchDescription:
@@ -75,7 +78,7 @@ def generate_launch_description() -> LaunchDescription:
 
 
 def _include_apriltag_estimator() -> IncludeLaunchDescription:
-    tag_size = LaunchConfiguration("tag_size")
+    tag_size = LaunchConfiguration("marker_size")
 
     camera_info_topic_name = LaunchConfiguration("camera_info_topic_name")
     camera_twist_topic_name = LaunchConfiguration("camera_twist_topic_name")
@@ -94,6 +97,33 @@ def _include_apriltag_estimator() -> IncludeLaunchDescription:
         ),
         launch_arguments={
             "tag_size": tag_size,
+            "camera_info_topic_name": camera_info_topic_name,
+            "camera_twist_topic_name": camera_twist_topic_name,
+            "detections_topic_name": detections_topic_name,
+        }.items(),
+    )
+
+
+def _include_charuco_estimator() -> IncludeLaunchDescription:
+    board_size = LaunchConfiguration("marker_size")
+
+    camera_info_topic_name = LaunchConfiguration("camera_info_topic_name")
+    camera_twist_topic_name = LaunchConfiguration("camera_twist_topic_name")
+    detections_topic_name = LaunchConfiguration("detections_topic_name")
+
+    return IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(
+            PathJoinSubstitution(
+                [
+                    FindPackageShare("state_estimation_pkg"),
+                    "launch",
+                    "estimators",
+                    "charuco_estimator.launch.py",
+                ]
+            )
+        ),
+        launch_arguments={
+            "board_size": board_size,
             "camera_info_topic_name": camera_info_topic_name,
             "camera_twist_topic_name": camera_twist_topic_name,
             "detections_topic_name": detections_topic_name,
