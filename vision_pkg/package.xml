@@ -24,6 +24,7 @@
   <depend>tf2_ros</depend>
   <depend>tf2_eigen</depend>
 
+  <depend>vc_core</depend>
   <depend>cv_bridge</depend>
   <depend>eigen</depend>
 
