@@ -5,7 +5,8 @@ from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument
 from launch.substitutions import LaunchConfiguration
-from launch_ros.actions import Node
+from launch_ros.actions import ComposableNodeContainer
+from launch_ros.descriptions import ComposableNode
 
 
 def declare_arguments() -> list[DeclareLaunchArgument]:
@@ -73,6 +74,38 @@ def declare_arguments() -> list[DeclareLaunchArgument]:
     return declared_arguments
 
 
+def get_composable_node(**kwargs) -> ComposableNode:
+    # Initialize argument defaults for missing arguments
+    defaults = {a.name: a.default_value for a in declare_arguments()}
+
+    # Load configuration from toml
+    pkg_share = get_package_share_directory("vision_pkg")
+    config_path = os.path.join(pkg_share, "config", "charuco_detector.toml")
+    config = toml.load(config_path)
+
+    # Initialize composable node
+    get_arg = lambda name: kwargs.get(name, defaults[name])  # noqa: E731
+    return ComposableNode(
+        package="vision_pkg",
+        plugin="CharucoDetector",
+        parameters=[
+            {
+                "visualize": get_arg("visualize"),
+                "dict.name": get_arg("dict_name"),
+                "board.xs": get_arg("board_xs"),
+                "board.ys": get_arg("board_ys"),
+                "board.sq_len": get_arg("board_sq_len"),
+                "board.mk_len": get_arg("board_mk_len"),
+                **config["detector"],
+            }
+        ],
+        remappings=[
+            ("/image", get_arg("image_topic_name")),
+            ("/camera_info", get_arg("camera_info_topic_name")),
+        ],
+    )
+
+
 def generate_launch_description() -> LaunchDescription:
     # Declare arguments
     declared_arguments = declare_arguments()
@@ -93,11 +126,10 @@ def generate_launch_description() -> LaunchDescription:
     config_path = os.path.join(pkg_share, "config", "charuco_detector.toml")
     config = toml.load(config_path)
 
-    # Initialize nodes to start
-    charuco_detector_node = Node(
+    # Initialize composable node
+    charuco_detector_node = ComposableNode(
         package="vision_pkg",
-        executable="charuco_detector",
-        output="screen",
+        plugin="CharucoDetector",
         parameters=[
             {
                 "visualize": visualize,
@@ -112,5 +144,15 @@ def generate_launch_description() -> LaunchDescription:
         remappings=[("/camera_info", camera_info_topic_name), ("/image", image_topic_name)],
     )
 
-    nodes_to_start = [charuco_detector_node]
+    # Initialize standalone composable node container
+    charuco_detector_container = ComposableNodeContainer(
+        package="rclcpp_components",
+        name="charuco_detector_container",
+        namespace="",
+        executable="component_container",
+        composable_node_descriptions=[charuco_detector_node],
+        output="screen",
+    )
+
+    nodes_to_start = [charuco_detector_container]
     return LaunchDescription(declared_arguments + nodes_to_start)

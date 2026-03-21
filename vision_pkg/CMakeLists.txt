@@ -20,6 +20,7 @@ find_package(ament_cmake REQUIRED)
 find_package(ament_cmake_python REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(rcl_interfaces REQUIRED)
+find_package(rclcpp_components REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(tf2_ros REQUIRED)
@@ -36,9 +37,9 @@ include_directories(include)
 include_directories(${vc_core_INCLUDE_DIRS})
 include_directories(${EIGEN3_INCLUDE_DIRS})
 
-# Create C++ executables
-add_executable(charuco_detector src/charuco_detector.cpp)
-ament_target_dependencies(charuco_detector 
+# Create C++ library for composable nodes
+add_library(charuco_detector_component SHARED src/charuco_detector.cpp)
+ament_target_dependencies(charuco_detector_component 
   rclcpp
   rcl_interfaces
   geometry_msgs
@@ -51,11 +52,19 @@ ament_target_dependencies(charuco_detector
   cv_bridge
   isaac_ros_apriltag
 )
+rclcpp_components_register_node(
+    charuco_detector_component
+    PLUGIN "CharucoDetector"
+    EXECUTABLE charuco_detector
+)
 
-# Install C++ executables
-install(TARGETS
-  charuco_detector
-  DESTINATION lib/${PROJECT_NAME}
+# Install C++ composable nodes
+ament_export_targets(export_charuco_detector_component)
+install(TARGETS charuco_detector_component
+        EXPORT export_charuco_detector_component
+        ARCHIVE DESTINATION lib
+        LIBRARY DESTINATION lib
+        RUNTIME DESTINATION bin
 )
 
 # Install launch and config directories

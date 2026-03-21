@@ -1,6 +1,7 @@
 #include "vision_pkg/charuco_detector.hpp"
 
-CharucoDetector::CharucoDetector() : Node("charuco_detector")
+CharucoDetector::CharucoDetector(const rclcpp::NodeOptions &options)
+    : Node("charuco_detector", options)
 {
     // Declare ROS parameters
     this->declare_parameter("visualize", rclcpp::PARAMETER_BOOL);
@@ -198,11 +199,4 @@ Eigen::Isometry3d CharucoDetector::transform_board_pose(const cv::Vec3d &tvec,
     return pose;
 }
 
-int main(int argc, char *argv[])
-{
-    rclcpp::init(argc, argv);
-    auto charuco_detector = std::make_shared<CharucoDetector>();
-    rclcpp::spin(charuco_detector);
-    rclcpp::shutdown();
-    return 0;
-}
+RCLCPP_COMPONENTS_REGISTER_NODE(CharucoDetector)

@@ -16,6 +16,7 @@
 #include "isaac_ros_apriltag_interfaces/msg/april_tag_detection_array.hpp"
 #include "rcl_interfaces/msg/set_parameters_result.hpp"
 #include "rclcpp/rclcpp.hpp"
+#include "rclcpp_components/register_node_macro.hpp"
 #include "sensor_msgs/msg/camera_info.hpp"
 #include "sensor_msgs/msg/image.hpp"
 #include "tf2_eigen/tf2_eigen.hpp"
@@ -31,7 +32,7 @@ using std::placeholders::_1;
 class CharucoDetector : public rclcpp::Node
 {
 public:
-    CharucoDetector();
+    CharucoDetector(const rclcpp::NodeOptions &options);
 
 private:
     void publish_dtn(const std_msgs::msg::Header &header, const Eigen::Isometry3d &pose);
