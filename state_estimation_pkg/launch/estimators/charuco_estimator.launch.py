@@ -64,6 +64,7 @@ def get_composable_node(**kwargs) -> ComposableNode:
         name="charuco_estimator",
         parameters=[{"tag.size": get_arg("board_size"), **config["estimator"]}],
         remappings=[
+            ("/apriltag_estimator/detections_filtered", "/charuco_estimator/detections_filtered"),
             ("/camera_info", get_arg("camera_info_topic_name")),
             ("/camera_twist", get_arg("camera_twist_topic_name")),
             ("/detections", get_arg("detections_topic_name")),
