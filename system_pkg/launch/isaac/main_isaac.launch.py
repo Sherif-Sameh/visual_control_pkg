@@ -22,7 +22,7 @@ TAG_SIZE = "0.08"
 
 CAMERA_INFO_TOPIC_NAME = "/isaaclab/camera/camera_info"
 DESIRED_TRAJECTORY_TOPIC_NAME = "/isaaclab/command"
-DETECTIONS_FILTERED_TOPIC_NAME = "/marker_estimator/detections_filtered"
+DETECTIONS_FILTERED_TOPIC_NAME = "/apriltag_estimator/detections_filtered"
 DETECTIONS_TOPIC_NAME = "/apriltag_detector/detections"
 IMAGE_TOPIC_NAME = "/isaaclab/camera/image_raw"
 JOINT_STATES_TOPIC_NAME = "/isaaclab/joint_states"

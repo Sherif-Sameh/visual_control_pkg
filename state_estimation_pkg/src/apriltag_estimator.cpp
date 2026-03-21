@@ -1,7 +1,7 @@
-#include "state_estimation_pkg/marker_estimator.hpp"
+#include "state_estimation_pkg/apriltag_estimator.hpp"
 
-MarkerEstimator::MarkerEstimator(const rclcpp::NodeOptions &options)
-    : Node("marker_estimator", options)
+ApriltagEstimator::ApriltagEstimator(const rclcpp::NodeOptions &options)
+    : Node("apriltag_estimator", options)
 {
     // Declare ROS parameters
     this->declare_parameter("tag.timeout", rclcpp::PARAMETER_DOUBLE);
@@ -26,21 +26,21 @@ MarkerEstimator::MarkerEstimator(const rclcpp::NodeOptions &options)
     init_ekf();
 
     // Initialize ROS attributes
-    m_pub_tag =
-        this->create_publisher<AprilTagDetectionArray>("/marker_estimator/detections_filtered", 0);
+    m_pub_tag = this->create_publisher<AprilTagDetectionArray>(
+        "/apriltag_estimator/detections_filtered", 0);
     m_sub_cam_info = this->create_subscription<sensor_msgs::msg::CameraInfo>(
-        "/camera_info", 0, std::bind(&MarkerEstimator::callback_cam_info, this, _1));
+        "/camera_info", 0, std::bind(&ApriltagEstimator::callback_cam_info, this, _1));
     m_sub_cam_twist = this->create_subscription<geometry_msgs::msg::TwistStamped>(
-        "/camera_twist", 0, std::bind(&MarkerEstimator::callback_cam_twist, this, _1));
+        "/camera_twist", 0, std::bind(&ApriltagEstimator::callback_cam_twist, this, _1));
     m_sub_tag = this->create_subscription<AprilTagDetectionArray>(
-        "/detections", 0, std::bind(&MarkerEstimator::callback_tag, this, _1));
+        "/detections", 0, std::bind(&ApriltagEstimator::callback_tag, this, _1));
     m_tf_broadcaster = std::make_unique<tf2_ros::TransformBroadcaster>(*this);
     m_cbh_param = this->add_on_set_parameters_callback(
-        std::bind(&MarkerEstimator::callback_params, this, _1));
+        std::bind(&ApriltagEstimator::callback_params, this, _1));
 }
 
-void MarkerEstimator::publish_tag(const std_msgs::msg::Header &header,
-                                  const std::string &tag_family)
+void ApriltagEstimator::publish_tag(const std_msgs::msg::Header &header,
+                                    const std::string &tag_family)
 {
     if (!m_cam_K.has_value()) return;
 
@@ -61,8 +61,8 @@ void MarkerEstimator::publish_tag(const std_msgs::msg::Header &header,
     m_pub_tag->publish(msg);
 }
 
-void MarkerEstimator::make_tag_tfs(const std_msgs::msg::Header &header,
-                                   const std::string &tag_family)
+void ApriltagEstimator::make_tag_tfs(const std_msgs::msg::Header &header,
+                                     const std::string &tag_family)
 {
     std::vector<geometry_msgs::msg::TransformStamped> transforms;
     for (const auto &[id, ekf_stamped] : m_ekf_map)
@@ -83,7 +83,7 @@ void MarkerEstimator::make_tag_tfs(const std_msgs::msg::Header &header,
     m_tf_broadcaster->sendTransform(transforms);
 }
 
-void MarkerEstimator::callback_cam_info(const sensor_msgs::msg::CameraInfo::SharedPtr msg)
+void ApriltagEstimator::callback_cam_info(const sensor_msgs::msg::CameraInfo::SharedPtr msg)
 {
     if (!m_cam_K.has_value())
     {
@@ -93,7 +93,7 @@ void MarkerEstimator::callback_cam_info(const sensor_msgs::msg::CameraInfo::Shar
         msg->k[7], msg->k[8];
 }
 
-void MarkerEstimator::callback_cam_twist(const geometry_msgs::msg::TwistStamped::SharedPtr msg)
+void ApriltagEstimator::callback_cam_twist(const geometry_msgs::msg::TwistStamped::SharedPtr msg)
 {
     std::optional<double> dt = m_tag_cb_pc.get();
     if (!dt.has_value()) return;
@@ -106,7 +106,7 @@ void MarkerEstimator::callback_cam_twist(const geometry_msgs::msg::TwistStamped:
     }
 }
 
-void MarkerEstimator::callback_tag(const AprilTagDetectionArray::SharedPtr msg)
+void ApriltagEstimator::callback_tag(const AprilTagDetectionArray::SharedPtr msg)
 {
     if (msg->detections.size() == 0) return;
 
@@ -147,7 +147,7 @@ void MarkerEstimator::callback_tag(const AprilTagDetectionArray::SharedPtr msg)
 }
 
 rcl_interfaces::msg::SetParametersResult
-MarkerEstimator::callback_params(const std::vector<rclcpp::Parameter> &parameters)
+ApriltagEstimator::callback_params(const std::vector<rclcpp::Parameter> &parameters)
 {
     rcl_interfaces::msg::SetParametersResult result;
     result.successful = true;
@@ -197,7 +197,7 @@ MarkerEstimator::callback_params(const std::vector<rclcpp::Parameter> &parameter
     return result;
 }
 
-void MarkerEstimator::init_ekf()
+void ApriltagEstimator::init_ekf()
 {
     std::vector<double> P0_diag = this->get_parameter("ekf.P0_diag").as_double_array();
     std::vector<double> Q_diag = this->get_parameter("ekf.Q_diag").as_double_array();
@@ -213,9 +213,9 @@ void MarkerEstimator::init_ekf()
     m_ekf_map.clear();
 }
 
-AprilTagDetection MarkerEstimator::create_tag_detection(const std::string &family, const int id,
-                                                        const Eigen::Isometry3d &T_tag_cam,
-                                                        const Covariance &cov)
+AprilTagDetection ApriltagEstimator::create_tag_detection(const std::string &family, const int id,
+                                                          const Eigen::Isometry3d &T_tag_cam,
+                                                          const Covariance &cov)
 {
     auto img_pts = project_points(T_tag_cam);
     Eigen::Vector2d ctr_pt =
@@ -236,7 +236,7 @@ AprilTagDetection MarkerEstimator::create_tag_detection(const std::string &famil
     return tag_dtn;
 }
 
-std::array<Eigen::Vector2d, 4> MarkerEstimator::project_points(const Eigen::Isometry3d &T_tag_cam)
+std::array<Eigen::Vector2d, 4> ApriltagEstimator::project_points(const Eigen::Isometry3d &T_tag_cam)
 {
     std::array<Eigen::Vector2d, 4> img_pts;
     for (std::size_t i = 0; i < m_tag_pts.size(); i++)
@@ -247,4 +247,4 @@ std::array<Eigen::Vector2d, 4> MarkerEstimator::project_points(const Eigen::Isom
     return img_pts;
 }
 
-RCLCPP_COMPONENTS_REGISTER_NODE(MarkerEstimator)
+RCLCPP_COMPONENTS_REGISTER_NODE(ApriltagEstimator)

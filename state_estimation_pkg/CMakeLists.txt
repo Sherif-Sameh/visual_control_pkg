@@ -33,8 +33,8 @@ include_directories(include)
 include_directories(${vc_core_INCLUDE_DIRS})
 
 # Create C++ library for composable nodes
-add_library(marker_estimator_component SHARED src/marker_estimator.cpp)
-ament_target_dependencies(marker_estimator_component 
+add_library(apriltag_estimator_component SHARED src/apriltag_estimator.cpp)
+ament_target_dependencies(apriltag_estimator_component 
   rclcpp
   rcl_interfaces
   rclcpp_components
@@ -45,15 +45,15 @@ ament_target_dependencies(marker_estimator_component
   isaac_ros_apriltag
 )
 rclcpp_components_register_node(
-    marker_estimator_component
-    PLUGIN "MarkerEstimator"
-    EXECUTABLE marker_estimator
+    apriltag_estimator_component
+    PLUGIN "ApriltagEstimator"
+    EXECUTABLE apriltag_estimator
 )
 
 # Install C++ composable nodes
-ament_export_targets(export_marker_estimator_component)
-install(TARGETS marker_estimator_component
-        EXPORT export_marker_estimator_component
+ament_export_targets(export_apriltag_estimator_component)
+install(TARGETS apriltag_estimator_component
+        EXPORT export_apriltag_estimator_component
         ARCHIVE DESTINATION lib
         LIBRARY DESTINATION lib
         RUNTIME DESTINATION bin
