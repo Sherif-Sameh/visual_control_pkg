@@ -115,7 +115,7 @@ void CharucoDetector::callback_image(const sensor_msgs::msg::Image::SharedPtr ms
         cv::Mat img_cp;
         cv_ptr->image.copyTo(img_cp);
         cv::aruco::drawDetectedMarkers(img_cp, marker_corners, marker_ids);
-        cv::aruco::drawDetectedCornersCharuco(img_cp, charuco_corners, charuco_ids);
+        cv::aruco::drawDetectedCornersCharuco(img_cp, charuco_corners);
         cv::drawFrameAxes(img_cp, *m_cam_K, cv::noArray(), rvec, tvec, 0.1f);
         auto msg_out = cv_bridge::CvImage(msg->header, msg->encoding, img_cp).toImageMsg();
         m_pub_image->publish(*msg_out);
@@ -193,7 +193,7 @@ Eigen::Isometry3d CharucoDetector::transform_board_pose(const cv::Vec3d &tvec,
     Eigen::Isometry3d pose = t * tu;
 
     // Move pose to board center and flip axes to X (right), Y (down), Z (in)
-    Eigen::Translation3d t_offset(m_board_size(0) / 2, -m_board_size(1) / 2, 0);
+    Eigen::Translation3d t_offset(m_board_size(0) / 2, m_board_size(1) / 2, 0);
     Eigen::AngleAxisd tu_offset(M_PI, Eigen::Vector3d::UnitX());
     pose = (pose * t_offset).rotate(tu_offset);
     return pose;
