@@ -1,0 +1,21 @@
+### ChArUco Detector Configuration ###
+
+[detector]
+
+# Adaptive thresholding parameters
+"params.at.ws.min" = 3
+"params.at.ws.max" = 23
+"params.at.ws.step" = 10
+"params.at.const" = 7.0
+
+# Marker perimeter rate parameters
+"params.mpr.min" = 0.03
+"params.mpr.max" = 4.0
+
+# Polygonal approximate accuracy rotate
+"params.paar" = 0.03
+
+# Corner refinement parameters
+"params.cr.ws" = 5
+"params.cr.mi" = 30
+"params.cr.ma" = 0.1

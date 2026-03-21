@@ -58,8 +58,8 @@ install(TARGETS
   DESTINATION lib/${PROJECT_NAME}
 )
 
-# Install launch directory
-install(DIRECTORY launch
+# Install launch and config directories
+install(DIRECTORY launch config
   DESTINATION share/${PROJECT_NAME})
 
 if(BUILD_TESTING)
