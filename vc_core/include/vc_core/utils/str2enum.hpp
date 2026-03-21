@@ -10,6 +10,7 @@
 #include <unordered_map>
 
 #include <opencv2/aruco/dictionary.hpp>
+#include <opencv2/calib3d.hpp>
 
 namespace utils
 {
@@ -38,6 +39,14 @@ namespace utils
                 {"DICT_APRILTAG_25h9", cv::aruco::DICT_APRILTAG_25h9},
                 {"DICT_APRILTAG_36h10", cv::aruco::DICT_APRILTAG_36h10},
                 {"DICT_APRILTAG_36h11", cv::aruco::DICT_APRILTAG_36h11}};
+
+        inline const std::unordered_map<std::string_view, cv::HandEyeCalibrationMethod>
+            cvHandEyeCalibrationMethodMap = {
+                {"CALIB_HAND_EYE_TSAI", cv::CALIB_HAND_EYE_TSAI},
+                {"CALIB_HAND_EYE_PARK", cv::CALIB_HAND_EYE_PARK},
+                {"CALIB_HAND_EYE_HORAUD", cv::CALIB_HAND_EYE_HORAUD},
+                {"CALIB_HAND_EYE_ANDREFF", cv::CALIB_HAND_EYE_ANDREFF},
+                {"CALIB_HAND_EYE_DANIILIDIS", cv::CALIB_HAND_EYE_DANIILIDIS}};
     } // namespace str2enum
 } // namespace utils
 
