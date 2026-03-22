@@ -134,7 +134,7 @@ PoseController::callback_params(const std::vector<rclcpp::Parameter> &parameters
                 failed("conv_ttol must be double");
                 break;
             }
-            m_conv_eps.first = std::pow(param.as_double(), 2);
+            m_conv_eps.m_ttol = std::pow(param.as_double(), 2);
         }
         if (param.get_name() == "ctrl.conv_rtol")
         {
@@ -143,7 +143,7 @@ PoseController::callback_params(const std::vector<rclcpp::Parameter> &parameters
                 failed("conv_rtol must be double");
                 break;
             }
-            m_conv_eps.second = std::pow(param.as_double(), 2);
+            m_conv_eps.m_rtol = std::pow(param.as_double(), 2);
         }
         // Controller lambda (gain)
         if (param.get_name() == "ctrl.lambda")
@@ -195,15 +195,15 @@ void PoseController::init_robot()
 
 void PoseController::init_controller()
 {
-    m_conv_eps.first = std::pow(this->get_parameter("ctrl.conv_ttol").as_double(), 2);
-    m_conv_eps.second = std::pow(this->get_parameter("ctrl.conv_rtol").as_double(), 2);
+    m_conv_eps.m_ttol = std::pow(this->get_parameter("ctrl.conv_ttol").as_double(), 2);
+    m_conv_eps.m_rtol = std::pow(this->get_parameter("ctrl.conv_rtol").as_double(), 2);
     m_lambda = this->get_parameter("ctrl.lambda").as_double_array();
 }
 
 bool PoseController::has_converged(const vpPoseVector &edPe)
 {
-    return (edPe.getTranslationVector().sumSquare() < m_conv_eps.first &&
-            edPe.getThetaUVector().sumSquare() < m_conv_eps.second);
+    return (edPe.getTranslationVector().sumSquare() < m_conv_eps.m_ttol &&
+            edPe.getThetaUVector().sumSquare() < m_conv_eps.m_rtol);
 }
 
 int main(int argc, char *argv[])

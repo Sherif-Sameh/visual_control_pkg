@@ -7,7 +7,6 @@
 #include <memory>
 #include <string>
 #include <unordered_map>
-#include <utility>
 #include <vector>
 
 #include <visp3/vs/vpServo.h>
@@ -71,7 +70,7 @@ private:
     // ViSP Attributes
     std::unordered_map<int, utils::structs::vpPoseFeature> m_pf;
     std::unordered_map<int, se::LowPassFilter<manif::SE3d>> m_cdMo_lpf;
-    std::pair<double, double> m_conv_eps;
+    utils::structs::PoseTolerance<double> m_conv_eps;
     vpColVector m_lambda, m_v_cam_ff;
     vpRobotRos m_robot;
     vpServo m_controller;

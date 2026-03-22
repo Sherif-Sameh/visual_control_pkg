@@ -6,7 +6,6 @@
 #include <memory>
 #include <optional>
 #include <string>
-#include <utility>
 #include <vector>
 
 #include <visp3/core/vpColVector.h>
@@ -25,6 +24,7 @@
 #include "vc_core/robot/vpRobotRos.hpp"
 #include "vc_core/utils/geometry.hpp"
 #include "vc_core/utils/mappings.hpp"
+#include "vc_core/utils/structs.hpp"
 #include "vc_core/utils/tf2.hpp"
 
 using std::placeholders::_1;
@@ -57,7 +57,7 @@ private:
 
     // Controller Attributes
     std::optional<vpHomogeneousMatrix> m_fMed;
-    std::pair<double, double> m_conv_eps;
+    utils::structs::PoseTolerance<double> m_conv_eps;
     vpColVector m_lambda;
     vpRobotRos m_robot;
 

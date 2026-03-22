@@ -225,7 +225,7 @@ PbvsController::callback_params(const std::vector<rclcpp::Parameter> &parameters
                 failed("conv_ttol must be double");
                 break;
             }
-            m_conv_eps.first = std::pow(param.as_double(), 2);
+            m_conv_eps.m_ttol = std::pow(param.as_double(), 2);
         }
         if (param.get_name() == "ctrl.conv_rtol")
         {
@@ -234,7 +234,7 @@ PbvsController::callback_params(const std::vector<rclcpp::Parameter> &parameters
                 failed("conv_rtol must be double");
                 break;
             }
-            m_conv_eps.second = std::pow(param.as_double(), 2);
+            m_conv_eps.m_rtol = std::pow(param.as_double(), 2);
         }
         // Controller lambda (gain)
         if (param.get_name() == "ctrl.lambda")
@@ -285,8 +285,8 @@ void PbvsController::init_robot()
 
 void PbvsController::init_controller()
 {
-    m_conv_eps.first = std::pow(this->get_parameter("ctrl.conv_ttol").as_double(), 2);
-    m_conv_eps.second = std::pow(this->get_parameter("ctrl.conv_rtol").as_double(), 2);
+    m_conv_eps.m_ttol = std::pow(this->get_parameter("ctrl.conv_ttol").as_double(), 2);
+    m_conv_eps.m_rtol = std::pow(this->get_parameter("ctrl.conv_rtol").as_double(), 2);
     m_lambda = this->get_parameter("ctrl.lambda").as_double_array();
     m_v_cam_ff.resize(6);
     m_v_cam_ff = 0.0;
@@ -326,8 +326,8 @@ bool PbvsController::has_converged(const std::vector<int> &valid_ids)
     return std::all_of(valid_ids.cbegin(), valid_ids.cend(),
                        [this](int id)
                        {
-                           return m_pf[id].m_t.get_s().sumSquare() < m_conv_eps.first &&
-                                  m_pf[id].m_tu.get_s().sumSquare() < m_conv_eps.second;
+                           return m_pf[id].m_t.get_s().sumSquare() < m_conv_eps.m_ttol &&
+                                  m_pf[id].m_tu.get_s().sumSquare() < m_conv_eps.m_rtol;
                        });
 }
 

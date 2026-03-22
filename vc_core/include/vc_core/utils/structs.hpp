@@ -30,6 +30,29 @@ namespace utils
         };
 
         /**
+         * @brief Struct grouping visp SE3 pose features together.
+         *
+         * Groups both a `vpFeatureTranslation` and a `vpFeatureThetaU` together.
+         */
+        struct vpPoseFeature
+        {
+            vpFeatureTranslation m_t;
+            vpFeatureThetaU m_tu;
+        };
+
+        /**
+         * @brief Struct grouping translation and rotation pose tolerances.
+         *
+         * @tparam Scalar Scalar type of the tolerances.
+         */
+        template <typename Scalar>
+        struct PoseTolerance
+        {
+            Scalar m_ttol; // Translation tolerance
+            Scalar m_rtol; // Rotation tolerance
+        };
+
+        /**
          * @brief Exponential moving average (EMA) generic template.
          *
          * The EMA very simply computes the latest value according to the following formula:
@@ -99,17 +122,6 @@ namespace utils
                 }
                 return std::nullopt;
             }
-        };
-
-        /**
-         * @brief Struct grouping visp SE3 pose features together.
-         *
-         * Groups both a `vpFeatureTranslation` and a `vpFeatureThetaU` together.
-         */
-        struct vpPoseFeature
-        {
-            vpFeatureTranslation m_t;
-            vpFeatureThetaU m_tu;
         };
     } // namespace structs
 } // namespace utils
