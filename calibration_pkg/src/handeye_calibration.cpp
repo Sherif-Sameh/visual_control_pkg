@@ -11,6 +11,7 @@ HandeyeCalibration::HandeyeCalibration() : Node("handeye_calibration")
     this->declare_parameter("calib.conv_ttol", rclcpp::PARAMETER_DOUBLE);
     this->declare_parameter("calib.conv_rtol", rclcpp::PARAMETER_DOUBLE);
     this->declare_parameter("calib.eng.n_poses", rclcpp::PARAMETER_INTEGER);
+    this->declare_parameter("calib.eng.rot_angle", rclcpp::PARAMETER_DOUBLE);
     this->declare_parameter("calib.eng.dist_to_target", rclcpp::PARAMETER_DOUBLE);
     this->declare_parameter("calib.eng.calib_method", rclcpp::PARAMETER_STRING);
 
@@ -60,10 +61,10 @@ void HandeyeCalibration::publish_target()
     m_pub_target->publish(msg);
 }
 
-void HandeyeCalibration::publish_target_tf()
+void HandeyeCalibration::publish_target_tf(const std_msgs::msg::Header &header)
 {
     geometry_msgs::msg::TransformStamped transform = tf2::eigenToTransform(m_target_cam);
-    transform.header.stamp = this->get_clock()->now();
+    transform.header.stamp = header.stamp;
     transform.header.frame_id = "charuco:0f";
     transform.child_frame_id = m_cam_frame + ":0";
     m_tf_broadcaster->sendTransform(transform);
@@ -114,7 +115,7 @@ void HandeyeCalibration::callback_dtn(const AprilTagDetectionArray::SharedPtr ms
 
     // Publish latest target
     publish_target();
-    publish_target_tf();
+    publish_target_tf(msg->header);
 }
 
 void HandeyeCalibration::callback_rst(const std_msgs::msg::Empty::SharedPtr msg)
@@ -150,10 +151,11 @@ HandeyeCalibration::callback_params(const std::vector<rclcpp::Parameter> &parame
             failed("calib.eng.n_poses must be integer");
             break;
         }
-        if (param.get_name() == "calib.eng.dist_to_target" &&
+        if ((param.get_name() == "calib.eng.dist_to_target" ||
+             param.get_name() == "calib.eng.rot_angle") &&
             param.get_type() != rclcpp::PARAMETER_DOUBLE)
         {
-            failed("calib.eng.dist_to_target must be double");
+            failed(param.get_name() + " must be double");
             break;
         }
         if (param.get_name() == "calib.eng.calib_method" &&
@@ -174,11 +176,13 @@ void HandeyeCalibration::init_calibration_engine()
 {
     std::size_t n_poses =
         static_cast<std::size_t>(this->get_parameter("calib.eng.n_poses").as_int());
+    double rot_angle = this->get_parameter("calib.eng.rot_angle").as_double();
     double dist_to_target = this->get_parameter("calib.eng.dist_to_target").as_double();
     cv::HandEyeCalibrationMethod calib_method = utils::str2enum::cvHandEyeCalibrationMethodMap.at(
         this->get_parameter("calib.eng.calib_method").as_string());
 
     m_engine.setNPoses(n_poses, false);
+    m_engine.setRotAngle(rot_angle, false);
     m_engine.setDistToTarget(dist_to_target, true);
     m_engine.setCalibMethod(calib_method);
     m_engine.getNextCameraPose(m_target_cam);

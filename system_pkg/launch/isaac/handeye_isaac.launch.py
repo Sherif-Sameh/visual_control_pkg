@@ -15,6 +15,7 @@ UR_TYPE = "ur10e"
 BASE_FRAME = "base_link"
 EE_FRAME = "wrist_3_link"
 CAM_FRAME = "camera_color_optical_frame"
+POSE_GT = "[-0.06, 0.0, -0.035, 1.0, 0.0, 0.0, 0.0]"
 
 DICT_NAME = "DICT_5X5_50"
 BOARD_XS = "10"
@@ -25,13 +26,13 @@ BOARD_SIZE = "0.290763547"
 TAG_IDS = "[0]"
 
 CAMERA_INFO_TOPIC_NAME = "/isaaclab/camera/camera_info"
-DESIRED_TRAJECTORY_TOPIC_NAME = "/calib/command"  # TODO: update
+DESIRED_TRAJECTORY_TOPIC_NAME = "/handeye_calibration/command"
 DETECTIONS_FILTERED_TOPIC_NAME = "/charuco_estimator/detections_filtered"
 DETECTIONS_TOPIC_NAME = "/charuco_detector/detections"
 IMAGE_TOPIC_NAME = "/isaaclab/camera/image_raw"
 JOINT_STATES_TOPIC_NAME = "/isaaclab/joint_states"
 JOINT_TRAJECTORY_TOPIC_NAME = "/isaaclab/joint_trajectory_controller/joint_trajectory"
-POSE_ERROR_TOPIC_NAME = "/isaaclab/calib_error"  # TODO: update
+POSE_ERROR_TOPIC_NAME = "/handeye_calibration/pose_error"
 RESTART_TOPIC_NAME = "/isaaclab/reset"
 
 
@@ -192,6 +193,7 @@ def declare_arguments() -> list[DeclareLaunchArgument]:
 
 def launch_setup(context) -> list[ComposableNodeContainer | IncludeLaunchDescription]:
     launch = []
+    launch.append(_launch_calibration_pkg())
     launch.append(_launch_control_pkg())
     launch.append(_launch_state_estimation_pkg(context))
     launch.append(_launch_vision_pkg(context))
@@ -215,6 +217,25 @@ def generate_launch_description() -> LaunchDescription:
 ##
 # Private functions
 ##
+
+
+def _launch_calibration_pkg() -> IncludeLaunchDescription:
+    return IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(
+            PathJoinSubstitution(
+                [FindPackageShare("calibration_pkg"), "launch", "calibration_pkg.launch.py"]
+            )
+        ),
+        launch_arguments={
+            "base_frame": BASE_FRAME,
+            "ee_frame": EE_FRAME,
+            "cam_frame": CAM_FRAME,
+            "pose_gt": POSE_GT,
+            "calibration": "handeye_calibration",
+            "detections_topic_name": DETECTIONS_FILTERED_TOPIC_NAME,
+            "restart_topic_name": RESTART_TOPIC_NAME,
+        }.items(),
+    )
 
 
 def _launch_control_pkg() -> IncludeLaunchDescription:

@@ -36,7 +36,7 @@ public:
 
 private:
     void publish_target();
-    void publish_target_tf();
+    void publish_target_tf(const std_msgs::msg::Header &header);
     void publish_error(const Eigen::Isometry3d &ee_cam);
     void callback_dtn(const AprilTagDetectionArray::SharedPtr msg);
     void callback_rst(const std_msgs::msg::Empty::SharedPtr msg);

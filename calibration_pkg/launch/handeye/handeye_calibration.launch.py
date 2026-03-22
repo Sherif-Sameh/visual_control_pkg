@@ -75,7 +75,7 @@ def generate_launch_description() -> LaunchDescription:
     calib_path = PathJoinSubstitution(
         [
             FindPackageShare("calibration_pkg"),
-            "../../../../src/visual_control_pkg/calibration_pkg/config/handeye.yaml",
+            "../../../../src/visual_control_pkg/calibration_pkg/config/handeye_params.toml",
         ]
     )
     pose_gt = LaunchConfiguration("pose_gt")
