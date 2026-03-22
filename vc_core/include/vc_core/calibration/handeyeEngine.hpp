@@ -49,10 +49,9 @@ namespace calib
 
     public:
         HandeyeEngine();
-        HandeyeEngine(const bool verbose, const std::size_t n_poses, const Scalar dist_to_target,
+        HandeyeEngine(const std::size_t n_poses, const Scalar dist_to_target,
                       const cv::HandEyeCalibrationMethod calib_method);
 
-        void setVerbose(const bool verbose);
         /**
          * @brief Set the number of target poses and optionally resample them.
          *
@@ -107,7 +106,6 @@ namespace calib
         bool writeToYaml(const std::string &path, const Isometry3x &ee_cam) const;
 
     protected:
-        bool m_verbose;
         std::size_t m_n_poses;
         Scalar m_dist_to_target;
         cv::HandEyeCalibrationMethod m_calib_method;
@@ -119,41 +117,23 @@ namespace calib
     // Definitions
     template <typename Scalar>
     HandeyeEngine<Scalar>::HandeyeEngine()
-        : m_verbose(false), m_n_poses(0), m_dist_to_target(0),
-          m_calib_method(cv::CALIB_HAND_EYE_TSAI)
+        : m_n_poses(0), m_dist_to_target(0), m_calib_method(cv::CALIB_HAND_EYE_TSAI)
     {
     }
 
     template <typename Scalar>
-    HandeyeEngine<Scalar>::HandeyeEngine(const bool verbose, const std::size_t n_poses,
-                                         const Scalar dist_to_target,
+    HandeyeEngine<Scalar>::HandeyeEngine(const std::size_t n_poses, const Scalar dist_to_target,
                                          const cv::HandEyeCalibrationMethod calib_method)
     {
-        setVerbose(verbose);
         setNPoses(n_poses, false);
         setDistToTarget(dist_to_target, true);
         setCalibMethod(calib_method);
     }
 
     template <typename Scalar>
-    void HandeyeEngine<Scalar>::setVerbose(const bool verbose)
-    {
-        if (verbose)
-        {
-            std::cout << "HandeyeEngine Settings:\n";
-            std::cout << "verbose: " << verbose << "\n" << std::endl;
-        }
-        m_verbose = verbose;
-    }
-    template <typename Scalar>
     void HandeyeEngine<Scalar>::setNPoses(const std::size_t n_poses, const bool resample)
     {
         assert(n_poses > 2);
-        if (m_verbose)
-        {
-            std::cout << "HandeyeEngine Settings:\n";
-            std::cout << "n_poses: " << n_poses << "\n" << std::endl;
-        }
         m_n_poses = n_poses;
         if (resample) sampleTargetPoses();
     }
@@ -162,11 +142,6 @@ namespace calib
     void HandeyeEngine<Scalar>::setDistToTarget(const Scalar dist_to_target, const bool resample)
     {
         assert(dist_to_target > 0);
-        if (m_verbose)
-        {
-            std::cout << "HandeyeEngine Settings:\n";
-            std::cout << "dist_to_target: " << dist_to_target << "\n" << std::endl;
-        }
         m_dist_to_target = dist_to_target;
         if (resample) sampleTargetPoses();
     }
@@ -174,11 +149,6 @@ namespace calib
     template <typename Scalar>
     void HandeyeEngine<Scalar>::setCalibMethod(const cv::HandEyeCalibrationMethod calib_method)
     {
-        if (m_verbose)
-        {
-            std::cout << "HandeyeEngine Settings:\n";
-            std::cout << "calib_method: " << calib_method << "\n" << std::endl;
-        }
         m_calib_method = calib_method;
     }
 
@@ -186,37 +156,18 @@ namespace calib
     void HandeyeEngine<Scalar>::addPoses(const Isometry3x &base_ee, const Isometry3x &cam_target)
     {
         std::size_t idx = m_base_ee.size();
-        if (idx == m_n_poses)
-        {
-            if (m_verbose)
-            {
-                std::cout << "HandeyeEngine Information:\n";
-                std::cout << "Pose buffers are full. Ignoring input poses.\n" << std::endl;
-            }
-            return;
-        }
+        if (idx == m_n_poses) return;
+
         m_base_ee.push_back(base_ee);
         m_cam_target.push_back(cam_target);
-        if (m_verbose)
-        {
-            std::cout << "HandeyeEngine Information:\n";
-            std::cout << "Gathered" << m_base_ee.size() << " poses so far.\n" << std::endl;
-        }
     }
 
     template <typename Scalar>
     bool HandeyeEngine<Scalar>::getNextCameraPose(Isometry3x &target_cam) const
     {
         std::size_t idx = m_base_ee.size();
-        if (idx == m_n_poses)
-        {
-            if (m_verbose)
-            {
-                std::cout << "HandeyeEngine Information:\n";
-                std::cout << "Pose buffers are full. No new target poses to return.\n" << std::endl;
-            }
-            return false;
-        }
+        if (idx == m_n_poses) return false;
+
         target_cam = m_target_cam[idx];
         return true;
     }
@@ -226,14 +177,14 @@ namespace calib
     {
         assert(path.length() > 0);
         assert(m_base_ee.size() == m_n_poses);
-        std::vector<cv::Mat, m_n_poses> R_base_ee, t_base_ee;
-        std::vector<cv::Mat, m_n_poses> R_cam_target, t_cam_target;
+        std::vector<cv::Mat> R_base_ee(m_n_poses), t_base_ee(m_n_poses);
+        std::vector<cv::Mat> R_cam_target(m_n_poses), t_cam_target(m_n_poses);
         for (std::size_t i = 0; i < m_n_poses; i++)
         {
-            cv::eigen2cv(m_base_ee[i].rotation(), R_base_ee[i]);
-            cv::eigen2cv(m_base_ee[i].translation(), t_base_ee[i]);
-            cv::eigen2cv(m_cam_target[i].rotation(), R_cam_target[i]);
-            cv::eigen2cv(m_cam_target[i].translation(), t_cam_target[i]);
+            cv::eigen2cv(m_base_ee[i].rotation().eval(), R_base_ee[i]);
+            cv::eigen2cv(m_base_ee[i].translation().eval(), t_base_ee[i]);
+            cv::eigen2cv(m_cam_target[i].rotation().eval(), R_cam_target[i]);
+            cv::eigen2cv(m_cam_target[i].translation().eval(), t_cam_target[i]);
         }
 
         cv::Mat R_ee_cam(3, 3, cv::DataType<Scalar>::type);
@@ -247,12 +198,11 @@ namespace calib
         cv::cv2eigen(t_ee_cam, t_ee_cam_eigen);
         ee_cam = Isometry3x::Identity();
         ee_cam.translation() = t_ee_cam_eigen;
-        ee_cam.rotation() = R_ee_cam_eigen;
+        ee_cam.linear() = R_ee_cam_eigen;
 
         bool write_success = writeToYaml(path, ee_cam);
-        if (m_verbose && write_success)
+        if (write_success)
         {
-            std::cout << "HandeyeEngine Information:\n";
             std::cout << "Calibration output written to " << path << "\n" << std::endl;
         }
         return write_success;
@@ -275,12 +225,6 @@ namespace calib
         for (std::size_t i = 0; i < m_n_poses; i++)
         {
             m_target_cam[i] = Isometry3x(target_cam_0).prerotate(rotations[i]);
-        }
-
-        if (m_verbose)
-        {
-            std::cout << "HandeyeEngine Information:\n";
-            std::cout << "Sampled " << m_n_poses << " new target poses.\n" << std::endl;
         }
     }
 
@@ -323,17 +267,15 @@ namespace calib
 
         // write out to yaml file
         std::ofstream file(path);
-        if (m_verbose && !file)
+        if (!file)
         {
-            std::cerr << "HandeyeEngine Error:\n";
-            std::cerr << "Could not open file at " << path < < < < "\n" << std::endl;
+            std::cerr << "Could not open file at " << path << "\n" << std::endl;
             return false;
         }
         file << out.c_str();
         if (file.bad())
         {
-            std::cerr << "HandeyeEngine Error:\n";
-            std::cerr << "Could not write to file at " << path < < < < "\n" << std::endl;
+            std::cerr << "Could not write to file at " << path << "\n" << std::endl;
             return false;
         }
         file.close();
