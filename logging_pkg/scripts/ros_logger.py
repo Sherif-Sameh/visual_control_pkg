@@ -138,11 +138,11 @@ class ROSLogger(Node):
         self._loggers.close()
 
     def callback_timer(self) -> None:
-        if len(self._metrics) < 4:
-            return
         for step, metric in self._metrics.values():
             self._loggers.log(step, metric.compute())
             metric.reset()
+        for _ in range(len(self._metrics), 4):
+            self._loggers.log(0, {})
 
     def callback_js(self, msg: JointState) -> None:
         if "js" not in self._metrics:

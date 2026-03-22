@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+import numpy as np
+
 from .base import Metric
 
 if TYPE_CHECKING:
@@ -22,10 +24,13 @@ class ComposeMetric(Metric):
     def compute(self) -> dict[str, NDArray]:
         """Computes and returns the values of all composed metrics.
 
+        Empty metrics (i.e. those that return NaN) are filtered out.
+
         Returns:
             Dictionary mapping metric names to their computed ndarray values.
         """
-        return {metric.name: metric.compute() for metric in self._metrics}
+        metrics = ((metric.name, metric.compute()) for metric in self._metrics)
+        return {name: value for name, value in metrics if not np.isnan(value[0])}
 
     def reset(self) -> None:
         """Resets all composed metrics' internal states."""
