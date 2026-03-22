@@ -19,7 +19,9 @@ endif()
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(rcl_interfaces REQUIRED)
+find_package(std_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
+find_package(tf2_eigen REQUIRED)
 find_package(tf2_ros REQUIRED)
 find_package(trajectory_msgs REQUIRED)
 
@@ -31,6 +33,27 @@ find_package(isaac_ros_apriltag REQUIRED)
 include_directories(include)
 include_directories(${vc_core_INCLUDE_DIRS})
 include_directories(${EIGEN3_INCLUDE_DIRS})
+
+# Create C++ executables
+add_executable(handeye_calibration src/handeye_calibration.cpp)
+ament_target_dependencies(handeye_calibration 
+  rclcpp
+  rcl_interfaces
+  std_msgs
+  geometry_msgs
+  tf2_eigen
+  tf2_ros
+  trajectory_msgs
+  vc_core
+  Eigen3
+  isaac_ros_apriltag
+)
+
+# Install C++ executables
+install(TARGETS
+  handeye_calibration
+  DESTINATION lib/${PROJECT_NAME}
+)
 
 # Install launch and config directories
 install(DIRECTORY launch config

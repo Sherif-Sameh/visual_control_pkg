@@ -67,10 +67,12 @@ ament_export_dependencies(
   tf2_ros
   tf2_geometry_msgs
   Eigen3
+  OpenCV
   VISP
   orocos_kdl_vendor
   kdl_parser
   manif
+  yaml_cpp_vendor
 )
 
 install(
