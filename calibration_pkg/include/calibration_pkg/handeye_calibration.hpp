@@ -33,7 +33,6 @@ class HandeyeCalibration : public rclcpp::Node
 {
 public:
     HandeyeCalibration();
-    void post_init();
 
 private:
     void publish_target();
@@ -52,12 +51,12 @@ private:
     std::string m_base_frame;
     std::string m_ee_frame;
     std::string m_cam_frame;
-    std::string m_config_path;
-    std::optional<Eigen::Isometry3d> m_pose_gt;
 
     // Calibration Attributes
-    bool m_calib_done;
+    bool m_done;
+    std::string m_path;
     Eigen::Isometry3d m_target_cam;
+    std::optional<Eigen::Isometry3d> m_pose_gt;
     utils::structs::PoseTolerance<double> m_conv_tol;
     calib::HandeyeEngine<double> m_engine;
 

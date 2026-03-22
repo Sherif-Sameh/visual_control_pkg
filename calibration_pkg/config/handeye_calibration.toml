@@ -1,0 +1,12 @@
+### HandEye Calibration Configuration ###
+
+[calibration]
+
+# Convergence tolerance parameters
+"calib.conv_ttol" = 0.01
+"calib.conv_rtol" = 0.05
+
+# Calibration engine parameters
+"calib.eng.n_poses" = 5
+"calib.eng.dist_to_target" = 0.2
+"calib.eng.calib_method" = "CALIB_HAND_EYE_TSAI"

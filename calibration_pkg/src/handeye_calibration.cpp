@@ -3,11 +3,11 @@
 HandeyeCalibration::HandeyeCalibration() : Node("handeye_calibration")
 {
     // Declare ROS parameters
-    this->declare_parameter("base_frame", rclcpp::PARAMETER_STRING);
-    this->declare_parameter("ee_frame", rclcpp::PARAMETER_STRING);
-    this->declare_parameter("cam_frame", rclcpp::PARAMETER_STRING);
-    this->declare_parameter("config_path", rclcpp::PARAMETER_STRING);
-    this->declare_parameter("pose_gt", rclcpp::PARAMETER_DOUBLE_ARRAY);
+    this->declare_parameter("frame.base_frame", rclcpp::PARAMETER_STRING);
+    this->declare_parameter("frame.ee_frame", rclcpp::PARAMETER_STRING);
+    this->declare_parameter("frame.cam_frame", rclcpp::PARAMETER_STRING);
+    this->declare_parameter("calib.path", rclcpp::PARAMETER_STRING);
+    this->declare_parameter("calib.pose_gt", rclcpp::PARAMETER_DOUBLE_ARRAY);
     this->declare_parameter("calib.conv_ttol", rclcpp::PARAMETER_DOUBLE);
     this->declare_parameter("calib.conv_rtol", rclcpp::PARAMETER_DOUBLE);
     this->declare_parameter("calib.eng.n_poses", rclcpp::PARAMETER_INTEGER);
@@ -15,18 +15,18 @@ HandeyeCalibration::HandeyeCalibration() : Node("handeye_calibration")
     this->declare_parameter("calib.eng.calib_method", rclcpp::PARAMETER_STRING);
 
     // Initialize non-ROS class attributes
-    m_base_frame = this->get_parameter("base_frame").as_string();
-    m_ee_frame = this->get_parameter("ee_frame").as_string();
-    m_cam_frame = this->get_parameter("cam_frame").as_string();
-    m_config_path = this->get_parameter("config_path").as_string();
-    auto pose_gt = this->get_parameter("pose_gt").as_double_array();
+    m_base_frame = this->get_parameter("frame.base_frame").as_string();
+    m_ee_frame = this->get_parameter("frame.ee_frame").as_string();
+    m_cam_frame = this->get_parameter("frame.cam_frame").as_string();
+    m_path = this->get_parameter("calib.path").as_string();
+    auto pose_gt = this->get_parameter("calib.pose_gt").as_double_array();
     if (pose_gt.size() == 7)
     {
         Eigen::Translation3d t(pose_gt[0], pose_gt[1], pose_gt[2]);
         Eigen::Quaterniond q(pose_gt[3], pose_gt[4], pose_gt[5], pose_gt[6]);
         m_pose_gt = t * q;
     }
-    m_calib_done = false;
+    m_done = false;
     m_conv_tol.m_ttol = this->get_parameter("calib.conv_ttol").as_double();
     m_conv_tol.m_rtol = this->get_parameter("calib.conv_rtol").as_double();
     init_calibration_engine();
@@ -45,12 +45,6 @@ HandeyeCalibration::HandeyeCalibration() : Node("handeye_calibration")
     m_tf_broadcaster = std::make_unique<tf2_ros::TransformBroadcaster>(*this);
     m_cbh_param = this->add_on_set_parameters_callback(
         std::bind(&HandeyeCalibration::callback_params, this, _1));
-}
-
-void HandeyeCalibration::post_init()
-{
-    publish_target();
-    publish_target_tf();
 }
 
 void HandeyeCalibration::publish_target()
@@ -87,7 +81,7 @@ void HandeyeCalibration::publish_error(const Eigen::Isometry3d &ee_cam)
 
 void HandeyeCalibration::callback_dtn(const AprilTagDetectionArray::SharedPtr msg)
 {
-    if (m_calib_done) return;
+    if (m_done) return;
 
     // Get target wrt camera pose from detections
     auto it = std::find_if(msg->detections.cbegin(), msg->detections.cend(),
@@ -95,39 +89,39 @@ void HandeyeCalibration::callback_dtn(const AprilTagDetectionArray::SharedPtr ms
     if (it == msg->detections.cend()) return; // invalid detection
     Eigen::Isometry3d cam_target;
     tf2::fromMsg((*it).pose.pose.pose, cam_target);
-    if (!has_converged(cam_target)) return; // not yet converged to setpoint
 
-    // Store poses ee wrt base and target wrt camera poses
-    Eigen::Isometry3d base_ee;
-    if (!utils::ros_tf2::lookup_transform(m_base_frame, m_ee_frame, m_tf_buffer, base_ee)) return;
-    m_engine.addPoses(base_ee, cam_target);
+    if (has_converged(cam_target))
+    {
+        // Store poses ee wrt base and target wrt camera poses
+        Eigen::Isometry3d base_ee;
+        if (!utils::ros_tf2::lookup_transform(m_base_frame, m_ee_frame, m_tf_buffer, base_ee))
+            return;
+        m_engine.addPoses(base_ee, cam_target);
 
-    // Update setpoint or solve for params if done
-    bool updated = m_engine.getNextCameraPose(m_target_cam);
-    if (updated)
-    {
-        publish_target();
-        publish_target_tf();
-    }
-    else // all poses collected
-    {
-        m_calib_done = true;
-        Eigen::Isometry3d ee_cam;
-        m_engine.calibrateHandEye(m_config_path, ee_cam);
-        if (m_pose_gt.has_value())
+        // Update setpoint or solve for params if done
+        bool updated = m_engine.getNextCameraPose(m_target_cam);
+        if (!updated) // all poses collected
         {
-            publish_error(ee_cam);
+            m_done = true;
+            Eigen::Isometry3d ee_cam;
+            m_engine.calibrateHandEye(m_path, ee_cam);
+            if (m_pose_gt.has_value())
+            {
+                publish_error(ee_cam);
+            }
         }
     }
+
+    // Publish latest target
+    publish_target();
+    publish_target_tf();
 }
 
 void HandeyeCalibration::callback_rst(const std_msgs::msg::Empty::SharedPtr msg)
 {
     (void)msg;
-    // reset calibration engine and publish first setpoint
-    m_calib_done = false;
-    init_calibration_engine();
-    post_init();
+    m_done = false;
+    init_calibration_engine(); // reset calibration engine
 }
 
 rcl_interfaces::msg::SetParametersResult
@@ -171,7 +165,7 @@ HandeyeCalibration::callback_params(const std::vector<rclcpp::Parameter> &parame
     }
     if (result.successful)
     {
-        init_calibration_engine();
+        init_calibration_engine(); // reset calibration engine
     }
     return result;
 }
@@ -202,7 +196,6 @@ int main(int argc, char *argv[])
 {
     rclcpp::init(argc, argv);
     auto handeye_calibration = std::make_shared<HandeyeCalibration>();
-    handeye_calibration->post_init();
     rclcpp::spin(handeye_calibration);
     rclcpp::shutdown();
     return 0;
