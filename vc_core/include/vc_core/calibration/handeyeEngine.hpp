@@ -15,7 +15,8 @@
 #include <Eigen/Geometry>
 #include <opencv2/calib3d.hpp>
 #include <opencv2/core/eigen.hpp>
-#include <yaml-cpp/yaml.h>
+
+#include <toml++/toml.hpp>
 
 namespace calib
 {
@@ -34,7 +35,7 @@ namespace calib
      * target `n_poses`.
      *
      * 4) Solving for the calibration parameters (i.e. pose of the camera wrt the EE) and writing
-     * them into a `YAML` config file.
+     * them into a `toml` config file.
      *
      * Internally, `OpenCV` is used for solving for the hand-eye calibration parameters
      * (i.e. the pose of the camera wrt the end-effector). Externally, an `Eigen`-based interface is
@@ -49,8 +50,8 @@ namespace calib
 
     public:
         HandeyeEngine();
-        HandeyeEngine(const std::size_t n_poses, const Scalar dist_to_target,
-                      const cv::HandEyeCalibrationMethod calib_method);
+        HandeyeEngine(const std::size_t n_poses, const Scalar rot_angle,
+                      const Scalar dist_to_target, const cv::HandEyeCalibrationMethod calib_method);
 
         /**
          * @brief Set the number of target poses and optionally resample them.
@@ -59,6 +60,13 @@ namespace calib
          * @param[in] resample Resample target poses after update. Defaults to `true`.
          */
         void setNPoses(const std::size_t n_poses, const bool resample = true);
+        /**
+         * @brief Set the rotation angle for sampling target poses and optionally resample them.
+         *
+         * @param[in] rot_angle Rotation angle in radians for generating target pose samples.
+         * @param[in] resample Resample target poses after update. Defaults to `true`.
+         */
+        void setRotAngle(const Scalar rot_angle, const bool resample = true);
         /**
          * @brief Set the distance of the camera to the target for target poses and optionally
          * resample them.
@@ -91,9 +99,9 @@ namespace calib
          */
         bool getNextCameraPose(Isometry3x &target_cam) const;
         /**
-         * @brief Solve for the calibration parameters and write them out to a `YAML` config file.
+         * @brief Solve for the calibration parameters and write them out to a `toml` config file.
          *
-         * @param[in] path Path for the config `.yaml` file for writing calibration parameters.
+         * @param[in] path Path for the config `.toml` file for writing calibration parameters.
          * @param[out] ee_cam Computed pose of camera wrt EE from calibration procedure.
          * @return `true` if calibration parameters were written successfully to the config file.
          * @return `false` otherwise.
@@ -103,10 +111,11 @@ namespace calib
     protected:
         void sampleTargetPoses();
         void sampleRotations(std::vector<Eigen::AngleAxis<Scalar>> &rotations) const;
-        bool writeToYaml(const std::string &path, const Isometry3x &ee_cam) const;
+        bool writeToFile(const std::string &path, const Isometry3x &ee_cam) const;
 
     protected:
         std::size_t m_n_poses;
+        Scalar m_rot_angle;
         Scalar m_dist_to_target;
         cv::HandEyeCalibrationMethod m_calib_method;
         std::vector<Isometry3x> m_target_cam;
@@ -122,10 +131,12 @@ namespace calib
     }
 
     template <typename Scalar>
-    HandeyeEngine<Scalar>::HandeyeEngine(const std::size_t n_poses, const Scalar dist_to_target,
+    HandeyeEngine<Scalar>::HandeyeEngine(const std::size_t n_poses, const Scalar rot_angle,
+                                         const Scalar dist_to_target,
                                          const cv::HandEyeCalibrationMethod calib_method)
     {
         setNPoses(n_poses, false);
+        setRotAngle(rot_angle, false);
         setDistToTarget(dist_to_target, true);
         setCalibMethod(calib_method);
     }
@@ -135,6 +146,14 @@ namespace calib
     {
         assert(n_poses > 2);
         m_n_poses = n_poses;
+        if (resample) sampleTargetPoses();
+    }
+
+    template <typename Scalar>
+    void HandeyeEngine<Scalar>::setRotAngle(const Scalar rot_angle, const bool resample)
+    {
+        assert(rot_angle > 0);
+        m_rot_angle = rot_angle;
         if (resample) sampleTargetPoses();
     }
 
@@ -200,7 +219,7 @@ namespace calib
         ee_cam.translation() = t_ee_cam_eigen;
         ee_cam.linear() = R_ee_cam_eigen;
 
-        bool write_success = writeToYaml(path, ee_cam);
+        bool write_success = writeToFile(path, ee_cam);
         if (write_success)
         {
             std::cout << "Calibration output written to " << path << "\n" << std::endl;
@@ -232,47 +251,37 @@ namespace calib
     void
     HandeyeEngine<Scalar>::sampleRotations(std::vector<Eigen::AngleAxis<Scalar>> &rotations) const
     {
-        Scalar angle = static_cast<Scalar>(M_PI) / m_n_poses;
+        Scalar angle = static_cast<Scalar>(2 * M_PI) / m_n_poses;
         rotations.resize(m_n_poses);
         for (std::size_t i = 0; i < m_n_poses; i++)
         {
             Eigen::Matrix<Scalar, 3, 1> axis(std::cos(i * angle), std::sin(i * angle), 0);
-            rotations[i] = Eigen::AngleAxis<Scalar>(angle, axis);
+            rotations[i] = Eigen::AngleAxis<Scalar>(m_rot_angle, axis);
         }
     }
 
     template <typename Scalar>
-    bool HandeyeEngine<Scalar>::writeToYaml(const std::string &path, const Isometry3x &ee_cam) const
+    bool HandeyeEngine<Scalar>::writeToFile(const std::string &path, const Isometry3x &ee_cam) const
     {
-        YAML::Emitter out;
-        out << YAML::BeginMap;
-        // write out calibration config info
-        out << YAML::Key << "config" << YAML::Value;
-        out << YAML::BeginMap;
-        out << YAML::Key << "n_poses" << YAML::Value << m_n_poses;
-        out << YAML::Key << "dist_to_target" << YAML::Value << m_dist_to_target;
-        out << YAML::Key << "calib_method" << YAML::Value << m_calib_method;
-        out << YAML::EndMap;
-
-        // write out calibration output pose
         auto t = ee_cam.translation();
         Eigen::Quaternion<Scalar> q(ee_cam.rotation());
-        out << YAML::Key << "pose" << YAML::Value;
-        out << YAML::BeginMap;
-        out << YAML::Key << "translation" << YAML::Value << YAML::Flow;
-        out << YAML::BeginSeq << t.x() << t.y() << t.z() << YAML::EndSeq;
-        out << YAML::Key << "rotation" << YAML::Value << YAML::Flow;
-        out << YAML::BeginSeq << q.w() << q.x() << q.y() << q.z() << YAML::EndSeq;
-        out << YAML::EndMap << YAML::EndMap;
+        auto tbl = toml::table{
+            {"config", toml::table{{"n_poses", static_cast<int>(m_n_poses)},
+                                   {"rot_angle", m_rot_angle},
+                                   {"dist_to_target", m_dist_to_target},
+                                   {"calib_method", m_calib_method}}},
+            {"pose", toml::table{{"translation", toml::array{t.x(), t.y(), t.z()}},
+                                 {"rotation", toml::array{q.w(), q.x(), q.y(), q.z()}}}},
+        };
 
-        // write out to yaml file
+        // write to toml file
         std::ofstream file(path);
         if (!file)
         {
             std::cerr << "Could not open file at " << path << "\n" << std::endl;
             return false;
         }
-        file << out.c_str();
+        file << tbl;
         if (file.bad())
         {
             std::cerr << "Could not write to file at " << path << "\n" << std::endl;

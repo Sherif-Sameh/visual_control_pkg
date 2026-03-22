@@ -31,7 +31,7 @@ find_package(VISP COMPONENTS core robot visual_features vs REQUIRED)
 find_package(orocos_kdl_vendor REQUIRED)
 find_package(kdl_parser REQUIRED)
 find_package(manif REQUIRED)
-find_package(yaml_cpp_vendor REQUIRED)
+find_package(tomlplusplus REQUIRED)
 
 # Include C++ "include" directory
 include_directories(include)
@@ -72,7 +72,7 @@ ament_export_dependencies(
   orocos_kdl_vendor
   kdl_parser
   manif
-  yaml_cpp_vendor
+  tomlplusplus
 )
 
 install(
