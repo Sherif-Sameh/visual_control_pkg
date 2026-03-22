@@ -24,10 +24,7 @@
 
 #include "vc_core/filters/lowPassFilter.hpp"
 #include "vc_core/robot/vpRobotRos.hpp"
-#include "vc_core/utils/geometry.hpp"
-#include "vc_core/utils/mappings.hpp"
-#include "vc_core/utils/structs.hpp"
-#include "vc_core/utils/tf2.hpp"
+#include "vc_core/utils.hpp"
 
 using isaac_ros_apriltag_interfaces::msg::AprilTagDetection;
 using isaac_ros_apriltag_interfaces::msg::AprilTagDetectionArray;

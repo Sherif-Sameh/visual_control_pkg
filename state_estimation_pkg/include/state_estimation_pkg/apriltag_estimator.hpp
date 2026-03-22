@@ -22,9 +22,7 @@
 
 #include "vc_core/actions/se3Features.hpp"
 #include "vc_core/filters/ekf.hpp"
-#include "vc_core/utils/geometry.hpp"
-#include "vc_core/utils/mappings.hpp"
-#include "vc_core/utils/structs.hpp"
+#include "vc_core/utils.hpp"
 
 using isaac_ros_apriltag_interfaces::msg::AprilTagDetection;
 using isaac_ros_apriltag_interfaces::msg::AprilTagDetectionArray;

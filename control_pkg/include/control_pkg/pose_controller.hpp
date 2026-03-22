@@ -22,10 +22,7 @@
 #include "trajectory_msgs/msg/joint_trajectory.hpp"
 
 #include "vc_core/robot/vpRobotRos.hpp"
-#include "vc_core/utils/geometry.hpp"
-#include "vc_core/utils/mappings.hpp"
-#include "vc_core/utils/structs.hpp"
-#include "vc_core/utils/tf2.hpp"
+#include "vc_core/utils.hpp"
 
 using std::placeholders::_1;
 using vc::visp::vpRobotRos;
