@@ -138,6 +138,8 @@ class ROSLogger(Node):
         self._loggers.close()
 
     def callback_timer(self) -> None:
+        if self._loggers is None:
+            return
         for step, metric in self._metrics.values():
             self._loggers.log(step, metric.compute())
             metric.reset()
