@@ -1,0 +1,44 @@
+### HandEye Calibration Evaluation ROS Logger Configuration ###
+
+[logger]
+
+# General parameters
+timer_period = 0.1
+target_nodes = ["charuco_detector", "charuco_estimator", "handeye_evaluation"]
+
+# Console logger parameters
+"console.n_log" = 5
+"console.n_flush" = 5
+"console.filter" = ["JT", "PE"]
+"console.config.precision" = 3
+"console.config.separator" = "  "
+"console.config.sign" = "+"
+
+# CSV logger parameters
+"csv.n_log" = 1
+"csv.n_flush" = 100
+"csv.filter" = [""]
+
+# WandB logger parameters
+"wandb.n_log" = 1
+"wandb.n_flush" = 40
+"wandb.filter" = ["JS", "JT", "PE"]
+"wandb.config.entity" = "u1999168-girona"
+"wandb.config.project" = "visual_control|heeval"
+"wandb.config.params" = [
+    "charuco_detector-params.at.ws.min",
+    "charuco_detector-params.at.ws.max",
+    "charuco_detector-params.at.ws.step",
+    "charuco_detector-params.cr.ws",
+    "charuco_detector-params.cr.mi",
+    "charuco_detector-params.cr.ma",
+    "charuco_estimator-ekf.P0_diag",
+    "charuco_estimator-ekf.Q_diag",
+    "charuco_estimator-ekf.R_diag",
+    "handeye_evaluation-calib.conv_ttol",
+    "handeye_evaluation-calib.conv_rtol",
+    "handeye_evaluation-calib.lpf_coeff",
+    "handeye_evaluation-calib.eng.n_poses",
+    "handeye_evaluation-calib.eng.rot_angle",
+    "handeye_evaluation-calib.eng.dist_to_target",
+]
