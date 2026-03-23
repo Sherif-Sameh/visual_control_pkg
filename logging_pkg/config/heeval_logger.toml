@@ -4,7 +4,7 @@
 
 # General parameters
 timer_period = 0.1
-target_nodes = ["charuco_detector", "charuco_estimator", "handeye_evaluation"]
+target_nodes = ["charuco_detector", "handeye_evaluation"]
 
 # Console logger parameters
 "console.n_log" = 5
@@ -32,9 +32,6 @@ target_nodes = ["charuco_detector", "charuco_estimator", "handeye_evaluation"]
     "charuco_detector-params.cr.ws",
     "charuco_detector-params.cr.mi",
     "charuco_detector-params.cr.ma",
-    "charuco_estimator-ekf.P0_diag",
-    "charuco_estimator-ekf.Q_diag",
-    "charuco_estimator-ekf.R_diag",
     "handeye_evaluation-calib.conv_ttol",
     "handeye_evaluation-calib.conv_rtol",
     "handeye_evaluation-calib.lpf_coeff",

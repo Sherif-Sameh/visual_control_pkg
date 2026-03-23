@@ -7,7 +7,7 @@
 "calib.conv_rtol" = 0.1
 
 # Target wrt base LPF parameters
-"calib.lpf_coeff" = 0.5
+"calib.lpf_coeff" = 0.7
 
 # Calibration engine parameters
 "calib.eng.n_poses" = 16

@@ -55,7 +55,7 @@ void HandeyeEvaluation::publish_target_tf(const std_msgs::msg::Header &header)
     geometry_msgs::msg::TransformStamped transform = tf2::eigenToTransform(m_base_ee_d);
     transform.header.stamp = header.stamp;
     transform.header.frame_id = m_base_frame;
-    transform.child_frame_id = m_ee_frame;
+    transform.child_frame_id = m_ee_frame + ":0";
     m_tf_broadcaster->sendTransform(transform);
 }
 
@@ -81,15 +81,22 @@ void HandeyeEvaluation::callback_dtn(const AprilTagDetectionArray::SharedPtr msg
     Eigen::Isometry3d cam_target;
     tf2::fromMsg((*it).pose.pose.pose, cam_target);
 
-    // Get ee wrt base pose and update target wrt base pose
+    // Get ee wrt base pose and initialize target wrt base pose
     Eigen::Isometry3d base_ee;
     if (!utils::ros_tf2::lookup_transform(m_base_frame, m_ee_frame, m_tf_buffer, base_ee)) return;
-    if (n < m_n_poses / 2) update_base_target(base_ee, cam_target);
+    if (!m_base_target_lpf.has_value()) update_base_target(base_ee, cam_target);
 
     if (has_converged(base_ee))
     {
-        // Publish pose error between expected and actual camera poses
-        if (n >= m_n_poses / 2) publish_error(cam_target);
+        // Update target wrt base pose/publish pose error
+        if (n < m_n_poses / 2)
+        {
+            update_base_target(base_ee, cam_target);
+        }
+        else
+        {
+            publish_error(cam_target);
+        }
         // Add poses to increment count and update setpoint
         m_engine.addPoses(base_ee, cam_target);
         bool updated = m_engine.getNextCameraPose(m_target_cam_d);
