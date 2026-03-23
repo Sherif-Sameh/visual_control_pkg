@@ -161,9 +161,9 @@ def declare_arguments() -> list[DeclareLaunchArgument]:
     declared_arguments.append(
         DeclareLaunchArgument(
             "rviz_config",
-            default_value="isaac.rviz",
+            default_value="isaac/isaac.rviz",
             description="File name for the .rviz configuration file to load."
-            " Default is isaac.rviz.",
+            " Default is isaac/isaac.rviz.",
         )
     )
     declared_arguments.append(
