@@ -89,7 +89,7 @@ def declare_arguments() -> list[DeclareLaunchArgument]:
             "logger",
             default_value="",
             description="Logger to launch. Default value '' is (empty string).",
-            choices=["pbvs", "ibvs", ""],
+            choices=["hecalib", ""],
         )
     )
     declared_arguments.append(
@@ -132,9 +132,9 @@ def declare_arguments() -> list[DeclareLaunchArgument]:
     declared_arguments.append(
         DeclareLaunchArgument(
             "wandb_group",
-            default_value="",
-            description="Group name for run to use for WandB logger. If an empty string, the group"
-            " name is set to uppercase(controller)|default. Default value empty string.",
+            default_value="HECalib|default",
+            description="Group name for run to use for WandB logger."
+            " Default value is HECalib|default.",
         )
     )
 
@@ -143,8 +143,8 @@ def declare_arguments() -> list[DeclareLaunchArgument]:
         DeclareLaunchArgument(
             "sweep",
             default_value="",
-            description="Sweep to launch. Default value '' is (empty string).",
-            choices=["pbvs", "ibvs", ""],
+            description="Sweep to launch. Default value is '' (empty string).",
+            choices=["hecalib", ""],
         )
     )
     declared_arguments.append(
@@ -165,7 +165,7 @@ def declare_arguments() -> list[DeclareLaunchArgument]:
     declared_arguments.append(
         DeclareLaunchArgument(
             "rviz_config",
-            default_value="isaac.rviz",
+            default_value="hecalib.rviz",
             description="File name for the .rviz configuration file to load."
             " Default is isaac.rviz.",
         )
@@ -198,7 +198,7 @@ def launch_setup(context) -> list[ComposableNodeContainer | IncludeLaunchDescrip
     launch.append(_launch_state_estimation_pkg(context))
     launch.append(_launch_vision_pkg(context))
     launch.append(_launch_logging_pkg(context))
-    launch.append(_launch_sweep_pkg(context))
+    launch.append(_launch_sweep_pkg())
     launch.append(_launch_visualization_pkg(context))
     if (charuco_container := _launch_charuco_container(context)) is not None:
         launch.append(charuco_container)
@@ -325,10 +325,8 @@ def _launch_logging_pkg(context: LaunchContext) -> IncludeLaunchDescription:
     console = LaunchConfiguration("console")
     csv = LaunchConfiguration("csv")
     wandb = LaunchConfiguration("wandb")
-    wandb_group = LaunchConfiguration("wandb_group").perform(context)
+    wandb_group = LaunchConfiguration("wandb_group")
     controller = LaunchConfiguration("controller").perform(context)
-    if wandb_group == "":
-        wandb_group = f"{controller.upper()}|default"
 
     return IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
@@ -353,14 +351,11 @@ def _launch_logging_pkg(context: LaunchContext) -> IncludeLaunchDescription:
     )
 
 
-def _launch_sweep_pkg(context: LaunchContext) -> IncludeLaunchDescription:
+def _launch_sweep_pkg() -> IncludeLaunchDescription:
     sweep = LaunchConfiguration("sweep")
     n_runs = LaunchConfiguration("n_runs")
     sweep_id = LaunchConfiguration("sweep_id")
-    wandb_group = LaunchConfiguration("wandb_group").perform(context)
-    controller = LaunchConfiguration("controller").perform(context)
-    if wandb_group == "":
-        wandb_group = f"{controller.upper()}|default"
+    wandb_group = LaunchConfiguration("wandb_group")
 
     return IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
