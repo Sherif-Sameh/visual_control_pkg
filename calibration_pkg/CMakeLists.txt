@@ -49,9 +49,21 @@ ament_target_dependencies(handeye_calibration
   isaac_ros_apriltag
 )
 
+add_executable(handeye_evaluation src/handeye_evaluation.cpp)
+ament_target_dependencies(handeye_evaluation 
+  rclcpp
+  geometry_msgs
+  tf2_eigen
+  tf2_ros
+  vc_core
+  Eigen3
+  isaac_ros_apriltag
+)
+
 # Install C++ executables
 install(TARGETS
   handeye_calibration
+  handeye_evaluation
   DESTINATION lib/${PROJECT_NAME}
 )
 
