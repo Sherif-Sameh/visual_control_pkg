@@ -232,6 +232,7 @@ def _include_pose_controller() -> IncludeLaunchDescription:
 
     joint_trajectory_topic_name = LaunchConfiguration("joint_trajectory_topic_name")
     joint_states_topic_name = LaunchConfiguration("joint_states_topic_name")
+    desired_trajectory_topic_name = LaunchConfiguration("desired_trajectory_topic_name")
 
     return IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
@@ -251,5 +252,6 @@ def _include_pose_controller() -> IncludeLaunchDescription:
             "ee_frame": ee_frame,
             "joint_trajectory_topic_name": joint_trajectory_topic_name,
             "joint_states_topic_name": joint_states_topic_name,
+            "desired_trajectory_topic_name": desired_trajectory_topic_name,
         }.items(),
     )

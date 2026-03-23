@@ -122,6 +122,14 @@ def declare_arguments() -> list[DeclareLaunchArgument]:
             " Default is /joint_states.",
         )
     )
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "desired_trajectory_topic_name",
+            default_value="/goal_pose",
+            description="Desired pose (geometry_msgs/PoseStamped) topic name."
+            " Default is /goal_pose.",
+        )
+    )
     return declared_arguments
 
 
@@ -144,6 +152,7 @@ def generate_launch_description() -> LaunchDescription:
 
     joint_trajectory_topic_name = LaunchConfiguration("joint_trajectory_topic_name")
     joint_states_topic_name = LaunchConfiguration("joint_states_topic_name")
+    desired_trajectory_topic_name = LaunchConfiguration("desired_trajectory_topic_name")
 
     # Initialize robot_description parameter
     robot_description_content = Command(
@@ -195,6 +204,7 @@ def generate_launch_description() -> LaunchDescription:
         remappings=[
             ("/joint_trajectory_controller/joint_trajectory", joint_trajectory_topic_name),
             ("/joint_states", joint_states_topic_name),
+            ("/goal_pose", desired_trajectory_topic_name),
         ],
     )
 
