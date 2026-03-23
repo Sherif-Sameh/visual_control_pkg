@@ -53,6 +53,7 @@ namespace calib
         HandeyeEngine(const std::size_t n_poses, const Scalar rot_angle,
                       const Scalar dist_to_target, const cv::HandEyeCalibrationMethod calib_method);
 
+        std::size_t getNPosesStored() const;
         /**
          * @brief Set the number of target poses and optionally resample them.
          *
@@ -93,7 +94,7 @@ namespace calib
          *
          * @param[out] target_cam Next camera wrt target pose to track. Is not updated if all target
          * poses have already been processed.
-         * @return `true` if there are remaining target pose and `target_cam` has been updated
+         * @return `true` if there are remaining target poses and `target_cam` has been updated
          * correctly.
          * @return `false` otherwise.
          */
@@ -101,7 +102,8 @@ namespace calib
         /**
          * @brief Solve for the calibration parameters and write them out to a `toml` config file.
          *
-         * @param[in] path Path for the config `.toml` file for writing calibration parameters.
+         * @param[in] path Path for the config `.toml` file for writing calibration parameters. If
+         * empty, no write attempts are made.
          * @param[out] ee_cam Computed pose of camera wrt EE from calibration procedure.
          * @return `true` if calibration parameters were written successfully to the config file.
          * @return `false` otherwise.
@@ -139,6 +141,12 @@ namespace calib
         setRotAngle(rot_angle, false);
         setDistToTarget(dist_to_target, true);
         setCalibMethod(calib_method);
+    }
+
+    template <typename Scalar>
+    std::size_t HandeyeEngine<Scalar>::getNPosesStored() const
+    {
+        return m_base_ee.size();
     }
 
     template <typename Scalar>
@@ -194,7 +202,6 @@ namespace calib
     template <typename Scalar>
     bool HandeyeEngine<Scalar>::calibrateHandEye(const std::string &path, Isometry3x &ee_cam) const
     {
-        assert(path.length() > 0);
         assert(m_base_ee.size() == m_n_poses);
         std::vector<cv::Mat> R_base_ee(m_n_poses), t_base_ee(m_n_poses);
         std::vector<cv::Mat> R_cam_target(m_n_poses), t_cam_target(m_n_poses);
@@ -219,6 +226,7 @@ namespace calib
         ee_cam.translation() = t_ee_cam_eigen;
         ee_cam.linear() = R_ee_cam_eigen;
 
+        if (path.length() == 0) return true;
         bool write_success = writeToFile(path, ee_cam);
         if (write_success)
         {
