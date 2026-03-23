@@ -1,7 +1,11 @@
-from launch import LaunchContext, LaunchDescription
-from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription, OpaqueFunction
-from launch.launch_description_sources import PythonLaunchDescriptionSource
+import os
+
+import toml
+from ament_index_python.packages import get_package_share_directory
+from launch import LaunchDescription
+from launch.actions import DeclareLaunchArgument
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
+from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
 
 
@@ -28,20 +32,12 @@ def declare_arguments() -> list[DeclareLaunchArgument]:
     declared_arguments.append(
         DeclareLaunchArgument(
             "wandb_group",
-            default_value="group",
-            description="Group name for run to use for WandB logger. Default value group.",
+            default_value="HECalib|ideal",
+            description="Group name for run to use for WandB logger. Default is HECalib|ideal.",
         )
     )
 
     # General arguments
-    declared_arguments.append(
-        DeclareLaunchArgument(
-            "sweep",
-            default_value="",
-            description="Sweep to launch. Default value '' is (empty string).",
-            choices=["pbvs", "ibvs", "hecalib", ""],
-        )
-    )
     declared_arguments.append(
         DeclareLaunchArgument(
             "joint_states_topic_name",
@@ -68,55 +64,46 @@ def declare_arguments() -> list[DeclareLaunchArgument]:
     return declared_arguments
 
 
-def launch_setup(context: LaunchContext) -> list[IncludeLaunchDescription]:
-    sweep = LaunchConfiguration("sweep").perform(context)
-    # Launch chosen sweep
-    match sweep:
-        case "pbvs":
-            return [_include_ros_sweep("pbvs")]
-        case "ibvs":
-            return [_include_ros_sweep("ibvs")]
-        case "hecalib":
-            return [_include_ros_sweep("hecalib")]
-        case _:
-            return []
-
-
 def generate_launch_description() -> LaunchDescription:
     # Declare arguments
     declared_arguments = declare_arguments()
 
-    # Add opaque functions
-    opaque_functions = [OpaqueFunction(function=launch_setup)]
-    return LaunchDescription(declared_arguments + opaque_functions)
-
-
-##
-# Private functions
-##
-
-
-def _include_ros_sweep(label: str) -> IncludeLaunchDescription:
+    # Initialize Arguments
     n_runs = LaunchConfiguration("n_runs")
     sweep_id = LaunchConfiguration("sweep_id")
     wandb_group = LaunchConfiguration("wandb_group")
+    wandb_dir = PathJoinSubstitution([FindPackageShare("sweep_pkg"), "../../../../logs/wandb"])
 
     joint_states_topic_name = LaunchConfiguration("joint_states_topic_name")
     pose_error_topic_name = LaunchConfiguration("pose_error_topic_name")
     restart_topic_name = LaunchConfiguration("restart_topic_name")
 
-    return IncludeLaunchDescription(
-        PythonLaunchDescriptionSource(
-            PathJoinSubstitution(
-                [FindPackageShare("sweep_pkg"), "launch", "sweeps", f"{label}_sweep.launch.py"]
-            )
-        ),
-        launch_arguments={
-            "n_runs": n_runs,
-            "sweep_id": sweep_id,
-            "wandb_group": wandb_group,
-            "joint_states_topic_name": joint_states_topic_name,
-            "pose_error_topic_name": pose_error_topic_name,
-            "restart_topic_name": restart_topic_name,
-        }.items(),
+    # Load configuration from toml
+    pkg_share = get_package_share_directory("sweep_pkg")
+    config_path = os.path.join(pkg_share, "config", "hecalib_sweep.toml")
+    config = toml.load(config_path)
+
+    # Initialize nodes to start
+    hecalib_sweeper_node = Node(
+        package="sweep_pkg",
+        executable="ros_sweeper.py",
+        output="screen",
+        parameters=[
+            {
+                "n_runs": n_runs,
+                "sweep.id": sweep_id,
+                "sweep.config": config_path,
+                "wandb.config.group": wandb_group,
+                "wandb.config.dir": wandb_dir,
+                **config["launch"],
+            }
+        ],
+        remappings=[
+            ("/joint_states", joint_states_topic_name),
+            ("/pose_error", pose_error_topic_name),
+            ("/ros_sweeper/restart", restart_topic_name),
+        ],
     )
+
+    nodes_to_start = [hecalib_sweeper_node]
+    return LaunchDescription(declared_arguments + nodes_to_start)

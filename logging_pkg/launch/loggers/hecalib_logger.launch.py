@@ -53,8 +53,8 @@ def declare_arguments() -> list[DeclareLaunchArgument]:
     declared_arguments.append(
         DeclareLaunchArgument(
             "wandb_group",
-            default_value="PBVS|ideal",
-            description="Group name for run to use for WandB logger. Default is PBVS|ideal.",
+            default_value="HECalib|ideal",
+            description="Group name for run to use for WandB logger. Default is HECalib|ideal.",
         )
     )
 

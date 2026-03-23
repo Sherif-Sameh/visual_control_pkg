@@ -1,0 +1,70 @@
+### HandEye Calibration ROS Sweep Configuration ###
+
+# Launch script parameters  
+[launch]
+
+# General parameters
+timer_period = 0.1
+n_runs_per_set = 3
+target_nodes = ["charuco_detector", "charuco_estimator", "handeye_calibration"]
+
+# Objective function parameters
+"obj.flags" = [
+    "jnt_vel",
+    "jnt_delta_vel",
+    "pos",
+    "rot",
+    "pose",
+]
+"obj.weights" = [
+    0.01,
+    0.05,
+    0.0,
+    0.0,
+    1.0,
+]
+
+# WandB logger parameters
+"wandb.n_log" = 1
+"wandb.n_flush" = 40
+"wandb.config.entity" = "u1999168-girona"
+"wandb.config.project" = "visual_control|hecalib_sweeps"
+"wandb.config.params" = [
+    "charuco_detector-params.at.ws.min",
+    "charuco_detector-params.at.ws.max",
+    "charuco_detector-params.at.ws.step",
+    "charuco_detector-params.cr.ws",
+    "charuco_detector-params.cr.mi",
+    "charuco_detector-params.cr.ma",
+    "charuco_estimator-ekf.P0_diag",
+    "charuco_estimator-ekf.R_diag",
+    "handeye_calibration-calib.conv_ttol",
+    "handeye_calibration-calib.conv_rtol",
+]
+
+
+# Sweep hyperparameters
+[sweep]
+program = "scripts/sweepers/ros_sweeper.py"
+method = "bayes"
+
+[sweep.metric]
+name = "objective"
+goal = "minimize"
+
+[sweep.parameters]
+"charuco_estimator-ekf.Q_diag.idx_01" = { distribution = "log_uniform_values", min = 1e-6, max = 1e-3 }
+"charuco_estimator-ekf.Q_diag.idx_2" = { distribution = "log_uniform_values", min = 1e-6, max = 1e-3 }
+"charuco_estimator-ekf.Q_diag.idx_34" = { distribution = "log_uniform_values", min = 1e-6, max = 1e-3 }
+"charuco_estimator-ekf.Q_diag.idx_5" = { distribution = "log_uniform_values", min = 1e-6, max = 1e-3 }
+
+"handeye_calibration-calib.eng.n_poses" = { values = [3, 5, 7, 9] }
+"handeye_calibration-calib.eng.rot_angle" = { min = 0.2, max = 1.0 }
+"handeye_calibration-calib.eng.dist_to_target" = { min = 0.35, max = 0.7 }
+[sweep.parameters."handeye_calibration-calib.eng.calib_method"]
+values = [
+    "CALIB_HAND_EYE_TSAI",
+    "CALIB_HAND_EYE_PARK",
+    "CALIB_HAND_EYE_HORAUD",
+    "CALIB_HAND_EYE_DANIILIDIS",
+]
