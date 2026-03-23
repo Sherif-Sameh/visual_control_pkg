@@ -1,0 +1,15 @@
+### HandEye Calibration Evaluation Configuration ###
+
+[calibration]
+
+# Convergence tolerance parameters
+"calib.conv_ttol" = 0.03
+"calib.conv_rtol" = 0.1
+
+# Target wrt base LPF parameters
+"calib.lpf_coeff" = 0.5
+
+# Calibration engine parameters
+"calib.eng.n_poses" = 16
+"calib.eng.rot_angle" = 0.3
+"calib.eng.dist_to_target" = 0.5

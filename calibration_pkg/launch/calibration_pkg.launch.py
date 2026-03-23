@@ -8,7 +8,7 @@ from launch_ros.substitutions import FindPackageShare
 def declare_arguments() -> list[DeclareLaunchArgument]:
     declared_arguments = []
 
-    # Hand-eye calibration arguments
+    # Hand-eye calibration/evaluation arguments
     declared_arguments.append(
         DeclareLaunchArgument(
             "base_frame",
@@ -75,6 +75,8 @@ def launch_setup(context: LaunchContext) -> list[IncludeLaunchDescription]:
     # Launch chosen nodes
     if "handeye_calibration" in calibration:
         launch.append(_include_handeye_calibration())
+    if "handeye_evaluation" in calibration:
+        launch.append(_include_handeye_evaluation())
     return launch
 
 
@@ -119,5 +121,30 @@ def _include_handeye_calibration() -> IncludeLaunchDescription:
             "pose_gt": pose_gt,
             "detections_topic_name": detections_topic_name,
             "restart_topic_name": restart_topic_name,
+        }.items(),
+    )
+
+
+def _include_handeye_evaluation() -> IncludeLaunchDescription:
+    base_frame = LaunchConfiguration("base_frame")
+    ee_frame = LaunchConfiguration("ee_frame")
+
+    detections_topic_name = LaunchConfiguration("detections_topic_name")
+
+    return IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(
+            PathJoinSubstitution(
+                [
+                    FindPackageShare("calibration_pkg"),
+                    "launch",
+                    "handeye",
+                    "handeye_evaluation.launch.py",
+                ]
+            )
+        ),
+        launch_arguments={
+            "base_frame": base_frame,
+            "ee_frame": ee_frame,
+            "detections_topic_name": detections_topic_name,
         }.items(),
     )
