@@ -179,6 +179,7 @@ void CharucoDetector::init_detector_params()
     m_params->minMarkerPerimeterRate = this->get_parameter("params.mpr.min").as_double();
     m_params->maxMarkerPerimeterRate = this->get_parameter("params.mpr.max").as_double();
     m_params->polygonalApproxAccuracyRate = this->get_parameter("params.paar").as_double();
+    m_params->cornerRefinementMethod = cv::aruco::CORNER_REFINE_SUBPIX;
     m_params->cornerRefinementWinSize = this->get_parameter("params.cr.ws").as_int();
     m_params->cornerRefinementMaxIterations = this->get_parameter("params.cr.mi").as_int();
     m_params->cornerRefinementMinAccuracy = this->get_parameter("params.cr.ma").as_double();
