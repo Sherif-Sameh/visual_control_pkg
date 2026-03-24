@@ -3,13 +3,13 @@
 [calibration]
 
 # Convergence tolerance parameters
-"calib.conv_ttol" = 0.03
-"calib.conv_rtol" = 0.1
+"calib.conv_ttol" = 0.01
+"calib.conv_rtol" = 0.005
 
 # Target wrt base LPF parameters
 "calib.lpf_coeff" = 0.7
 
 # Calibration engine parameters
 "calib.eng.n_poses" = 16
-"calib.eng.rot_angle" = 0.3
+"calib.eng.rot_angle" = 0.45
 "calib.eng.dist_to_target" = 0.5
