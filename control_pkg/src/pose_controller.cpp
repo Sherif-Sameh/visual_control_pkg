@@ -15,6 +15,7 @@ PoseController::PoseController() : Node("pose_controller")
     this->declare_parameter("robot.max_rvel", rclcpp::PARAMETER_DOUBLE);
     this->declare_parameter("robot.max_vel_sf", rclcpp::PARAMETER_DOUBLE);
     this->declare_parameter("robot.max_qdot", rclcpp::PARAMETER_DOUBLE_ARRAY);
+    this->declare_parameter("ctrl.lpf_coeff", rclcpp::PARAMETER_DOUBLE);
     this->declare_parameter("ctrl.conv_ttol", rclcpp::PARAMETER_DOUBLE);
     this->declare_parameter("ctrl.conv_rtol", rclcpp::PARAMETER_DOUBLE);
     this->declare_parameter("ctrl.lambda", rclcpp::PARAMETER_DOUBLE_ARRAY);
@@ -75,16 +76,18 @@ void PoseController::publish_perr(const vpPoseVector &edPe)
 
 void PoseController::callback_gp(const geometry_msgs::msg::PoseStamped::SharedPtr msg)
 {
-    m_fMed = utils::geometry::to_vp_hmatrix(msg->pose);
+    manif::SE3d fMed = utils::geometry::to_mnf_se3<double, true>(msg->pose);
+    if (!m_fMed_in.has_value())
+    {
+        m_fMed_lpf.setState(fMed);
+    }
+    m_fMed_in = std::move(fMed);
 }
 
 void PoseController::callback_js(const sensor_msgs::msg::JointState::SharedPtr msg)
 {
-    if (!m_fMed.has_value())
-    {
-        RCLCPP_DEBUG_STREAM(this->get_logger(), "No desired pose available.");
-        return;
-    }
+    if (!m_fMed_in.has_value()) return;
+    m_fMed_lpf.update(*m_fMed_in);
 
     m_joint_names = msg->name;
     m_robot.setJointPosition(msg->position);
@@ -92,7 +95,8 @@ void PoseController::callback_js(const sensor_msgs::msg::JointState::SharedPtr m
     if (!utils::ros_tf2::lookup_transform(m_base_frame, m_ee_frame, m_tf_buffer, fMe)) return;
 
     vpPoseVector edPe;
-    edPe.buildFrom(m_fMed.value().inverse() * fMe);
+    vpHomogeneousMatrix fMed = utils::geometry::to_vp_hmatrix(m_fMed_lpf.getState());
+    edPe.buildFrom(fMed.inverse() * fMe);
     vpColVector v_e(6, 0.0);
     if (!has_converged(edPe))
     {
@@ -195,6 +199,7 @@ void PoseController::init_robot()
 
 void PoseController::init_controller()
 {
+    m_fMed_lpf.setLPFCoeff(this->get_parameter("ctrl.lpf_coeff").as_double());
     m_conv_eps.m_ttol = std::pow(this->get_parameter("ctrl.conv_ttol").as_double(), 2);
     m_conv_eps.m_rtol = std::pow(this->get_parameter("ctrl.conv_rtol").as_double(), 2);
     m_lambda = this->get_parameter("ctrl.lambda").as_double_array();

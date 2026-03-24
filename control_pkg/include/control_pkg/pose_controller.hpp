@@ -21,6 +21,7 @@
 #include "tf2_ros/transform_listener.hpp"
 #include "trajectory_msgs/msg/joint_trajectory.hpp"
 
+#include "vc_core/filters/lowPassFilter.hpp"
 #include "vc_core/robot/vpRobotRos.hpp"
 #include "vc_core/utils.hpp"
 
@@ -53,7 +54,8 @@ private:
     std::vector<std::string> m_joint_names;
 
     // Controller Attributes
-    std::optional<vpHomogeneousMatrix> m_fMed;
+    std::optional<manif::SE3d> m_fMed_in;
+    se::LowPassFilter<manif::SE3d> m_fMed_lpf;
     utils::structs::PoseTolerance<double> m_conv_eps;
     vpColVector m_lambda;
     vpRobotRos m_robot;
