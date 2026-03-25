@@ -1,0 +1,32 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://ros.org/wiki/xacro">
+
+  <xacro:macro name="marker" params="
+    name
+    parent
+    xyz
+    rpy
+    size
+    texture_file
+    ">
+
+    <link name="${name}">
+      <visual>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <!-- plane to display marker on -->
+          <box size="${size} ${size} 0.001"/>
+        </geometry>
+        <material name="${name}_material">
+          <texture filename="package://robot_description_pkg/meshes/markers/${texture_file}"/>
+        </material>
+      </visual>
+    </link>
+
+    <joint name="${parent}_to_${name}" type="fixed">
+      <parent link="${parent}"/>
+      <child link="${name}"/>
+      <origin xyz="${xyz}" rpy="${rpy}"/>
+    </joint>
+  </xacro:macro>
+</robot>

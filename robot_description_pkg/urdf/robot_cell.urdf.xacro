@@ -1,0 +1,57 @@
+<?xml version="1.0"?>
+<robot name="my_robot_cell" xmlns:xacro="http://ros.org/wiki/xacro">
+
+  <xacro:include filename="$(find robot_description_pkg)/urdf/robot_eef_macro.xacro"/>
+  <xacro:include filename="$(find robot_description_pkg)/urdf/isaac_robot_cell_macro.xacro"/>
+  <!-- <xacro:include filename="$(find robot_description_pkg)/urdf/real_robot_cell_macro.xacro"/> -->
+
+  <xacro:arg name="add_cell" default="true"/>
+  <xacro:arg name="use_isaac" default="false"/>
+  <xacro:arg name="mode" default="tracking"/>
+  <xacro:arg name="ur_type" default="ur10e"/>
+  <xacro:arg name="tf_prefix" default=""/>
+  <xacro:arg name="joint_limits_parameters_file" default="$(find ur_description)/config/$(arg ur_type)/joint_limits.yaml"/>
+  <xacro:arg name="kinematics_parameters_file" default="$(find ur_description)/config/$(arg ur_type)/default_kinematics.yaml"/>
+  <xacro:arg name="physical_parameters_file" default="$(find ur_description)/config/$(arg ur_type)/physical_parameters.yaml"/>
+  <xacro:arg name="visual_parameters_file" default="$(find ur_description)/config/$(arg ur_type)/visual_parameters.yaml"/>
+  <xacro:arg name="safety_limits" default="false"/>
+  <xacro:arg name="safety_pos_margin" default="0.15"/>
+  <xacro:arg name="safety_k_position" default="20"/>
+
+  <link name="world"/>
+  <!--This will add the robot with its end-effector attachement -->
+  <xacro:robot_eef
+    parent="world"
+    ur_type="$(arg ur_type)"
+    tf_prefix="$(arg tf_prefix)"
+    joint_limits_parameters_file="$(arg joint_limits_parameters_file)"
+    kinematics_parameters_file="$(arg kinematics_parameters_file)"
+    physical_parameters_file="$(arg physical_parameters_file)"
+    visual_parameters_file="$(arg visual_parameters_file)"
+    safety_limits="$(arg safety_limits)"
+    safety_pos_margin="$(arg safety_pos_margin)"
+    safety_k_position="$(arg safety_k_position)"
+  >
+    <xacro:if value="$(arg use_isaac)">
+      <origin xyz="0.15 -0.7 1.05" rpy="0 0 0" />
+    </xacro:if>
+    <xacro:unless value="$(arg use_isaac)">
+      <origin xyz="0 0 0" rpy="0 0 0" />
+    </xacro:unless>
+  </xacro:robot_eef>
+
+  <xacro:if value="$(arg add_cell)">
+    <!-- This will add the robot's cell -->
+    <xacro:if value="$(arg use_isaac)">
+      <xacro:isaac_robot_cell
+        mode="$(arg mode)"
+      />
+    </xacro:if>
+    <xacro:unless value="$(arg use_isaac)">
+      <!-- <xacro:real_robot_cell
+        mode="$(arg mode)"
+      /> -->
+    </xacro:unless>
+  </xacro:if>
+
+</robot>

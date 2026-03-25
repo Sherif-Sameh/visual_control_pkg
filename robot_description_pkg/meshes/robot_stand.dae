@@ -21,7 +21,7 @@
               <color sid="emission">0   0   0   1</color>
             </emission>
             <diffuse>
-              <color sid="diffuse">0.518999994   0.518999994   0.518999994   1</color>
+              <color sid="diffuse">0.8   0.8   0.8   1</color>
             </diffuse>
             <specular>
               <color sid="specular">1   1   1   1</color>
@@ -64,7 +64,7 @@
               <color sid="emission">0   0   0   1</color>
             </emission>
             <diffuse>
-              <color sid="diffuse">0.504000008   0.566999972   0.603999972   1</color>
+              <color sid="diffuse">0.8   0.8   0.8   1</color>
             </diffuse>
             <specular>
               <color sid="specular">1   1   1   1</color>

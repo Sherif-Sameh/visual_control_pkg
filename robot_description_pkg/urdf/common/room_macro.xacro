@@ -1,0 +1,105 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://ros.org/wiki/xacro">
+
+  <xacro:macro name="room" params="
+    name
+    parent
+    xyz
+    rgba
+    size
+    height
+    thickness
+    ">
+
+    <!-- Ground -->
+    <link name="${name}_ground">
+      <visual>
+        <origin xyz="0 0 ${-thickness/2}" rpy="0 0 0"/>
+        <geometry>
+          <box size="${size} ${size} ${thickness}"/>
+        </geometry>
+        <material name="${name}_color">
+          <color rgba="${rgba}"/>
+        </material>
+      </visual>
+    </link>
+    <joint name="${parent}_to_${name}_ground" type="fixed">
+      <parent link="${parent}"/>
+      <child link="${name}_ground"/>
+      <origin xyz="${xyz}" rpy="0 0 0"/>
+    </joint>
+
+    <!-- Right Wall -->
+    <link name="${name}_rwall">
+      <visual>
+        <origin xyz="${size/2} 0 ${height/2}" rpy="0 0 0"/>
+        <geometry>
+          <box size="${thickness} ${size} ${height}"/>
+        </geometry>
+        <material name="${name}_color">
+          <color rgba="${rgba}"/>
+        </material>
+      </visual>
+    </link>
+    <joint name="${parent}_to_${name}_rwall" type="fixed">
+      <parent link="${parent}"/>
+      <child link="${name}_rwall"/>
+      <origin xyz="${xyz}" rpy="0 0 0"/>
+    </joint>
+
+    <!-- Left Wall -->
+    <link name="${name}_lwall">
+      <visual>
+        <origin xyz="${-size/2} 0 ${height/2}" rpy="0 0 0"/>
+        <geometry>
+          <box size="${thickness} ${size} ${height}"/>
+        </geometry>
+        <material name="${name}_color">
+          <color rgba="${rgba}"/>
+        </material>
+      </visual>
+    </link>
+    <joint name="${parent}_to_${name}_lwall" type="fixed">
+      <parent link="${parent}"/>
+      <child link="${name}_lwall"/>
+      <origin xyz="${xyz}" rpy="0 0 0"/>
+    </joint>
+
+    <!-- Front Wall -->
+    <link name="${name}_fwall">
+      <visual>
+        <origin xyz="0 ${size/2} ${height/2}" rpy="0 0 0"/>
+        <geometry>
+          <box size="${size} ${thickness} ${height}"/>
+        </geometry>
+        <material name="${name}_color">
+          <color rgba="${rgba}"/>
+        </material>
+      </visual>
+    </link>
+    <joint name="${parent}_to_${name}_fwall" type="fixed">
+      <parent link="${parent}"/>
+      <child link="${name}_fwall"/>
+      <origin xyz="${xyz}" rpy="0 0 0"/>
+    </joint>
+
+    <!-- Back Wall -->
+    <link name="${name}_bwall">
+      <visual>
+        <origin xyz="0 ${-size/2} ${height/2}" rpy="0 0 0"/>
+        <geometry>
+          <box size="${size} ${thickness} ${height}"/>
+        </geometry>
+        <material name="${name}_color">
+          <color rgba="${rgba}"/>
+        </material>
+      </visual>
+    </link>
+    <joint name="${parent}_to_${name}_bwall" type="fixed">
+      <parent link="${parent}"/>
+      <child link="${name}_bwall"/>
+      <origin xyz="${xyz}" rpy="0 0 0"/>
+    </joint>
+
+  </xacro:macro>
+</robot>

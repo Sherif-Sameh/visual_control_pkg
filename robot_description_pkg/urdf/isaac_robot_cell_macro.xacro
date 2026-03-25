@@ -1,0 +1,85 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://ros.org/wiki/xacro">
+  <xacro:include filename="$(find robot_description_pkg)/urdf/common/marker_macro.xacro"/>
+  <xacro:include filename="$(find robot_description_pkg)/urdf/common/room_macro.xacro"/>
+
+  <xacro:macro name="isaac_robot_cell" params="
+    mode
+    ">
+
+    <link name="robot_stand">
+      <visual>
+        <geometry>
+          <mesh filename="package://robot_description_pkg/meshes/robot_stand.dae" scale="1.7 1.7 1.7"/>
+        </geometry>
+      </visual>
+    </link>
+    <joint name="robot_to_robot_stand" type="fixed">
+      <parent link="base_link"/>
+      <child link="robot_stand"/>
+      <origin xyz="0 0 0" rpy="${pi/2} 0 0"/>
+    </joint>
+
+    <link name="examination_bed">
+      <visual>
+        <geometry>
+          <mesh filename="package://robot_description_pkg/meshes/examination_bed.dae" scale="0.99 0.99 0.99"/>
+        </geometry>
+      </visual>
+      <collision>
+        <geometry>
+          <mesh filename="package://robot_description_pkg/meshes/examination_bed.dae" scale="0.99 0.99 0.99"/>
+        </geometry>
+      </collision>
+    </link>
+    <joint name="world_to_examination_bed" type="fixed">
+      <parent link="world"/>
+      <child link="examination_bed"/>
+      <origin xyz="0 0 0" rpy="${pi/2} 0 ${-pi/2}"/>
+    </joint>
+
+    <xacro:unless value="${mode == 'calibration'}">
+      <!-- include person -->
+    </xacro:unless>
+
+    <xacro:if value="${mode == 'calibration'}">
+      <xacro:marker 
+        name="charuco"
+        parent="world"
+        xyz="0.5 0 0.794"
+        rpy="${pi} 0 ${-pi/2}"
+        size="0.3"
+        texture_file="charuco_10x10_DICT_5X5_50.png"
+      />
+    </xacro:if>
+
+    <xacro:marker 
+      name="apriltag_0"
+      parent="world"
+      xyz="0.75 -0.2 0.794"
+      rpy="${pi} 0 ${-pi/2}"
+      size="0.1"
+      texture_file="tag36_11_00000.png"
+    />
+    <xacro:marker 
+      name="apriltag_1"
+      parent="world"
+      xyz="0.75 0.2 0.794"
+      rpy="${pi} 0 ${-pi/2}"
+      size="0.1"
+      texture_file="tag36_11_00001.png"
+    />
+
+    <xacro:room
+      name="room"
+      parent="world"
+      xyz="0 0 0"
+      rgba="0.75 0.75 0.75 1.0"
+      size="6.5"
+      height="2.5"
+      thickness="0.1"
+    />
+
+  </xacro:macro>
+
+</robot>
