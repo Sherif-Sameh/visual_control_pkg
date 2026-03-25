@@ -12,6 +12,9 @@ from launch_ros.substitutions import FindPackageShare
 
 # Contants
 UR_TYPE = "ur10e"
+EXECUTION_MODE = "tracking"
+USE_ISAAC_CELL = "true"
+
 BASE_FRAME = "base_link"
 EE_FRAME = "wrist_3_link"
 CAM_FRAME = "camera_color_optical_frame"
@@ -379,6 +382,8 @@ def _launch_visualization_pkg(context: LaunchContext) -> IncludeLaunchDescriptio
             "rviz": rviz,
             "rviz_config": rviz_config,
             "ur_type": UR_TYPE,
+            "execution_mode": EXECUTION_MODE,
+            "use_isaac_cell": USE_ISAAC_CELL,
             "target_frames": f"[{BASE_FRAME}]",
             "source_frames": f"[{EE_FRAME}]",
             "visualizers": visualizers,
