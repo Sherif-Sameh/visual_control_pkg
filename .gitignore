@@ -40,3 +40,9 @@ data/*
 *.png
 *.jpeg
 *.svg
+
+# Allow textures of meshes
+!**/meshes/**/*.png
+
+# Proprietary end-effector 3D model
+**/end_effector.stl
