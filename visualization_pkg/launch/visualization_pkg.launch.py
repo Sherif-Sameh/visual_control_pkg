@@ -31,6 +31,22 @@ def declare_arguments() -> list[DeclareLaunchArgument]:
             description="Type/series of used UR robot. Default is ur10e.",
         )
     )
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "execution_mode",
+            default_value="tracking",
+            description="System execution mode for generating robot cell description."
+            " Defaults to tracking",
+            choices=["tracking", "calibration"],
+        )
+    )
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "use_isaac_cell",
+            default_value="false",
+            description="Whether to use the Isaac Sim or real robot cells. Defaults to false.",
+        )
+    )
 
     # Trajectory visualizer arguments
     declared_arguments.append(
@@ -139,6 +155,9 @@ def _include_rviz_node() -> Node:
 
 def _include_robot_visualizer() -> IncludeLaunchDescription:
     ur_type = LaunchConfiguration("ur_type")
+    execution_mode = LaunchConfiguration("execution_mode")
+    use_isaac_cell = LaunchConfiguration("use_isaac_cell")
+
     joint_states_topic_name = LaunchConfiguration("joint_states_topic_name")
 
     return IncludeLaunchDescription(
@@ -154,6 +173,8 @@ def _include_robot_visualizer() -> IncludeLaunchDescription:
         ),
         launch_arguments={
             "ur_type": ur_type,
+            "execution_mode": execution_mode,
+            "use_isaac_cell": use_isaac_cell,
             "joint_states_topic_name": joint_states_topic_name,
         }.items(),
     )
