@@ -1,0 +1,24 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>robot_description_pkg</name>
+  <version>0.0.0</version>
+  <description>
+    Robot and robot cell description for visual control of robotic manipulators
+  </description>
+
+  <author>Sherif Samy</author>
+  <maintainer email="sherif252525@gmail.com">Sherif Samy</maintainer>
+  <license file="LICENSE">GNU General Public License</license>
+
+  <url type="bugtracker">https://github.com/Sherif-Sameh/visual_control_pkg/issues</url>
+  <url type="repository">https://github.com/Sherif-Sameh/visual_control_pkg</url>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <exec_depend>ur_description</exec_depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>
