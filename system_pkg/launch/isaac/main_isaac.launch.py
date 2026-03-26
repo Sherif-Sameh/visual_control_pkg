@@ -16,7 +16,7 @@ EXECUTION_MODE = "tracking"
 USE_ISAAC_CELL = "true"
 
 BASE_FRAME = "base_link"
-EE_FRAME = "wrist_3_link"
+EE_FRAME = "tool0"
 CAM_FRAME = "camera_color_optical_frame"
 
 TAG_FAMILY = "tag36h11"

@@ -11,7 +11,7 @@ EXECUTION_MODE = "calibration"
 USE_ISAAC_CELL = "true"
 
 BASE_FRAME = "base_link"
-EE_FRAME = "wrist_3_link"
+EE_FRAME = "tool0"
 CAM_FRAME = "camera_color_optical_frame"
 
 DICT_NAME = "DICT_5X5_50"
