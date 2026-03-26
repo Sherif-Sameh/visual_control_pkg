@@ -40,10 +40,10 @@ public:
     ~PbvsController();
 
 private:
-    void post_init();
     void publish_traj(const std::vector<double> &qdot);
     void publish_perr(const std::vector<double> &perr);
     void publish_cam_twist(const vpColVector &v_c);
+    void callback_timer();
     void callback_js(const sensor_msgs::msg::JointState::SharedPtr msg);
     void callback_tag(const AprilTagDetectionArray::SharedPtr msg);
     void callback_traj_des(const MultiDOFJointTrajectory::SharedPtr msg);
@@ -58,13 +58,15 @@ private:
 
 private:
     // General Attributes
+    double m_timeout;
     std::string m_base_frame;
     std::string m_ee_frame;
     std::string m_cam_frame;
     std::vector<int> m_tag_ids;
     std::vector<std::string> m_joint_names;
 
-    // ViSP Attributes
+    // Controller Attributes
+    rclcpp::Time m_ctrl_ts;
     std::unordered_map<int, utils::structs::vpPoseFeature> m_pf;
     std::unordered_map<int, se::LowPassFilter<manif::SE3d>> m_cdMo_lpf;
     utils::structs::PoseTolerance<double> m_conv_eps;
@@ -73,7 +75,7 @@ private:
     vpServo m_controller;
 
     // ROS Attributes
-    rclcpp::TimerBase::SharedPtr m_timer_setup;
+    rclcpp::TimerBase::SharedPtr m_timer;
     rclcpp::Publisher<trajectory_msgs::msg::JointTrajectory>::SharedPtr m_pub_traj{nullptr};
     rclcpp::Publisher<geometry_msgs::msg::PoseArray>::SharedPtr m_pub_perr{nullptr};
     rclcpp::Publisher<geometry_msgs::msg::TwistStamped>::SharedPtr m_pub_cam_twist{nullptr};

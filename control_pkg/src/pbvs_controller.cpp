@@ -4,6 +4,7 @@ PbvsController::PbvsController() : Node("pbvs_controller")
 {
     // Declare ROS parameters
     this->declare_parameter("verbose", rclcpp::PARAMETER_BOOL);
+    this->declare_parameter("timeout", rclcpp::PARAMETER_DOUBLE);
     this->declare_parameter("robot_description", rclcpp::PARAMETER_STRING);
     this->declare_parameter("frame.base_frame", rclcpp::PARAMETER_STRING);
     this->declare_parameter("frame.ee_frame", rclcpp::PARAMETER_STRING);
@@ -23,12 +24,14 @@ PbvsController::PbvsController() : Node("pbvs_controller")
     this->declare_parameter("ctrl.lambda", rclcpp::PARAMETER_DOUBLE_ARRAY);
 
     // Initialize non-ROS class attributes
+    m_timeout = this->get_parameter("timeout").as_double();
     m_base_frame = this->get_parameter("frame.base_frame").as_string();
     m_ee_frame = this->get_parameter("frame.ee_frame").as_string();
     m_cam_frame = this->get_parameter("frame.cam_frame").as_string();
     std::vector<int64_t> tag_ids = this->get_parameter("tag.tag_ids").as_integer_array();
     std::transform(tag_ids.begin(), tag_ids.end(), std::back_inserter(m_tag_ids),
                    [](int64_t id) { return static_cast<int>(id); });
+    m_ctrl_ts = this->get_clock()->now();
     for (const int id : m_tag_ids)
     {
         m_pf.insert({id,
@@ -41,7 +44,7 @@ PbvsController::PbvsController() : Node("pbvs_controller")
     init_controller();
 
     // Initialize ROS attributes
-    m_timer_setup = this->create_wall_timer(0.25s, std::bind(&PbvsController::post_init, this));
+    m_timer = this->create_wall_timer(0.2s, std::bind(&PbvsController::callback_timer, this));
     m_pub_traj = this->create_publisher<trajectory_msgs::msg::JointTrajectory>(
         "/joint_trajectory_controller/joint_trajectory", 0);
     m_pub_perr =
@@ -64,16 +67,6 @@ PbvsController::~PbvsController()
 {
     std::vector<double> qdot_zero(m_robot.getNumDofs(), 0.0);
     publish_traj(qdot_zero);
-}
-
-void PbvsController::post_init()
-{
-    vpHomogeneousMatrix eMc;
-    if (!utils::ros_tf2::lookup_transform(m_ee_frame, m_cam_frame, m_tf_buffer, eMc)) return;
-
-    // Finish initialization and cancel timer
-    m_robot.set_eMc(eMc);
-    m_timer_setup->cancel();
 }
 
 void PbvsController::publish_traj(const std::vector<double> &qdot)
@@ -124,6 +117,25 @@ void PbvsController::publish_cam_twist(const vpColVector &v_c)
     m_pub_cam_twist->publish(msg);
 }
 
+void PbvsController::callback_timer()
+{
+    // Finish robot initializaton
+    if (!m_robot.isInitialized())
+    {
+        vpHomogeneousMatrix eMc;
+        if (utils::ros_tf2::lookup_transform(m_ee_frame, m_cam_frame, m_tf_buffer, eMc))
+        {
+            m_robot.set_eMc(eMc);
+        }
+    }
+    // Check for controller timeout
+    if ((this->get_clock()->now() - m_ctrl_ts).seconds() > m_timeout)
+    {
+        std::vector<double> qdot_zero(m_robot.getNumDofs(), 0.0);
+        publish_traj(qdot_zero);
+    }
+}
+
 void PbvsController::callback_js(const sensor_msgs::msg::JointState::SharedPtr msg)
 {
     m_joint_names = msg->name;
@@ -162,6 +174,7 @@ void PbvsController::callback_tag(const AprilTagDetectionArray::SharedPtr msg)
     publish_traj(qdot);
     publish_perr(m_controller.getError().toStdVector());
     publish_cam_twist(v_c);
+    m_ctrl_ts = this->get_clock()->now();
 }
 
 void PbvsController::callback_traj_des(const MultiDOFJointTrajectory::SharedPtr msg)

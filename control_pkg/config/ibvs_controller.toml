@@ -3,6 +3,9 @@
 # Tuned values derived from ideal simulation environment
 [controller]  # https://wandb.ai/u1999168-girona/visual_control|VS_sweeps/runs/yu7j3qfb?nw=nwuseru1999168
 
+# General parameters
+timeout = 0.5
+
 # IK solver parameters
 "ik.eps" = 6.145e-4
 "ik.lambda" = 1e-2
