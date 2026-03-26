@@ -1,13 +1,13 @@
 ### IBVS Controller Configuration ###
 
 # Tuned values derived from ideal simulation environment
-[controller]  # https://wandb.ai/u1999168-girona/visual_control|VS_sweeps/runs/yu7j3qfb?nw=nwuseru1999168
+[controller]  # https://wandb.ai/u1999168-girona/visual_control|VS_sweeps/runs/tqhsz412?nw=nwuseru1999168
 
 # General parameters
 timeout = 0.5
 
 # IK solver parameters
-"ik.eps" = 6.145e-4
+"ik.eps" = 1.941e-2
 "ik.lambda" = 1e-2
 "ik.max_iters" = 50
 "ik.weight_js" = [
@@ -33,8 +33,8 @@ timeout = 0.5
 ]
 
 # Controller parameters
-"ctrl.lpf_coeff" = 1.0
-"ctrl.conv_ttol" = 8.207e-4
+"ctrl.lpf_coeff" = 0.743
+"ctrl.conv_ttol" = 8.684e-4
 "ctrl.lambda" = [
   1.0,
   1.0,
