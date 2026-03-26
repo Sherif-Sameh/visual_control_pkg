@@ -34,6 +34,10 @@
 
     <!-- End-Effector Attachment -->
     <link name="${tf_prefix}ee">
+      <inertial>
+        <mass value="1.0"/>
+        <inertia ixx="1e-9" iyy="1e-9" izz="1e-9" ixy="0" ixz="0" iyz="0"/>
+      </inertial>
       <visual>
         <geometry>
           <mesh filename="package://robot_description_pkg/meshes/end_effector.stl" scale="0.001 0.001 0.001"/>
@@ -42,11 +46,29 @@
           <color rgba="0.7 0.7 0.7 1.0"/>
         </material>
       </visual>
+      <collision>
+        <geometry>
+          <mesh filename="package://robot_description_pkg/meshes/end_effector.stl" scale="0.001 0.001 0.001"/>
+        </geometry>
+      </collision>
     </link>
     <joint name="tool0_to_ee" type="fixed">
       <parent link="${tf_prefix}tool0"/>
       <child link="${tf_prefix}ee"/>
       <origin xyz="0 0 -0.0425" rpy="0 0 ${-pi/2}"/>
+    </joint>
+
+    <!-- TCP Virtual Link -->
+    <link name="${tf_prefix}tcp">
+      <inertial>
+        <mass value="1e-6"/>
+        <inertia ixx="1e-9" iyy="1e-9" izz="1e-9" ixy="0" ixz="0" iyz="0"/>
+      </inertial>
+    </link>
+    <joint name="ee_to_tcp" type="fixed">
+      <parent link="${tf_prefix}ee"/>
+      <child link="${tf_prefix}tcp"/>
+      <origin xyz="0 0 0.28385" rpy="0 0 ${pi/2}"/>
     </joint>
 
   </xacro:macro>
