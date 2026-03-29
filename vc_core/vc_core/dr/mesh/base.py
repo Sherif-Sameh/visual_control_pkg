@@ -46,6 +46,6 @@ class Mesh(nn.Module):
             new_mesh.textures = texture
         return new_mesh
 
-    def to(self, device: str | device) -> Mesh:
+    def to(self, device: str | device) -> "Mesh":
         self._mesh = self._mesh.to(device, copy=False)
         return self
