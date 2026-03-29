@@ -18,11 +18,12 @@ class Mesh(nn.Module):
 
     Args:
         mesh: PyTorch3D mesh to wrap.
+        n_rep: Number of times to repeat the wrapped mesh. Default value is 1.
     """
 
-    def __init__(self, mesh: Meshes):
+    def __init__(self, mesh: Meshes, *, n_rep: int = 1):
         super().__init__()
-        self._mesh = mesh
+        self._mesh = mesh.extend(n_rep)
 
     @property
     def mesh(self) -> Meshes:
@@ -33,13 +34,13 @@ class Mesh(nn.Module):
         """Applying offsets to mesh and new texture if given.
 
         Args:
-            offset: Offsets to apply to mesh vertices. Shape is (N, 3), where N is the number of
-                vertices in the original mesh.
+            offset: Offsets to apply to mesh vertices. Shape should match that of `mesh.verts_packed`
+                (N * n_rep, 3), where N is the number of vertices in the original mesh.
             texture: Optional texture to apply to the new mesh before returning it. Default value
                 is `None`.
 
         Returns:
-            New mesh created by applying given vertex offsets and texture if given.
+            New meshes created by applying given vertex offsets and texture if given.
         """
         new_mesh = self._mesh.offset_verts(offset)
         if texture is not None:

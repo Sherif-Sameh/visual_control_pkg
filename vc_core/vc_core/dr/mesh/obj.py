@@ -12,10 +12,12 @@ class ObjMesh(Mesh):
     Args:
         path: Path to the .obj file to load mesh from.
         load_textures: Load material properties from associated .mtl file.
+        n_rep: Number of times to repeat the wrapped mesh. Default value is 1.
     """
 
-    def __init__(self, path: str | Path, load_textures: bool = False):
+    def __init__(self, path: str | Path, *, load_textures: bool = False, n_rep: int = 1):
         nn.Module.__init__()
         path = Path(path) if isinstance(path, str) else path
         assert path.exists() and path.suffix == ".obj"
-        self._mesh = load_objs_as_meshes([str(path)], load_textures=load_textures)
+        mesh = load_objs_as_meshes([str(path)], load_textures=load_textures)
+        self._mesh = mesh.extend(n_rep)
