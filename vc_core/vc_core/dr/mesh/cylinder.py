@@ -23,8 +23,7 @@ class CylinderMesh(Mesh):
         radius: Radius of the cylinder in meters.
         height: Height of the cylinder in meters.
         resolution: The circle will be split into `resolution` segments. Defaults value is 20.
-        split: The `height` will be split into `split` segments. Must be an even number. Default
-            value is 4.
+        split: The `height` will be split into `split` segments. Default value is 4.
         texture: Optional texture to apply to mesh. Default value is `None`.
     """
 
@@ -39,7 +38,6 @@ class CylinderMesh(Mesh):
     ):
         nn.Module.__init__()
         assert radius > 0 and height > 0
-        assert split % 2 == 0
 
         self._resolution = resolution
         self._split = split
