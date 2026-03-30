@@ -16,7 +16,7 @@ class ObjMesh(Mesh):
     """
 
     def __init__(self, path: str | Path, *, load_textures: bool = False, n_rep: int = 1):
-        nn.Module.__init__()
+        nn.Module.__init__(self)
         path = Path(path) if isinstance(path, str) else path
         assert path.exists() and path.suffix == ".obj"
         mesh = load_objs_as_meshes([str(path)], load_textures=load_textures)

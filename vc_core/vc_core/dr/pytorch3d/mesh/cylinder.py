@@ -39,7 +39,7 @@ class CylinderMesh(Mesh):
         texture: TexturesBase | None = None,
         n_rep: int = 1,
     ):
-        nn.Module.__init__()
+        nn.Module.__init__(self)
         assert radius > 0 and height > 0
         # Initialize mesh from cylinder parameters
         vertices, face_idxs = self._init_cylinder_mesh(radius, height, resolution, split)
@@ -69,7 +69,7 @@ class CylinderMesh(Mesh):
 
     @staticmethod
     def _init_cylinder_mesh(
-        self, radius: float, height: float, resolution: int, split: int
+        radius: float, height: float, resolution: int, split: int
     ) -> tuple[Tensor, LongTensor]:
         """Initialize a mesh from a cylinder.
 
@@ -97,13 +97,15 @@ class CylinderMesh(Mesh):
         z_coords = torch.linspace(0.0, -height, split + 1)
 
         # Create vertices
-        angle_grid, z_grid = torch.meshgrid(angles, z_coords, indexing="ij")
+        z_grid, angle_grid = torch.meshgrid(z_coords, angles, indexing="ij")
         x_grid = radius * torch.cos(angle_grid)
         y_grid = radius * torch.sin(angle_grid)
         vertices = torch.cat(
-            torch.tensor([0.0, 0.0, 0.0]),
-            torch.tensor([0.0, 0.0, -height]),
-            torch.stack([x_grid, y_grid, z_grid], dim=-1).view(-1, 3),
+            (
+                torch.tensor([0.0, 0.0, 0.0]).view(1, 3),
+                torch.tensor([0.0, 0.0, -height]).view(1, 3),
+                torch.stack([x_grid, y_grid, z_grid], dim=-1).view(-1, 3),
+            ),
             dim=0,
         )
 
@@ -149,9 +151,9 @@ class CylinderMesh(Mesh):
         off_t = torch.zeros(3, dtype=torch.float32, device=device)
         off_b = torch.cat([torch.zeros(2, dtype=torch.float32, device=device), -h_offset[None]])
         # set offset for radial vertices
-        angles = torch.linspace(0, 2 * torch.pi, resolution + 1)[:-1]
+        angles = torch.linspace(0, 2 * torch.pi, resolution + 1, device=device)[:-1]
         z_offsets = -torch.arange(split + 1, device=device) * h_offset / split
-        angle_grid, z_offset_grid = torch.meshgrid(angles, z_offsets, indexing="ij")
+        z_offset_grid, angle_grid = torch.meshgrid(z_offsets, angles, indexing="ij")
         off_r = torch.stack(
             [
                 r_offset * torch.cos(angle_grid).flatten(),
