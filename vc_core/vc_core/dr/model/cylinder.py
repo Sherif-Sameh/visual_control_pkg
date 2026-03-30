@@ -70,6 +70,11 @@ class CylinderModel(nn.Module):
         self.r_offset = nn.Parameter(torch.zeros_like(radius), requires_grad=est_radius)
         self.h_offset = nn.Parameter(torch.zeros_like(height), requires_grad=est_height)
 
+    @property
+    def n_rep(self) -> int:
+        """Get the number of copies of the cylinder's parameters."""
+        return self.pos_offset.shape[0]
+
     def forward(self) -> tuple[Tensor, Tensor, Tensor, Tensor]:
         """Construct the cylinder's pose and geometry offsets and return them.
 
