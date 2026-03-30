@@ -87,28 +87,31 @@ def test_csv_logger():
     logger = CSVLogger(n_log=1, n_flush=1, filter=None, dir=log_dir)
     logger.log(step=0.0, metrics=metrics.compute())
     assert logger._log == {}
-    df = pd.read_csv(logger._path)
+    logger.close()
+    df = pd.read_csv(logger._file.name)
     df.value = df.value.apply(literal_eval)
     df.set_index("name", inplace=True)
     assert df.loc[metric1.name] is not None
     assert df.loc[metric2.name] is not None
     assert df.shape[0] == 2
+    Path(logger._file.name).unlink()  # Clean up test CSV file
 
     # Attempt to append more logs to the same CSV file
+    logger.restart()
     for i in range(1, 3):
         metrics.reset()
         pos = np.random.normal(0, 1, size=(2, 3))
         rot = np.random.normal(0, 1, size=(2, 4))
         metrics.update(pos=pos, rot=rot)
         logger.log(step=i * 0.05, metrics=metrics.compute())
-    df = pd.read_csv(logger._path)
+    logger.close()
+    df = pd.read_csv(logger._file.name)
     df.value = df.value.apply(literal_eval)
     df.set_index("name", inplace=True)
     assert df.loc[metric1.name] is not None
     assert df.loc[metric2.name] is not None
-    assert df.shape[0] == 6
-    logger._path.unlink()  # Clean up test CSV file
-    logger.close()
+    assert df.shape[0] == 4
+    Path(logger._file.name).unlink()  # Clean up test CSV file
 
 
 @pytest.mark.unit
