@@ -1,0 +1,30 @@
+[project]
+name = "vc_core"
+version = "0.0.1"
+readme = "README.md"
+requires-python = ">=3.10,<3.11"
+dependencies = [
+    "numpy >= 1.26.4",
+    "torch >= 2.0.0",
+    "torchvision",
+    "pandas",
+    "opencv-python",
+    "pillow",
+    "matplotlib >= 3.8.4",
+    "wandb",
+    "toml",
+    "fire",
+]
+
+[tool.setuptools]
+packages = ["vc_core"]
+
+[project.optional-dependencies]
+tests = [
+    "pytest",
+]
+# Must be installed with the --no-build-isolation option
+drp3d = [
+    "iopath",
+    "pytorch3d @ git+https://github.com/facebookresearch/pytorch3d.git@stable",
+]

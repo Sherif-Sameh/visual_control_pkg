@@ -2,38 +2,6 @@
 name = "visual_control_pkg"
 version = "0.0.1"
 readme = "README.md"
-requires-python = ">=3.10,<3.11"
-dependencies = [
-    "numpy >= 1.26.4",
-    "torch >= 2.0.0",
-    "torchvision",
-    "pandas",
-    "opencv-python",
-    "pillow",
-    "matplotlib >= 3.8.4",
-    "wandb",
-    "toml",
-    "fire",
-    "pytest",
-]
-
-[tool.pixi.workspace]
-channels = ["conda-forge"]
-platforms = ["linux-64"]
-
-[tool.setuptools]
-packages = ["visual_control_pkg"]
-
-# Setup environment for DR using PyTorch3D
-[tool.pixi.feature.drp3d.dependencies]
-iopath = "*"
-
-# PyTorch3D has to be separated into a task for torch to be installed first
-[tool.pixi.tasks]
-install-pytorch3d = "pip install --no-build-isolation git+https://github.com/facebookresearch/pytorch3d.git@stable"
-
-[tool.pixi.environments]
-drp3d = ["drp3d"]
 
 [tool.pytest.ini_options]
 markers = ["unit"]

@@ -1,3 +1,7 @@
+**/*.egg-info
+*.egg-info
+.pixi
+
 # ROS / catkin
 build/
 devel/
