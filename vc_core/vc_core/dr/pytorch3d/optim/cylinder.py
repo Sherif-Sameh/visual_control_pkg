@@ -10,8 +10,8 @@ if TYPE_CHECKING:
     from pytorch3d.renderer import MeshRenderer
     from torch import Tensor
 
-    from vc_core.dr.mesh import Mesh
-    from vc_core.dr.model import CylinderModel
+    from vc_core.dr.pytorch3d.mesh import Mesh
+    from vc_core.dr.pytorch3d.model import CylinderModel
     from vc_core.loggers.base import Logger
 
 
