@@ -11,7 +11,7 @@ if TYPE_CHECKING:
     from torch import Tensor
 
     from vc_core.dr.pytorch3d.mesh import Mesh
-    from vc_core.dr.pytorch3d.model import CylinderModel
+    from vc_core.dr.pytorch3d.model import CylinderSplitParamModel
     from vc_core.loggers.base import Logger
 
 
@@ -59,7 +59,7 @@ class CylinderOptimizer(Optimizer):
             else None
         )
         # optimization loop
-        for epoch in range(n_iter):
+        for iter in range(n_iter):
             pos, rot, r_off, h_off = self._model()
             meshes = self._mesh(r_off, h_off)
             images = self._renderer(meshes, T=pos, R=rot)
@@ -69,7 +69,8 @@ class CylinderOptimizer(Optimizer):
             optim.step()
             if logger is not None:
                 logger.log(
-                    epoch, {"output": images.detach().numpy(), "loss": loss.detach().numpy()}
+                    iter,
+                    {"output": images.detach().cpu().numpy(), "loss": loss.detach().cpu().numpy()},
                 )
             if loss.detach().min() <= eps:
                 break
@@ -100,7 +101,7 @@ class CylinderMultiLROptimizer(CylinderOptimizer):
     def __init__(
         self,
         mesh: Mesh,
-        model: CylinderModel,
+        model: CylinderSplitParamModel,
         renderer: MeshRenderer,
         loss_fn: Callable[[Tensor, Tensor], Tensor],
         *,
@@ -113,10 +114,10 @@ class CylinderMultiLROptimizer(CylinderOptimizer):
         self._param_groups = [
             {
                 "params": [
-                    model.pos_offset[i],
-                    model.z_dir[i],
-                    model.r_offset[i],
-                    model.h_offset[i],
+                    model.pos_offset_list[i],
+                    model.z_dir_list[i],
+                    model.r_offset_list[i],
+                    model.h_offset_list[i],
                 ],
                 "lr": lr[i],
             }
