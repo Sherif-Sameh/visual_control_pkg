@@ -124,9 +124,68 @@ class CylinderModel(nn.Module):
         x_dir = torch.where(parallel_mask, x_dir_alt, x_dir)
         # Make X-axis normal to Z-axis
         x_proj_on_z = (x_dir * z_dir).sum(dim=-1, keepdim=True) * z_dir
-        x_dir -= x_proj_on_z
+        x_dir = x_dir - x_proj_on_z
         x_dir = F.normalize(x_dir, dim=-1)
         # Get Y-axis and create rotation matrix
         y_dir = torch.cross(z_dir, x_dir, dim=-1)
         r_matrix = torch.stack([x_dir, y_dir, z_dir], dim=-1)  # (B, 3, 3)
         return r_matrix
+
+
+class CylinderSplitParamModel(CylinderModel):
+    """Extends `CylinderModel` to split parameter copies into individual `torch.nn.Parameter`.
+
+    Args:
+        pos: Initial guess for the position of the cylinder. Shape is (N, 3) or (3,).
+        z_dir: Initial guess for the direction of the Z-axis. Can be unnormalized. Shape is (N, 3)
+            or (3,).
+        radius: Optional initial guess for the radius of the cylinder. Shape is (N,) or (1,). If
+            set to `None`, the radius is not estimated and the offset is always zero. Default value
+            is `None`.
+        height: Optional initial guess for the height of the cylinder. Shape is (N,) or (1,). If
+            set to `None`, the height is not estimated and the offset is always zero. Default value
+            is `None`.
+        n_rep: Number of times to repeat the cylinder's parameters. Ignored if any of the other
+            input parameters is repeated. Default value is 1.
+    """
+
+    def __init__(
+        self,
+        pos: Tensor,
+        z_dir: Tensor,
+        *,
+        radius: Tensor | None = None,
+        height: Tensor | None = None,
+        n_rep: int = 1,
+    ):
+        super().__init__(pos, z_dir, radius=radius, height=height, n_rep=n_rep)
+        # split each parameter to a list of parameters
+        self.pos_offset_list = nn.ParameterList([nn.Parameter(t) for t in self.pos_offset.data])
+        self.z_dir_list = nn.ParameterList([nn.Parameter(t) for t in self.z_dir.data])
+        self.r_offset_list = nn.ParameterList(
+            [nn.Parameter(t, requires_grad=self.r_offset.requires_grad) for t in self.r_offset]
+        )
+        self.h_offset_list = nn.ParameterList(
+            [nn.Parameter(t, requires_grad=self.h_offset.requires_grad) for t in self.h_offset]
+        )
+        del self.pos_offset, self.z_dir, self.r_offset, self.h_offset
+
+    @property
+    def n_rep(self) -> int:
+        """Get the number of copies of the cylinder's parameters."""
+        return len(self.pos_offset_list)
+
+    def forward(self) -> tuple[Tensor, Tensor, Tensor, Tensor]:
+        """Construct the cylinder's pose and geometry offsets and return them.
+
+        Returns:
+            tuple containing four tensors. The first is the position of the cylinder (N, 3). The
+            second is the rotation matrix of the cylinder (N, 3, 3). Then, the radial and height
+            offset vectors of the cylinder respectively (N,).
+        """
+        # stack parameter copies
+        self.pos_offset = torch.stack(list(self.pos_offset_list), dim=0)
+        self.z_dir = torch.stack(list(self.z_dir_list), dim=0)
+        self.r_offset = torch.stack(list(self.r_offset_list), dim=0)
+        self.h_offset = torch.stack(list(self.h_offset_list), dim=0)
+        return super().forward()

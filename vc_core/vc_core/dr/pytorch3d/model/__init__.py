@@ -1,3 +1,3 @@
-from .cylinder import CylinderModel
+from .cylinder import CylinderModel, CylinderSplitParamModel
 
-__all__ = ["CylinderModel"]
+__all__ = ["CylinderModel", "CylinderSplitParamModel"]
