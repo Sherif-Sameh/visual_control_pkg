@@ -23,6 +23,9 @@ packages = ["vc_core"]
 tests = [
     "pytest",
 ]
+segmentation = [
+    "ultralytics",
+]
 # Must be installed with the --no-build-isolation option
 drp3d = [
     "iopath",

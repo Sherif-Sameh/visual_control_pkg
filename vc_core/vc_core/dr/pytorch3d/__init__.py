@@ -1,5 +1,5 @@
 from .mesh import CylinderMesh, Mesh, ObjMesh
-from .model import CylinderModel
+from .model import CylinderModel, CylinderSplitParamModel
 from .optim import CylinderMultiLROptimizer, CylinderOptimizer
 from .shader import ComposeShader, SoftSilhouetteShader
 
@@ -9,6 +9,7 @@ __all__ = [
     "CylinderModel",
     "CylinderMultiLROptimizer",
     "CylinderOptimizer",
+    "CylinderSplitParamModel",
     "Mesh",
     "ObjMesh",
     "SoftSilhouetteShader",
