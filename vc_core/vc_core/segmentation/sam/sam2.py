@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Literal
 
 import cv2
@@ -10,6 +9,8 @@ from torch import Tensor
 from torchvision.transforms.functional import to_tensor
 from ultralytics.models.sam import SAM2Predictor
 
+from .common import SAMPromptConfig
+
 if TYPE_CHECKING:
     from numpy.typing import NDArray
 
@@ -17,20 +18,6 @@ if TYPE_CHECKING:
 SAM2_VARIANT = Literal[
     "sam2_t", "sam2_s", "sam2_b", "sam2_l", "sam2.1_t", "sam2.1_s", "sam2.1_b", "sam2.1_l"
 ]
-
-
-@dataclass
-class PromptConfig:
-    """Configuration for collecting prompts for the SAM2 model."""
-
-    n_pos: int = 1
-    """Number of positive points to expect for point prompts. Default value is 1."""
-
-    n_neg: int = 0
-    """Number of negative points to expect for point prompts. Default value is 0."""
-
-    n_mask_pts: int = 4
-    """Number of points to expect for polygon for mask prompts. Default value is 4."""
 
 
 class SAM2:
@@ -52,7 +39,7 @@ class SAM2:
     def __init__(
         self,
         var: SAM2_VARIANT = "sam2.1_t",
-        cfg: PromptConfig = PromptConfig(),
+        cfg: SAMPromptConfig = SAMPromptConfig(),
         *,
         device: str | torch.device = "cuda",
     ):
@@ -71,7 +58,7 @@ class SAM2:
 
         The input image is displayed in a new window and the user is prompted to select points.
         Points selected through a mouse left-click are recorded internally. The number of expected
-        points is set according to the configuration of `PromptConfig`.
+        points is set according to the configuration of `SAMPromptConfig`.
 
         Args:
             img: Input RGB image. If an instance of `np.ndarray`, it's expected to have shape
@@ -148,7 +135,7 @@ class SAM2:
         The input image is displayed in a new window and the user is prompted to select points.
         Points selected through a mouse left-click are recorded internally. The polygon made up
         from these points is then used to extract an image mask. The number of expected points is
-        set according to the configuration of `PromptConfig`.
+        set according to the configuration of `SAMPromptConfig`.
 
         Args:
             img: Input RGB image. If an instance of `np.ndarray`, it's expected to have shape
