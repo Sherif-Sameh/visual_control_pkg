@@ -19,7 +19,7 @@ from vc_core.dr.pytorch3d.mesh import CylinderMesh
 from vc_core.dr.pytorch3d.model import CylinderModel, CylinderSplitParamModel
 from vc_core.dr.pytorch3d.optim import CylinderMultiLROptimizer, CylinderOptimizer
 from vc_core.dr.pytorch3d.shader import SoftSilhouetteShader
-from vc_core.loggers import ConsoleLogger
+from vc_core.loggers import MemoryLogger
 
 Devices = [torch.device("cpu")]
 Devices = Devices + [torch.device("cuda")] if torch.cuda.is_available() else Devices
@@ -30,7 +30,7 @@ Devices = Devices + [torch.device("cuda")] if torch.cuda.is_available() else Dev
     "device,cls",
     [t for d in Devices for t in [(d, CylinderOptimizer), (d, CylinderMultiLROptimizer)]],
 )
-def test_soft_silhouette_shader(device: torch.device, cls: CylinderOptimizer) -> None:
+def test_cylinder_optimizer(device: torch.device, cls: CylinderOptimizer) -> None:
     if device.type == "cpu":
         return  # Extremely slow to run test on CPU
     # Create cylinder meshes
@@ -59,7 +59,7 @@ def test_soft_silhouette_shader(device: torch.device, cls: CylinderOptimizer) ->
         faces_per_pixel=10,
     )
     renderer = MeshRenderer(
-        rasterizer=MeshRasterizer(cameras=camera, raster_settings=raster_settings),
+        rasterizer=MeshRasterizer(cameras=None, raster_settings=raster_settings),
         shader=SoftSilhouetteShader(blend_params=blend_params).to(device),
     )
 
@@ -79,16 +79,17 @@ def test_soft_silhouette_shader(device: torch.device, cls: CylinderOptimizer) ->
 
     # Run optimizer for a number of iterations
     n_iter = 100
-    target = renderer(mesh.mesh, R=R, T=T).detach()
-    logger = ConsoleLogger(n_log=10, n_flush=1000)
+    target = renderer(mesh.mesh, R=R, T=T, cameras=camera).detach()
+    logger = MemoryLogger(n_log=10)
     logger._count = -1
-    optim.optimize(target, n_iter=n_iter, logger=logger)
+    optim.optimize(target, n_iter=n_iter, logger=logger, cameras=camera)
 
     # visualize loss history and outputs vs target
-    iters = list(logger._log.keys())
-    loss = np.array([np.min(v["loss"]) for v in logger._log.values()])
-    image_init = logger._log[iters[0]]["output"][np.argmin(logger._log[iters[0]]["loss"])]
-    image_final = logger._log[iters[-1]]["output"][np.argmin(logger._log[iters[-1]]["loss"])]
+    log = logger.flush()
+    iters = list(log.keys())
+    loss = np.array([np.min(v["loss"]) for v in log.values()])
+    image_init = log[iters[0]]["output"][np.argmin(log[iters[0]]["loss"])]
+    image_final = log[iters[-1]]["output"][np.argmin(log[iters[-1]]["loss"])]
     _, axes = plt.subplots(2, 2, figsize=(10, 10))
     axes = axes.flatten()
     axes[0].plot(iters, loss)

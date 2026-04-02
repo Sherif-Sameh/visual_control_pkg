@@ -38,6 +38,7 @@ class CylinderOptimizer(Optimizer):
         n_iter: int = 10,
         eps: float | None = None,
         logger: Logger | None = None,
+        **kwargs,
     ) -> tuple[Tensor, Tensor, Tensor, Tensor]:
         """Run the optimizer for a number of iterations to update model.
 
@@ -46,10 +47,12 @@ class CylinderOptimizer(Optimizer):
             n_iter: Number of iterations to perform.
             eps: Optional threshold for early stopping. Default value is `None`.
             logger: Optional logger for logging loss and output values. Default value is `None`.
+            kwargs: Optional kwargs to pass to the renderer's `forward()` method.
 
         Returns:
             Output learned parameters after optimization.
         """
+        print(kwargs)
         eps = -torch.inf if eps is None else eps
         # Reset optimizer and LR scheduler
         optim = self.reset()
@@ -62,7 +65,7 @@ class CylinderOptimizer(Optimizer):
         for iter in range(n_iter):
             pos, rot, r_off, h_off = self._model()
             meshes = self._mesh(r_off, h_off)
-            images = self._renderer(meshes, T=pos, R=rot)
+            images = self._renderer(meshes, T=pos, R=rot, **kwargs)
             loss = self._loss_fn(images, target)
             optim.zero_grad()
             loss.mean().backward()
