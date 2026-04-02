@@ -105,16 +105,12 @@ def test_cylinder_mesh() -> None:
     meshes_single: Meshes = mesh_single(r_offset[:1], h_offset[:1])
     meshes_repeat: Meshes = mesh_repeat(r_offset, h_offset)
     for mesh in [meshes_single, meshes_repeat]:
-        assert torch.allclose(
-            r := torch.linalg.norm(mesh[0].verts_packed()[2:, :2], dim=-1),
-            torch.full_like(r, radius + r_offset[0].item()),
+        r = torch.linalg.norm(mesh[0].verts_packed()[2:, :2], dim=-1)
+        h = torch.abs(
+            torch.max(mesh[0].verts_packed()[:, 2]) - torch.min(mesh[0].verts_packed()[:, 2])
         )
-        assert torch.allclose(
-            h := torch.abs(
-                torch.max(mesh[0].verts_packed()[:, 2]) - torch.min(mesh[0].verts_packed()[:, 2])
-            ),
-            torch.full_like(h, height + h_offset[0].item()),
-        )
+        assert torch.allclose(r, torch.full_like(r, radius + r_offset[0].item()))
+        assert torch.allclose(h, torch.full_like(h, height + h_offset[0].item()))
         for vert in mesh.verts_list():
             assert vert.requires_grad
         assert mesh.textures is None
