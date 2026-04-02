@@ -4,7 +4,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pytest
 import torch
-import torch.nn.functional as F
 from pytorch3d.renderer import (
     BlendParams,
     FoVPerspectiveCameras,
@@ -15,6 +14,7 @@ from pytorch3d.renderer import (
 )
 from torch.optim.lr_scheduler import StepLR
 
+from vc_core.dr.losses import wrap_loss_fn
 from vc_core.dr.pytorch3d.mesh import CylinderMesh
 from vc_core.dr.pytorch3d.model import CylinderModel, CylinderSplitParamModel
 from vc_core.dr.pytorch3d.optim import CylinderMultiLROptimizer, CylinderOptimizer
@@ -64,15 +64,12 @@ def test_cylinder_optimizer(device: torch.device, cls: CylinderOptimizer) -> Non
     )
 
     # Create cylinder model optimizer
-    def loss_fn(input: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
-        return F.mse_loss(input, target, reduction="none").mean(dim=(1, 2, 3))
-
     lr = 0.05 if cls == CylinderOptimizer else sample_log_uniform(1e-2, 0.1, n_rep).tolist()
     optim = cls(
         mesh,
         model,
         renderer,
-        loss_fn,
+        wrap_loss_fn("mse_loss"),
         lr=lr,
         lr_sched_cfg=CylinderOptimizer.LRSchedulerCfg(StepLR, {"step_size": 25, "gamma": 0.7}),
     )
