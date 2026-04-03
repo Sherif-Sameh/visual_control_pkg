@@ -50,7 +50,7 @@ class CylinderOptimizer(Optimizer):
             kwargs: Optional kwargs to pass to the renderer's `forward()` method.
 
         Returns:
-            Output learned parameters after optimization.
+            Output detached learned parameters after optimization.
         """
         eps = -torch.inf if eps is None else eps
         # Reset optimizer and LR scheduler
@@ -71,7 +71,7 @@ class CylinderOptimizer(Optimizer):
             optim.step()
             if logger is not None:
                 logger.log(
-                    iter,
+                    iter + 1,
                     {"output": images.detach().cpu().numpy(), "loss": loss.detach().cpu().numpy()},
                 )
             if loss.detach().min() <= eps:
@@ -81,7 +81,9 @@ class CylinderOptimizer(Optimizer):
         # get final parameters
         min_idx = torch.argmin(loss.detach(), dim=0)
         pos, rot, r_off, h_off = self._model()
-        return pos[min_idx], rot[min_idx], r_off[min_idx], h_off[min_idx]
+        pos_min, rot_min = pos[min_idx].detach(), rot[min_idx].detach()
+        r_off_min, h_off_min = r_off[min_idx].detach(), h_off[min_idx].detach()
+        return pos_min, rot_min, r_off_min, h_off_min
 
 
 class CylinderMultiLROptimizer(CylinderOptimizer):

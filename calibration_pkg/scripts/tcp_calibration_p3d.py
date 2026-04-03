@@ -22,7 +22,7 @@ from scipy.spatial.transform import Rotation as R
 from sensor_msgs.msg import CameraInfo, Image
 from std_msgs.msg import Empty
 from std_srvs.srv import SetBool
-from tf2_ros import TransformBroadcaster
+from tf2_ros import StaticTransformBroadcaster
 from torch import Tensor
 from torch.optim.lr_scheduler import CosineAnnealingLR
 
@@ -81,7 +81,7 @@ class TcpCalibrationP3d(Node):
         self._prompt_type = self.get_parameter("sam.prompt.type").value
         self._size = self.get_parameter("dr.raster.size").value
         self._bridge = CvBridge()
-        self._logger = MemoryLogger(n_log=n_iter, filter="loss")
+        self._memory_logger = MemoryLogger(n_log=n_iter, filter="loss")
         self._sam = self._init_seg()
         self._optim = self._init_optim()
         self._optimize = self._build_optimize_fn()
@@ -103,13 +103,8 @@ class TcpCalibrationP3d(Node):
         self._srv_trgr = self.create_service(
             SetBool, "/tcp_calibration_p3d/trigger", self.callback_trgr
         )
-        self._tf_broadcaster = TransformBroadcaster(self)
+        self._tf_broadcaster = StaticTransformBroadcaster(self)
         self.add_on_set_parameters_callback(self.callback_params)
-
-    @property
-    def shutdown(self) -> bool:
-        """Returns flag indentifying whether the node should shutdown or not."""
-        return self._pose is not None and self._sub_rst.get_publisher_count() == 0
 
     def publish_perr(self, tvec: Tensor, rmat: Tensor, loss: float) -> None:
         """Publish the estimated object-to-camera pose error.
@@ -176,21 +171,22 @@ class TcpCalibrationP3d(Node):
         self._pub_seg.publish(msg)
 
     def callback_timer(self) -> None:
-        if self._pose is not None:
-            return  # nothing to update
-        tvec, rmat, loss = self._optimize()
-        if self._pose is not None:
-            self.publish_perr(tvec, rmat, loss)
+        if self._pose is None:
+            tvec, rmat, loss = self._optimize()
+            if self._pose is not None:
+                self.publish_perr(tvec, rmat, loss)
+        else:
+            tvec, rmat = self._pose
         if self._header is not None:
             self.publish_tf(tvec, rmat)
 
     def callback_img(self, msg: Image) -> None:
+        self._header = msg.header
         if self._silhoutte is not None:
             return  # don't override existing
         img = self._bridge.imgmsg_to_cv2(msg, desired_encoding="rgb8")
         self._sam.sample_points(img) if self._prompt_type == "points" else self._sam.sample_box(img)
         mask = self._sam.segment(img)
-        self._header = msg.header
         self._silhoutte = torch.from_numpy(mask).to(dtype=torch.float32, device=self._device)
         self.publish_seg(img, mask)
 
@@ -330,16 +326,16 @@ class TcpCalibrationP3d(Node):
 
         def optimize_fn() -> tuple[Tensor, Tensor, float]:
             if not is_ready():
-                return tvec_init, rmat_init, 0
+                return tvec_init[0], rmat_init[0], 0
             tvec, rmat, _, _ = self._optim.optimize(
                 target=get_target(),
                 n_iter=n_iter,
-                logger=self._logger,
+                logger=self._memory_logger,
                 cameras=self._camera,
                 zfar=zfar,
             )
             self._pose = (tvec, rmat)
-            loss = self._logger.flush()[n_iter]["loss"].min()
+            loss = self._memory_logger.flush()[n_iter]["loss"].min()
             return tvec, rmat, loss
 
         return optimize_fn
@@ -392,11 +388,7 @@ class TcpCalibrationP3d(Node):
 def main(args=None):
     rclpy.init(args=args)
     tcp_calibration_p3d = TcpCalibrationP3d()
-    while rclpy.ok() and not tcp_calibration_p3d.shutdown:
-        rclpy.spin_once(tcp_calibration_p3d)
-    if tcp_calibration_p3d.shutdown:
-        tcp_calibration_p3d.get_logger().info("TCP calibration done.")
-        tcp_calibration_p3d.get_logger().info("Shutting down.")
+    rclpy.spin(tcp_calibration_p3d)
     tcp_calibration_p3d.destroy_node()
     rclpy.shutdown()
 
