@@ -1,0 +1,43 @@
+### TCP Calibration (PyTorch3D) Configuration ###
+
+[calibration]
+
+# SAM2 parameters
+"sam.variant" = "sam2.1-hiera-tiny"
+"sam.prompt.type" = "points"
+"sam.prompt.n_pos" = 2
+"sam.prompt.n_neg" = 2
+
+# Mesh parameters
+"dr.mesh.radius" = 0.03
+"dr.mesh.height" = 0.1
+"dr.mesh.resolution" = 20
+"dr.mesh.split" = 4
+
+# Pose initialization parameters
+"dr.init.dist" = 0.75
+"dr.init.elev" = 15.0
+"dr.init.azim" = 0.0
+
+# Model parameters
+"dr.model.radius" = false
+"dr.model.height" = true
+
+# Shader parameters
+"dr.shader.sil.sigma" = 1e-4
+"dr.shader.sil.gamma" = 1e-4
+"dr.shader.depth" = false
+"dr.shader.depth.zfar" = 5.0
+
+# Rasterization parameters
+"dr.raster.size" = 128
+"dr.raster.n_faces" = 4
+
+# Optimizer parameters
+"dr.optim.n_rep" = 8
+"dr.optim.loss" = "mse_loss"
+"dr.optim.lr.min" = 1e-3
+"dr.optim.lr.max" = 10.0
+"dr.optim.sched" = true
+"dr.optim.sched.eta_min" = 0.0
+"dr.optim.n_iter" = 100

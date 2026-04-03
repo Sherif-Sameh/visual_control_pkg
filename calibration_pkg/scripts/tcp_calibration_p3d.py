@@ -106,6 +106,11 @@ class TcpCalibrationP3d(Node):
         self._tf_broadcaster = TransformBroadcaster(self)
         self.add_on_set_parameters_callback(self.callback_params)
 
+    @property
+    def shutdown(self) -> bool:
+        """Returns flag indentifying whether the node should shutdown or not."""
+        return self._pose is not None and self._sub_rst.get_publisher_count() == 0
+
     def publish_perr(self, tvec: Tensor, rmat: Tensor, loss: float) -> None:
         """Publish the estimated object-to-camera pose error.
 
@@ -176,7 +181,8 @@ class TcpCalibrationP3d(Node):
         tvec, rmat, loss = self._optimize()
         if self._pose is not None:
             self.publish_perr(tvec, rmat, loss)
-        self.publish_tf(tvec, rmat)
+        if self._header is not None:
+            self.publish_tf(tvec, rmat)
 
     def callback_img(self, msg: Image) -> None:
         if self._silhoutte is not None:
@@ -302,7 +308,7 @@ class TcpCalibrationP3d(Node):
         loss_fn = wrap_loss_fn(optim_params["loss"])
         lr_sched_cfg = CylinderMultiLROptimizer.LRSchedulerCfg(
             cls=CosineAnnealingLR,
-            kwargs={"T_max": self._n_iter, "eta_min": optim_params["sched.eta_min"]},
+            kwargs={"T_max": optim_params["n_iter"], "eta_min": optim_params["sched.eta_min"]},
         )
         return CylinderMultiLROptimizer(
             mesh,
@@ -386,7 +392,11 @@ class TcpCalibrationP3d(Node):
 def main(args=None):
     rclpy.init(args=args)
     tcp_calibration_p3d = TcpCalibrationP3d()
-    rclpy.spin(tcp_calibration_p3d)
+    while rclpy.ok() and not tcp_calibration_p3d.shutdown:
+        rclpy.spin_once(tcp_calibration_p3d)
+    if tcp_calibration_p3d.shutdown:
+        tcp_calibration_p3d.get_logger().info("TCP calibration done.")
+        tcp_calibration_p3d.get_logger().info("Shutting down.")
     tcp_calibration_p3d.destroy_node()
     rclpy.shutdown()
 
