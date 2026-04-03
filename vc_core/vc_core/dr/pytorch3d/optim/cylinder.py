@@ -52,7 +52,6 @@ class CylinderOptimizer(Optimizer):
         Returns:
             Output learned parameters after optimization.
         """
-        print(kwargs)
         eps = -torch.inf if eps is None else eps
         # Reset optimizer and LR scheduler
         optim = self.reset()
@@ -68,7 +67,7 @@ class CylinderOptimizer(Optimizer):
             images = self._renderer(meshes, T=pos, R=rot, **kwargs)
             loss = self._loss_fn(images, target)
             optim.zero_grad()
-            loss.mean().backward()
+            loss.sum().backward()
             optim.step()
             if logger is not None:
                 logger.log(

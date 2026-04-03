@@ -67,6 +67,12 @@ install(TARGETS
   DESTINATION lib/${PROJECT_NAME}
 )
 
+# Install Python executables
+install(PROGRAMS
+  scripts/tcp_calibration_p3d.py
+  DESTINATION lib/${PROJECT_NAME}
+)
+
 # Install launch and config directories
 install(DIRECTORY launch config
   DESTINATION share/${PROJECT_NAME})
