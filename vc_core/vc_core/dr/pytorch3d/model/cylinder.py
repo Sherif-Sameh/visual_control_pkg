@@ -160,13 +160,19 @@ class CylinderSplitParamModel(CylinderModel):
     ):
         super().__init__(pos, z_dir, radius=radius, height=height, n_rep=n_rep)
         # split each parameter to a list of parameters
-        self.pos_offset_list = nn.ParameterList([nn.Parameter(t) for t in self.pos_offset.data])
-        self.z_dir_list = nn.ParameterList([nn.Parameter(t) for t in self.z_dir.data])
+        self.pos_offset_list = nn.ParameterList([nn.Parameter(t.clone()) for t in self.pos_offset])
+        self.z_dir_list = nn.ParameterList([nn.Parameter(t.clone()) for t in self.z_dir])
         self.r_offset_list = nn.ParameterList(
-            [nn.Parameter(t, requires_grad=self.r_offset.requires_grad) for t in self.r_offset]
+            [
+                nn.Parameter(t.clone(), requires_grad=self.r_offset.requires_grad)
+                for t in self.r_offset
+            ]
         )
         self.h_offset_list = nn.ParameterList(
-            [nn.Parameter(t, requires_grad=self.h_offset.requires_grad) for t in self.h_offset]
+            [
+                nn.Parameter(t.clone(), requires_grad=self.h_offset.requires_grad)
+                for t in self.h_offset
+            ]
         )
         del self.pos_offset, self.z_dir, self.r_offset, self.h_offset
 
