@@ -19,15 +19,19 @@ BASE_FRAME = "base_link"
 EE_FRAME = "tool0"
 CAM_FRAME = "camera_color_optical_frame"
 
+POSE_GT_TCP = "[-0.06, 0.0, -0.035, 1.0, 0.0, 0.0, 0.0]"
+IMG_CENTER = "[240, 320]"
+
 TAG_FAMILY = "tag36h11"
 TAG_IDS = "[0, 1]"
 TAG_SIZE = "0.08"
 
 CAMERA_INFO_TOPIC_NAME = "/isaaclab/camera/camera_info"
-DESIRED_TRAJECTORY_TOPIC_NAME = "/isaaclab/command"
+DESIRED_TRAJECTORY_TOPIC_NAME = "/isaaclab/commands"
 DETECTIONS_FILTERED_TOPIC_NAME = "/apriltag_estimator/detections_filtered"
 DETECTIONS_TOPIC_NAME = "/apriltag_detector/detections"
 IMAGE_TOPIC_NAME = "/isaaclab/camera/image_raw"
+DEPTH_TOPIC_NAME = "/isaaclab/camera/depth_raw"
 JOINT_STATES_TOPIC_NAME = "/isaaclab/joint_states"
 JOINT_TRAJECTORY_TOPIC_NAME = "/isaaclab/joint_trajectory_controller/joint_trajectory"
 POSE_ERROR_TOPIC_NAME = "/isaaclab/pose_error"
@@ -201,6 +205,7 @@ def declare_arguments() -> list[DeclareLaunchArgument]:
 def launch_setup(context) -> list[ComposableNodeContainer | IncludeLaunchDescription]:
     launch = []
     launch.append(_launch_control_pkg())
+    launch.append(_launch_calibration_pkg())
     launch.append(_launch_state_estimation_pkg(context))
     launch.append(_launch_vision_pkg(context))
     launch.append(_launch_logging_pkg(context))
@@ -249,6 +254,25 @@ def _launch_control_pkg() -> IncludeLaunchDescription:
             "camera_info_topic_name": CAMERA_INFO_TOPIC_NAME,
             "detections_topic_name": DETECTIONS_FILTERED_TOPIC_NAME,
             "desired_trajectory_topic_name": DESIRED_TRAJECTORY_TOPIC_NAME,
+        }.items(),
+    )
+
+
+def _launch_calibration_pkg() -> IncludeLaunchDescription:
+    return IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(
+            PathJoinSubstitution(
+                [FindPackageShare("calibration_pkg"), "launch", "calibration_pkg.launch.py"]
+            )
+        ),
+        launch_arguments={
+            "pose_gt_tcp": POSE_GT_TCP,
+            "img_center": IMG_CENTER,
+            "calibration": "tcp_calibration_p3d",
+            "image_topic_name": IMAGE_TOPIC_NAME,
+            "depth_topic_name": DEPTH_TOPIC_NAME,
+            "camera_info_topic_name": CAMERA_INFO_TOPIC_NAME,
+            "restart_topic_name": RESTART_TOPIC_NAME,
         }.items(),
     )
 
