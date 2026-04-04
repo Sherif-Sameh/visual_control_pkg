@@ -19,15 +19,15 @@ BASE_FRAME = "base_link"
 EE_FRAME = "tool0"
 CAM_FRAME = "camera_color_optical_frame"
 
-POSE_GT_TCP = "[-0.06, 0.0, -0.035, 1.0, 0.0, 0.0, 0.0]"
-IMG_CENTER = "[240, 320]"
+POSE_GT_TCP = "[0.0, 0.006, 0.113, 0.988, 0.152, 0.0, 0.0]"
+IMG_CENTER = "[300, 320]"
 
 TAG_FAMILY = "tag36h11"
 TAG_IDS = "[0, 1]"
 TAG_SIZE = "0.08"
 
 CAMERA_INFO_TOPIC_NAME = "/isaaclab/camera/camera_info"
-DESIRED_TRAJECTORY_TOPIC_NAME = "/isaaclab/commands"
+DESIRED_TRAJECTORY_TOPIC_NAME = "/isaaclab/command"
 DETECTIONS_FILTERED_TOPIC_NAME = "/apriltag_estimator/detections_filtered"
 DETECTIONS_TOPIC_NAME = "/apriltag_detector/detections"
 IMAGE_TOPIC_NAME = "/isaaclab/camera/image_raw"

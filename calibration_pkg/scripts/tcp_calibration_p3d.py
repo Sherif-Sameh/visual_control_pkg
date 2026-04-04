@@ -28,7 +28,7 @@ from torch.optim.lr_scheduler import CosineAnnealingLR
 
 import vc_core.dr.pytorch3d as vc_pytorch3d
 from vc_core.dr.losses import wrap_loss_fn
-from vc_core.dr.pytorch3d import CylinderMultiLROptimizer
+from vc_core.dr.pytorch3d import CylinderOptimizer
 from vc_core.loggers import MemoryLogger
 from vc_core.segmentation.sam import SAM2, SAMPromptConfig
 
@@ -62,9 +62,9 @@ class TcpCalibrationP3d(Node):
         self.declare_parameter("dr.raster.size", rclpy.Parameter.Type.INTEGER)
         self.declare_parameter("dr.raster.n_faces", rclpy.Parameter.Type.INTEGER)
         self.declare_parameter("dr.optim.n_rep", rclpy.Parameter.Type.INTEGER)
+        self.declare_parameter("dr.optim.sigma", rclpy.Parameter.Type.DOUBLE_ARRAY)
         self.declare_parameter("dr.optim.loss", rclpy.Parameter.Type.STRING)
-        self.declare_parameter("dr.optim.lr.min", rclpy.Parameter.Type.DOUBLE)
-        self.declare_parameter("dr.optim.lr.max", rclpy.Parameter.Type.DOUBLE)
+        self.declare_parameter("dr.optim.lr", rclpy.Parameter.Type.DOUBLE)
         self.declare_parameter("dr.optim.sched", rclpy.Parameter.Type.BOOL)
         self.declare_parameter("dr.optim.sched.eta_min", rclpy.Parameter.Type.DOUBLE)
         self.declare_parameter("dr.optim.n_iter", rclpy.Parameter.Type.INTEGER)
@@ -201,6 +201,8 @@ class TcpCalibrationP3d(Node):
     def callback_cam_info(self, msg: CameraInfo) -> None:
         if self._camera is None:
             K = np.array(msg.k).reshape(1, 3, 3)
+            K[0, 0, 2] -= self._img_center[1] - self._size / 2
+            K[0, 1, 2] -= self._img_center[0] - self._size / 2
             self._camera = cameras_from_opencv_projection(
                 R=torch.eye(3).view(1, 3, 3),
                 tvec=torch.zeros((1, 3)),
@@ -209,9 +211,7 @@ class TcpCalibrationP3d(Node):
             ).to(device=self._device)
 
     def callback_rst(self, msg: Empty) -> None:
-        # Reset parameters but retain target inputs
         self._camera = None
-        self._pose = None
 
     def callback_trgr(self, req: SetBool.Request, res: SetBool.Response) -> SetBool.Response:
         if req.data:  # reset everything including target inputs
@@ -233,12 +233,9 @@ class TcpCalibrationP3d(Node):
         # Check for params that are allowed to change at runtime
         ParamType = rclpy.Parameter.Type
         for param in params:
-            if param.name in [
-                "dr.shader.sil.sigma",
-                "dr.optim.lr.min",
-                "dr.optim.lr.max",
-                "dr.optim.sched.eta_min",
-            ] and (param.type_ != ParamType.DOUBLE or param.value < 0):
+            if param.name in ["dr.shader.sil.sigma", "dr.optim.lr", "dr.optim.sched.eta_min"] and (
+                param.type_ != ParamType.DOUBLE or param.value < 0
+            ):
                 failed(f"{param.name} must be double >= 0.")
                 break
             if param.name == "dr.optim.loss" and param.type_ != ParamType.STRING:
@@ -260,25 +257,26 @@ class TcpCalibrationP3d(Node):
             device=self._device,
         )
 
-    def _init_optim(self) -> CylinderMultiLROptimizer:
+    def _init_optim(self) -> CylinderOptimizer:
         """Initialize the DR-based optimizer."""
         mesh_params = {k: v.value for k, v in self.get_parameters_by_prefix("dr.mesh").items()}
         init_params = {k: v.value for k, v in self.get_parameters_by_prefix("dr.init").items()}
         model_params = {k: v.value for k, v in self.get_parameters_by_prefix("dr.model").items()}
-        model_params = {
-            k: torch.zeros(1, device=self._device) if v else None for k, v in model_params.items()
-        }
+        model_params = {k: torch.zeros(1) if v else None for k, v in model_params.items()}
         sil_params = {k: v.value for k, v in self.get_parameters_by_prefix("dr.shader.sil").items()}
         has_depth = self.get_parameter("dr.shader.depth").value
         raster_params = {k: v.value for k, v in self.get_parameters_by_prefix("dr.raster").items()}
         optim_params = {k: v.value for k, v in self.get_parameters_by_prefix("dr.optim").items()}
 
         # Mesh and model
-        n_rep = optim_params["n_rep"]
+        n_rep, sigma = optim_params["n_rep"], optim_params["sigma"]
         mesh = vc_pytorch3d.CylinderMesh(n_rep=n_rep, **mesh_params).to(device=self._device)
-        rmat, tvec = renderer.look_at_view_transform(device=self._device, **init_params)
-        model = vc_pytorch3d.CylinderSplitParamModel(
-            pos=tvec[0], z_dir=rmat[0, :, 2], n_rep=n_rep, **model_params
+        rmat, tvec = renderer.look_at_view_transform(**init_params)
+        model = vc_pytorch3d.CylinderModel(
+            pos=tvec + torch.normal(0, sigma[0], size=(n_rep, 3)),
+            z_dir=rmat[:, :, 2] + torch.normal(0, sigma[1], size=(n_rep, 3)),
+            n_rep=n_rep,
+            **model_params,
         ).to(device=self._device)
 
         # Mesh renderer
@@ -299,19 +297,18 @@ class TcpCalibrationP3d(Node):
         ).to(device=self._device)
 
         # Optimizer
-        lr_min, lr_max = optim_params["lr.min"], optim_params["lr.max"]
-        lr = np.exp(np.random.uniform(np.log(lr_min), np.log(lr_max), size=n_rep))
+        lr = optim_params["lr"]
         loss_fn = wrap_loss_fn(optim_params["loss"])
-        lr_sched_cfg = CylinderMultiLROptimizer.LRSchedulerCfg(
+        lr_sched_cfg = CylinderOptimizer.LRSchedulerCfg(
             cls=CosineAnnealingLR,
             kwargs={"T_max": optim_params["n_iter"], "eta_min": optim_params["sched.eta_min"]},
         )
-        return CylinderMultiLROptimizer(
+        return CylinderOptimizer(
             mesh,
             model,
             mesh_renderer,
             loss_fn,
-            lr=lr.tolist(),
+            lr=lr,
             lr_sched_cfg=lr_sched_cfg if optim_params["sched"] else None,
         )
 
