@@ -58,6 +58,16 @@ def declare_arguments() -> list[DeclareLaunchArgument]:
         )
     )
 
+    # Calibration package arguments
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "calibration",
+            default_value="",
+            description="Name of calibration node to launch. Default is empty string.",
+            choices=["tcp_calibration_p3d", ""],
+        )
+    )
+
     # State estimation package arguments
     declared_arguments.append(
         DeclareLaunchArgument(
@@ -259,6 +269,8 @@ def _launch_control_pkg() -> IncludeLaunchDescription:
 
 
 def _launch_calibration_pkg() -> IncludeLaunchDescription:
+    calibration = LaunchConfiguration("calibration")
+
     return IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
             PathJoinSubstitution(
@@ -268,7 +280,7 @@ def _launch_calibration_pkg() -> IncludeLaunchDescription:
         launch_arguments={
             "pose_gt_tcp": POSE_GT_TCP,
             "img_center": IMG_CENTER,
-            "calibration": "tcp_calibration_p3d",
+            "calibration": calibration,
             "image_topic_name": IMAGE_TOPIC_NAME,
             "depth_topic_name": DEPTH_TOPIC_NAME,
             "camera_info_topic_name": CAMERA_INFO_TOPIC_NAME,

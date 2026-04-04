@@ -244,11 +244,7 @@ Visualization Manager:
           Value: false
         shoulder_link:
           Value: false
-        tag36h11:0:
-          Value: true
         tag36h11:0f:
-          Value: true
-        tag36h11:1:
           Value: true
         tag36h11:1f:
           Value: true
@@ -268,7 +264,7 @@ Visualization Manager:
           Value: false
         wrist_3_link:
           Value: false
-      Marker Scale: 0.75
+      Marker Scale: 0.5
       Name: TF
       Show Arrows: true
       Show Axes: true
@@ -295,20 +291,6 @@ Visualization Manager:
                           flange:
                             tool0:
                               camera_color_optical_frame:
-                                tag36h11:0:
-                                  {}
-                                tag36h11:0f:
-                                  camera_color_optical_frame:0:
-                                    {}
-                                tag36h11:1:
-                                  {}
-                                tag36h11:1f:
-                                  camera_color_optical_frame:1:
-                                    {}
-                                tag36h11:90:
-                                  {}
-                                tag36h11:90f:
-                                  {}
                                 tcp_e:
                                   {}
                               camera_color_optical_frame_gt:
@@ -335,7 +317,7 @@ Visualization Manager:
       Enabled: true
       Name: MarkerArray
       Namespaces:
-        trajectory_visualizer: true
+        {}
       Topic:
         Depth: 5
         Durability Policy: Volatile
