@@ -1,0 +1,53 @@
+### TCP Calibration (PyTorch3D) ROS Logger Configuration ###
+
+[logger]
+
+# General parameters
+timer_period = 0.1
+target_nodes = ["tcp_calibration_p3d"]
+
+# Console logger parameters
+"console.n_log" = 5
+"console.n_flush" = 5
+"console.filter" = ["PE"]
+"console.config.precision" = 3
+"console.config.separator" = "  "
+"console.config.sign" = "+"
+
+# CSV logger parameters
+"csv.n_log" = 1
+"csv.n_flush" = 100
+"csv.filter" = ["PE"]
+
+# WandB logger parameters
+"wandb.n_log" = 1
+"wandb.n_flush" = 40
+"wandb.filter" = ["PE"]
+"wandb.config.entity" = "u1999168-girona"
+"wandb.config.project" = "visual_control|tcpcalib"
+"wandb.config.params" = [
+    "tcp_calibration_p3d-sam.variant",
+    "tcp_calibration_p3d-sam.prompt.type",
+    "tcp_calibration_p3d-sam.prompt.n_pos",
+    "tcp_calibration_p3d-sam.prompt.n_neg",
+    "tcp_calibration_p3d-dr.mesh.radius",
+    "tcp_calibration_p3d-dr.mesh.height",
+    "tcp_calibration_p3d-dr.init.dist",
+    "tcp_calibration_p3d-dr.init.elev",
+    "tcp_calibration_p3d-dr.init.azim",
+    "tcp_calibration_p3d-dr.model.radius",
+    "tcp_calibration_p3d-dr.model.height",
+    "tcp_calibration_p3d-dr.shader.sil.sigma",
+    "tcp_calibration_p3d-dr.shader.sil.gamma",
+    "tcp_calibration_p3d-dr.shader.depth",
+    "tcp_calibration_p3d-dr.shader.depth.zfar",
+    "tcp_calibration_p3d-dr.raster.size",
+    "tcp_calibration_p3d-dr.raster.n_faces",
+    "tcp_calibration_p3d-dr.optim.n_rep",
+    "tcp_calibration_p3d-dr.optim.sigma",
+    "tcp_calibration_p3d-dr.optim.loss",
+    "tcp_calibration_p3d-dr.optim.lr",
+    "tcp_calibration_p3d-dr.optim.sched",
+    "tcp_calibration_p3d-dr.optim.sched.eta_min",
+    "tcp_calibration_p3d-dr.optim.n_iter",
+]
