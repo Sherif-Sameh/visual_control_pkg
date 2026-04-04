@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Callable, Literal
+from typing import TYPE_CHECKING, Any, Callable, Literal
 
 import torch
 import torch.nn.functional as F
@@ -27,9 +27,14 @@ def wrap_loss_fn(
     Returns:
         Wrapped loss function that reduces all input dimensions but the batch dimension.
     """
-    assert hasattr(F, fn_name), f"Function must be from `torch.nn.functional`. Got {fn_name}."
     assert reduction in ["sum", "mean"]
-    fn = getattr(F, fn_name)
+    if not hasattr(F, fn_name):
+        assert f"build_{fn_name}" in globals(), (
+            f"Function must be from torch.nn.functional or losses module. Got {fn_name}."
+        )
+        fn = globals()[f"build_{fn_name}"](reduction="none")
+    else:
+        fn = getattr(F, fn_name)
     reduction_fn = torch.sum if reduction == "sum" else torch.mean
 
     def loss_fn(input: Tensor, target: Tensor) -> Tensor:
@@ -37,3 +42,47 @@ def wrap_loss_fn(
         return reduction_fn(loss, dim=tuple(range(1, input.ndim)))
 
     return loss_fn
+
+
+def build_dice_loss(
+    *, reduction: Literal["mean", "sum", "none"] = "mean"
+) -> Callable[[Tensor, Tensor], Tensor]:
+    """Builds a torch compiled dice loss function for the given reduction method.
+
+    Args:
+        reduction: Specifies the reduction to apply to the output: 'none' | 'mean' | 'sum'. 'mean':
+            the mean of the output is taken. 'sum': the output will be summed. 'none': no reduction
+            will be applied. Default value is 'mean'.
+
+    Return:
+        Dice loss.
+    """
+
+    match reduction:
+        case "mean":
+            reduction_fn = torch.mean
+        case "sum":
+            reduction_fn = torch.sum
+        case _:
+            reduction_fn = lambda x: x  # noqa: E731
+
+    def dice_loss(
+        input: Tensor, target: Tensor, reduction: Any = None, smooth: float = 1.0
+    ) -> Tensor:
+        """Compute the Dice loss with optional smoothing factor.
+
+        Args:
+            input: Predicted values in the range [0, 1].
+            target Ground truth values. Shape is the same as `input`.
+            reduction: Placeholder to match torch.nn.functional signatures. Reduction method set
+                from the `reduction` argument to `build_dice_loss` function.
+            smooth: Smoothing factor to apply to Dice coefficient, Default value is 1.0.
+
+        Return:
+            Dice loss.
+        """
+        dice = (2 * (input * target) + smooth) / (input + target + smooth)
+        loss = 1.0 - dice
+        return reduction_fn(loss)
+
+    return torch.compile(dice_loss)
