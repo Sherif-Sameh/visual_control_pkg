@@ -27,7 +27,7 @@ from torch import Tensor
 from torch.optim.lr_scheduler import CosineAnnealingLR
 
 import vc_core.dr.pytorch3d as vc_pytorch3d
-from vc_core.dr.losses import wrap_loss_fn
+from vc_core.dr.losses import wrap_combined_loss_fn
 from vc_core.dr.pytorch3d import CylinderOptimizer
 from vc_core.loggers import MemoryLogger
 from vc_core.segmentation.sam import SAM2, SAMPromptConfig
@@ -63,7 +63,7 @@ class TcpCalibrationP3d(Node):
         self.declare_parameter("dr.raster.n_faces", rclpy.Parameter.Type.INTEGER)
         self.declare_parameter("dr.optim.n_rep", rclpy.Parameter.Type.INTEGER)
         self.declare_parameter("dr.optim.sigma", rclpy.Parameter.Type.DOUBLE_ARRAY)
-        self.declare_parameter("dr.optim.loss", rclpy.Parameter.Type.STRING)
+        self.declare_parameter("dr.optim.loss", rclpy.Parameter.Type.STRING_ARRAY)
         self.declare_parameter("dr.optim.lr", rclpy.Parameter.Type.DOUBLE)
         self.declare_parameter("dr.optim.sched", rclpy.Parameter.Type.BOOL)
         self.declare_parameter("dr.optim.sched.eta_min", rclpy.Parameter.Type.DOUBLE)
@@ -248,8 +248,8 @@ class TcpCalibrationP3d(Node):
             ):
                 failed("dr.optim.sigma must be a double array of length 2.")
                 break
-            if param.name == "dr.optim.loss" and param.type_ != ParamType.STRING:
-                failed("dr.optim.loss must be string.")
+            if param.name == "dr.optim.loss" and param.type_ != ParamType.STRING_ARRAY:
+                failed("dr.optim.loss must be string array.")
                 break
         if result.successful:
             self._pose = None
@@ -324,11 +324,17 @@ class TcpCalibrationP3d(Node):
             mesh_renderer = self._optim._renderer
 
         if not has_optim or kwargs.get("optimizer", False):
+            has_depth = self.get_parameter("dr.shader.depth").value
             optim_params = {
                 k: v.value for k, v in self.get_parameters_by_prefix("dr.optim").items()
             }
             lr = optim_params["lr"]
-            loss_fn = wrap_loss_fn(optim_params["loss"])
+            loss_ranges = [slice(1), slice(1, 2)] if has_depth else [slice(1)]
+            loss_fn = torch.compile(
+                wrap_combined_loss_fn(
+                    optim_params["loss"], loss_ranges, device=self._device, reduction="sum"
+                )
+            )
             lr_sched_cfg = CylinderOptimizer.LRSchedulerCfg(
                 cls=CosineAnnealingLR,
                 kwargs={"T_max": optim_params["n_iter"], "eta_min": optim_params["sched.eta_min"]},

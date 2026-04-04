@@ -67,7 +67,7 @@ goal = "minimize"
 "tcp_calibration_p3d-dr.optim.sched.eta_min" = { distribution = "log_uniform_values", min = 1e-6, max = 1e-3 }
 [sweep.parameters."tcp_calibration_p3d-dr.optim.loss"]
 values = [
-    "l1_loss",
-    "binary_cross_entropy",
-    "dice_loss",
+    ["l1_loss"],
+    ["binary_cross_entropy"],
+    ["dice_loss"],
 ]

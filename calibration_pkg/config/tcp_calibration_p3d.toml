@@ -36,7 +36,7 @@
 # Optimizer parameters
 "dr.optim.n_rep" = 8
 "dr.optim.sigma" = [0.003, 0.01]
-"dr.optim.loss" = "mse_loss"
+"dr.optim.loss" = ["mse_loss"]
 "dr.optim.lr" = 0.05
 "dr.optim.sched" = true
 "dr.optim.sched.eta_min" = 1e-5
