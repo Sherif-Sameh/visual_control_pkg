@@ -1,0 +1,73 @@
+### TCP Calibration (PyTorch3D) ROS Sweep Configuration ###
+
+# Launch script parameters  
+[launch]
+
+# General parameters
+timer_period = 0.1
+n_runs_per_set = 3
+target_nodes = ["tcp_calibration_p3d"]
+
+# Objective function parameters
+"obj.flags" = [
+    "jnt_vel",
+    "pos",
+    "rot",
+    "pose",
+]
+"obj.weights" = [
+    0.0,
+    0.0,
+    0.0,
+    1.0,
+]
+
+# WandB logger parameters
+"wandb.n_log" = 1
+"wandb.n_flush" = 40
+"wandb.config.entity" = "u1999168-girona"
+"wandb.config.project" = "visual_control|tcpcalib_sweeps"
+"wandb.config.params" = [
+    "tcp_calibration_p3d-sam.variant",
+    "tcp_calibration_p3d-sam.prompt.type",
+    "tcp_calibration_p3d-sam.prompt.n_pos",
+    "tcp_calibration_p3d-sam.prompt.n_neg",
+    "tcp_calibration_p3d-dr.mesh.radius",
+    "tcp_calibration_p3d-dr.mesh.height",
+    "tcp_calibration_p3d-dr.init.dist",
+    "tcp_calibration_p3d-dr.init.elev",
+    "tcp_calibration_p3d-dr.init.azim",
+    "tcp_calibration_p3d-dr.model.radius",
+    "tcp_calibration_p3d-dr.model.height",
+    "tcp_calibration_p3d-dr.shader.sil.gamma",
+    "tcp_calibration_p3d-dr.shader.depth",
+    "tcp_calibration_p3d-dr.shader.depth.zfar",
+    "tcp_calibration_p3d-dr.raster.size",
+    "tcp_calibration_p3d-dr.raster.n_faces",
+    "tcp_calibration_p3d-dr.optim.n_rep",
+    "tcp_calibration_p3d-dr.optim.sched",
+    "tcp_calibration_p3d-dr.optim.n_iter",
+]
+
+
+# Sweep hyperparameters
+[sweep]
+program = "scripts/sweepers/ros_sweeper.py"
+method = "bayes"
+
+[sweep.metric]
+name = "objective"
+goal = "minimize"
+
+[sweep.parameters]
+"tcp_calibration_p3d-dr.shader.sil.sigma" = { distribution = "log_uniform_values", min = 1e-6, max = 1e-4 }
+"tcp_calibration_p3d-dr.optim.sigma.idx_0" = { distribution = "log_uniform_values", min = 5e-4, max = 5e-2 }
+"tcp_calibration_p3d-dr.optim.sigma.idx_1" = { distribution = "log_uniform_values", min = 1e-2, max = 0.2 }
+"tcp_calibration_p3d-dr.optim.lr" = { distribution = "log_uniform_values", min = 1e-2, max = 1.0 }
+"tcp_calibration_p3d-dr.optim.sched.eta_min" = { distribution = "log_uniform_values", min = 1e-6, max = 1e-3 }
+[sweep.parameters."tcp_calibration_p3d-dr.optim.loss"]
+values = [
+    "l1_loss",
+    "binary_cross_entropy",
+    "dice_loss",
+]
