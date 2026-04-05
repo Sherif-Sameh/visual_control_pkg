@@ -432,8 +432,11 @@ class TcpCalibrationP3d(Node):
             clipped = torch.where(self._silhoutte > 0, self._depth, zfar)
             return self._crop_img(clipped)[None, :, :, None].expand([n_rep, -1, -1, -1])
 
+        def get_silhouette_and_depth() -> Tensor:
+            return torch.cat([get_silhouette(), get_depth()], dim=-1)
+
         if len(modalities) == 2:
-            get_target = torch.cat([get_silhouette(), get_depth()], dim=-1)
+            get_target = get_silhouette_and_depth
         else:
             get_target = get_silhouette if "silhouette" in modalities else get_depth
         return get_target
