@@ -11,7 +11,7 @@ from pytorch3d.renderer import (
     RasterizationSettings,
     look_at_view_transform,
 )
-from pytorch3d.renderer.mesh.shader import SoftDepthShader
+from pytorch3d.renderer.mesh.shader import HardDepthShader, SoftDepthShader
 from pytorch3d.transforms import quaternion_to_matrix
 from pytorch3d.utils import cameras_from_opencv_projection
 from torch.optim.lr_scheduler import CosineAnnealingLR
@@ -22,6 +22,12 @@ from vc_core.dr.pytorch3d.model import CylinderModel, CylinderSplitParamModel
 from vc_core.dr.pytorch3d.optim import CylinderMultiLROptimizer, CylinderOptimizer
 from vc_core.dr.pytorch3d.shader import ComposeShader, SoftSilhouetteShader
 from vc_core.loggers import MemoryLogger
+
+np.random.seed(0)
+torch.manual_seed(0)
+torch.cuda.manual_seed(0)
+torch.backends.cudnn.deterministic = True
+torch.backends.cudnn.benchmark = True
 
 Devices = [torch.device("cpu")]
 Devices = Devices + [torch.device("cuda")] if torch.cuda.is_available() else Devices
@@ -45,12 +51,12 @@ def test_cylinder_optimizer(device: torch.device, cls: CylinderOptimizer) -> Non
     # Create cylinder model
     distance, elevation, azimuth = 0.125, 135.0, 0.0
     R, T = look_at_view_transform(distance, elevation, azimuth, device=device)
-    pos_sigma, z_dir_sigma, height_sigma = 0.003, 0.01, 0.005
+    pos_sigma, z_dir_sigma, height_sigma = 0.005, 0.1, 0.002
     pos = torch.randn((n_rep, 3), dtype=torch.float32, device=device) * pos_sigma + T
     z_dir = torch.randn((n_rep, 3), dtype=torch.float32, device=device) * z_dir_sigma + R[..., -1]
     height = torch.randn((n_rep,), dtype=torch.float32, device=device) * height_sigma + height
     model_cls = CylinderModel if cls == CylinderOptimizer else CylinderSplitParamModel
-    model = model_cls(pos, z_dir, radius=None, height=None, n_rep=n_rep)
+    model = model_cls(pos, z_dir, radius=None, height=height, n_rep=n_rep, scale=0.1)
 
     # Create silhouette + depth renderer
     camera = cameras_from_opencv_projection(
@@ -59,7 +65,7 @@ def test_cylinder_optimizer(device: torch.device, cls: CylinderOptimizer) -> Non
         camera_matrix=torch.tensor([[[733.0, 0.0, 128.0], [0.0, 733.0, 128.0], [0.0, 0.0, 1.0]]]),
         image_size=torch.tensor([[256, 256]]),
     ).to(device=device)
-    blend_params = BlendParams(sigma=2e-5, gamma=1e-4)
+    blend_params = BlendParams(sigma=1e-5, gamma=1e-4)
     raster_settings = RasterizationSettings(
         image_size=256,
         blur_radius=np.log(1.0 / 1e-4 - 1.0) * blend_params.sigma,
@@ -76,21 +82,28 @@ def test_cylinder_optimizer(device: torch.device, cls: CylinderOptimizer) -> Non
         ).to(device=device),
     )
 
+    # Render target inputs
+    renderer_gt = MeshRenderer(
+        rasterizer=MeshRasterizer(
+            cameras=None,
+            raster_settings=RasterizationSettings(
+                image_size=256, blur_radius=0, faces_per_pixel=1, perspective_correct=True
+            ),
+        ),
+        shader=HardDepthShader(device=device),
+    )
+    target = renderer_gt(mesh.mesh, R=R_gt, T=T_gt, cameras=camera, zfar=1.0).detach()
+    target = torch.cat([(target < 1.0).float(), target], dim=-1)
+
     # Create cylinder model optimizer
     n_iter = 100
-    lr = 0.05 if cls == CylinderOptimizer else sample_log_uniform(1e-3, 0.05, n_rep).tolist()
+    lr = 0.05 if cls == CylinderOptimizer else sample_log_uniform(5e-3, 0.1, n_rep).tolist()
     optim = cls(
         mesh,
         model,
         renderer,
         torch.compile(
-            wrap_combined_loss_fn(
-                ["mncc_loss", "mse_loss"],
-                [slice(1), slice(1, 2)],
-                weights=[1.0, 0.005],
-                device=device,
-                reduction="mean",
-            )
+            wrap_combined_loss_fn(["mse_loss"], [slice(2)], device=device, reduction="mean")
         ),
         lr=lr,
         lr_sched_cfg=CylinderOptimizer.LRSchedulerCfg(
@@ -99,7 +112,6 @@ def test_cylinder_optimizer(device: torch.device, cls: CylinderOptimizer) -> Non
     )
 
     # Run optimizer for a number of iterations
-    target = renderer(mesh.mesh, R=R_gt, T=T_gt, cameras=camera, zfar=1.0).detach()
     logger_first = MemoryLogger(n_log=1)
     logger_all = MemoryLogger(n_log=10)
     optim.optimize(target, n_iter=1, logger=logger_first, cameras=camera, zfar=1.0)

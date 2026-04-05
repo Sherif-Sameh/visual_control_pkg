@@ -94,16 +94,14 @@ def build_combined_loss_fn(
     # Build all loss functions
     losses = [build_loss_fn(name, reduction="none", **kw) for name, kw in zip(fn_names, kwargs)]
     reduction_fn = _get_reduction_fn(reduction)
-    weights = weights if isinstance(weights, list) else [1.0] * len(losses)
-    assert len(weights) == len(ranges), "Number of functions and weights must be equal."
-    weights = torch.cat(
-        [torch.tensor([w] * _get_slice_len(s)) for w, s in zip(weights, ranges)]
-    ).to(dtype=torch.float32, device=device)
+    if weights is not None:
+        weights = torch.tensor(weights, dtype=torch.float32, device=device)
 
     def loss_fn(input: Tensor, target: Tensor) -> Tensor:
+        w = torch.ones_like(input) if weights is None else weights
         loss = (
             torch.cat([fn(input[..., s], target[..., s]) for fn, s in zip(losses, ranges)], dim=-1)
-            * weights
+            * w
         )
         return reduction_fn(loss)
 
@@ -263,6 +261,36 @@ def _build_mncc_loss(
     return _build_loss_fn(mncc_loss, reduction=reduction)
 
 
+def _build_masked_loss(
+    *, reduction: Literal["mean", "sum", "none"] = "mean", inner_fn_name: str, **kwargs
+) -> Callable[[Tensor, Tensor], Tensor]:
+    """Build a torch masked loss wrapped around the given function and reduction method.
+
+    Inputs are assumed to contain the mask at index 0 along their channel (last) dimension.
+
+    Args:
+        inner_fn_name: Name of loss function to wrap from `vc_core.dr.losses` module or
+            `torch.nn.functional` that accepts input and target tensors respectively plus
+            additional fixed kwargs (e.g., `mse_loss`).
+        reduction: Specifies the reduction to apply to the output (none | mean | sum). If mean,
+            the mean of the output is taken. If sum, the output will be summed. If none, no
+            reduction will be applied. Default value is mean.
+        kwargs: Optional kwargs to forward to loss function (e.g., weight).
+
+    Returns:
+        Masked loss.
+    """
+    fn = build_loss_fn(inner_fn_name, reduction="none", **kwargs)
+
+    def masked_loss(input: Tensor, target: Tensor) -> Tensor:
+        """Computed masked loss."""
+        loss = fn(input[..., 1:], target[..., 1:])
+        loss = loss * target[..., :1]
+        return loss
+
+    return _build_loss_fn(masked_loss, reduction=reduction)
+
+
 def _build_loss_fn(
     fn: Callable[[Tensor, Tensor, Any], Tensor],
     reduction: Literal["sum", "mean", "none"] = "mean",
@@ -303,10 +331,3 @@ def _get_reduction_fn(reduction: Literal["sum", "mean", "none"]) -> Callable[[Te
             return torch.sum
         case _:
             return lambda x: x
-
-
-def _get_slice_len(range: slice) -> int:
-    """Get the length of a slice according to start, stop and step."""
-    start = range.start if range.start is not None else 0
-    step = range.step if range.step is not None else 1
-    return (range.stop - start) // step

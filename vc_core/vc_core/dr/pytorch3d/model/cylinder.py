@@ -18,8 +18,8 @@ class CylinderModel(nn.Module):
     vertical axis (Z-axis) relative to the camera.
 
     The position of the cylinder is parameterized by zero-centering it around the initial guess and
-    scaling its magnitude by the abs value of the initial guess. The Z-axis is parameterized as an
-    unnormalized 3-vector that is then normalized, with the other axes derived through Gram-Schmidt.
+    scaling its magnitude by a set scaling factor. The Z-axis is parameterized as an unnormalized
+    3-vector that is then normalized, with the other axes derived through Gram-Schmidt.
 
     The geometry of the cylinder is parameterized through radial and height offsets that can be
     applied to a cylinder mesh (e.g., see `vc_core.dr.mesh.CylinderMesh`). These offsets are also
@@ -37,6 +37,7 @@ class CylinderModel(nn.Module):
             is `None`.
         n_rep: Number of times to repeat the cylinder's parameters. Ignored if any of the other
             input parameters is repeated. Default value is 1.
+        scale: Optional scale factor for position offsets. Default value is 1.0.
     """
 
     def __init__(
@@ -47,8 +48,10 @@ class CylinderModel(nn.Module):
         radius: Tensor | None = None,
         height: Tensor | None = None,
         n_rep: int = 1,
+        scale: float = 1.0,
     ):
         super().__init__()
+        self.scale = scale
         device = pos.device
         n_rep = self._get_n_rep(pos, z_dir, radius, height, n_rep)
         est_radius, est_height = radius is not None, height is not None
@@ -84,7 +87,7 @@ class CylinderModel(nn.Module):
             offset vectors of the cylinder respectively (N,).
         """
         # unnormalize position
-        pos = self.pos_offset * torch.abs(self.pos_init) + self.pos_init
+        pos = self.pos_offset * self.scale + self.pos_init
         # normalize Z-axis and create rotation matrix
         z_dir = F.normalize(self.z_dir, dim=-1)
         rot = self._get_rotation_from_z(z_dir)
@@ -147,6 +150,7 @@ class CylinderSplitParamModel(CylinderModel):
             is `None`.
         n_rep: Number of times to repeat the cylinder's parameters. Ignored if any of the other
             input parameters is repeated. Default value is 1.
+        scale: Optional scale factor for position offsets. Default value is 1.0.
     """
 
     def __init__(
@@ -157,8 +161,9 @@ class CylinderSplitParamModel(CylinderModel):
         radius: Tensor | None = None,
         height: Tensor | None = None,
         n_rep: int = 1,
+        scale: float = 1.0,
     ):
-        super().__init__(pos, z_dir, radius=radius, height=height, n_rep=n_rep)
+        super().__init__(pos, z_dir, radius=radius, height=height, n_rep=n_rep, scale=scale)
         # split each parameter to a list of parameters
         self.pos_offset_list = nn.ParameterList([nn.Parameter(t.clone()) for t in self.pos_offset])
         self.z_dir_list = nn.ParameterList([nn.Parameter(t.clone()) for t in self.z_dir])
