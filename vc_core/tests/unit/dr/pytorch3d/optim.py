@@ -11,15 +11,16 @@ from pytorch3d.renderer import (
     RasterizationSettings,
     look_at_view_transform,
 )
+from pytorch3d.renderer.mesh.shader import SoftDepthShader
 from pytorch3d.transforms import quaternion_to_matrix
 from pytorch3d.utils import cameras_from_opencv_projection
 from torch.optim.lr_scheduler import CosineAnnealingLR
 
-from vc_core.dr.losses import wrap_loss_fn
+from vc_core.dr.losses import wrap_combined_loss_fn
 from vc_core.dr.pytorch3d.mesh import CylinderMesh
 from vc_core.dr.pytorch3d.model import CylinderModel, CylinderSplitParamModel
 from vc_core.dr.pytorch3d.optim import CylinderMultiLROptimizer, CylinderOptimizer
-from vc_core.dr.pytorch3d.shader import SoftSilhouetteShader
+from vc_core.dr.pytorch3d.shader import ComposeShader, SoftSilhouetteShader
 from vc_core.loggers import MemoryLogger
 
 Devices = [torch.device("cpu")]
@@ -51,7 +52,7 @@ def test_cylinder_optimizer(device: torch.device, cls: CylinderOptimizer) -> Non
     model_cls = CylinderModel if cls == CylinderOptimizer else CylinderSplitParamModel
     model = model_cls(pos, z_dir, radius=None, height=None, n_rep=n_rep)
 
-    # Create silhouette renderer
+    # Create silhouette + depth renderer
     camera = cameras_from_opencv_projection(
         R=torch.zeros(1, 3, 3),
         tvec=torch.zeros(1, 3),
@@ -67,7 +68,12 @@ def test_cylinder_optimizer(device: torch.device, cls: CylinderOptimizer) -> Non
     )
     renderer = MeshRenderer(
         rasterizer=MeshRasterizer(cameras=None, raster_settings=raster_settings),
-        shader=SoftSilhouetteShader(blend_params=blend_params).to(device),
+        shader=ComposeShader(
+            [
+                SoftSilhouetteShader(blend_params=blend_params),
+                SoftDepthShader(blend_params=blend_params),
+            ]
+        ).to(device=device),
     )
 
     # Create cylinder model optimizer
@@ -77,19 +83,27 @@ def test_cylinder_optimizer(device: torch.device, cls: CylinderOptimizer) -> Non
         mesh,
         model,
         renderer,
-        wrap_loss_fn("mse_loss"),
+        torch.compile(
+            wrap_combined_loss_fn(
+                ["mncc_loss", "mse_loss"],
+                [slice(1), slice(1, 2)],
+                weights=[1.0, 0.005],
+                device=device,
+                reduction="mean",
+            )
+        ),
         lr=lr,
         lr_sched_cfg=CylinderOptimizer.LRSchedulerCfg(
-            CosineAnnealingLR, {"T_max": n_iter, "eta_min": 1e-5}
+            CosineAnnealingLR, {"T_max": n_iter, "eta_min": 3e-4}
         ),
     )
 
     # Run optimizer for a number of iterations
-    target = renderer(mesh.mesh, R=R_gt, T=T_gt, cameras=camera).detach()
+    target = renderer(mesh.mesh, R=R_gt, T=T_gt, cameras=camera, zfar=1.0).detach()
     logger_first = MemoryLogger(n_log=1)
     logger_all = MemoryLogger(n_log=10)
-    optim.optimize(target, n_iter=1, logger=logger_first, cameras=camera)
-    optim.optimize(target, n_iter=n_iter, logger=logger_all, cameras=camera)
+    optim.optimize(target, n_iter=1, logger=logger_first, cameras=camera, zfar=1.0)
+    optim.optimize(target, n_iter=n_iter, logger=logger_all, cameras=camera, zfar=1.0)
 
     # visualize loss history and outputs vs target
     log_first = logger_first.flush()[1]

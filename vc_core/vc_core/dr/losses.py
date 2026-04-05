@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from functools import partial
-from typing import TYPE_CHECKING, Any, Callable, Literal, Sequence
+from typing import TYPE_CHECKING, Any, Callable, Literal
 
 import torch
 import torch.nn.functional as F
@@ -11,12 +11,12 @@ if TYPE_CHECKING:
 
 
 def wrap_combined_loss_fn(
-    fn_names: Sequence[str],
-    ranges: Sequence[slice],
-    weights: Sequence[float] | None = None,
+    fn_names: list[str],
+    ranges: list[slice],
+    weights: list[float] | None = None,
     device: str | torch.device = "cpu",
-    reduction: Literal["sum", "mean", "none"] = "mean",
-    **kwargs,
+    reduction: Literal["sum", "mean"] = "mean",
+    kwargs: list[dict[str, Any]] | None = None,
 ) -> Callable[[Tensor, Tensor], Tensor]:
     """Wrap a combined loss function so that the batch dimension is retained.
 
@@ -38,14 +38,14 @@ def wrap_combined_loss_fn(
             tensors. Default value is `cpu`.
         reduction: Specifies the reduction to apply to the output (mean | sum). If mean,
             the mean of the output is taken. If sum, the output will be summed. Default value is mean.
-        kwargs: Optional kwargs to forward to loss function (e.g., weight).
+        kwargs: Optional sequence of kwargs to forward to loss functions (e.g., weight).
 
     Returns:
         Wrapped combined loss function that reduces all input dimensions but the batch dimension.
     """
     assert reduction in ["sum", "mean"]
     fn = build_combined_loss_fn(
-        fn_names, ranges, weights=weights, device=device, reduction="none", **kwargs
+        fn_names, ranges, weights=weights, device=device, reduction="none", kwargs=kwargs
     )
     reduction_fn = _get_reduction_fn(reduction)
 
@@ -57,12 +57,12 @@ def wrap_combined_loss_fn(
 
 
 def build_combined_loss_fn(
-    fn_names: Sequence[str],
-    ranges: Sequence[slice],
-    weights: Sequence[float] | None = None,
+    fn_names: list[str],
+    ranges: list[slice],
+    weights: list[float] | None = None,
     device: str | torch.device = "cpu",
     reduction: Literal["sum", "mean", "none"] = "mean",
-    **kwargs,
+    kwargs: list[dict[str, Any]] | None = None,
 ) -> Callable[[Tensor, Tensor], Tensor]:
     """Build a torch loss function made up of a combination of other losses.
 
@@ -83,14 +83,16 @@ def build_combined_loss_fn(
         reduction: Specifies the reduction to apply to the output (none | mean | sum). If mean,
             the mean of the output is taken. If sum, the output will be summed. If none, no
             reduction will be applied. Default value is mean.
-        kwargs: Optional kwargs to forward to all loss functions (e.g., weight).
+        kwargs: Optional sequence of kwargs to forward to loss functions (e.g., weight).
 
     Returns:
         Combined loss function.
     """
     assert len(fn_names) == len(ranges), "Number of functions and slices must be equal."
+    kwargs = kwargs if isinstance(kwargs, list) else [{}] * len(fn_names)
+    assert len(kwargs) == len(fn_names), "Number of functions and kwargs must be equal."
     # Build all loss functions
-    losses = [build_loss_fn(fn_name, reduction="none", **kwargs) for fn_name in fn_names]
+    losses = [build_loss_fn(name, reduction="none", **kw) for name, kw in zip(fn_names, kwargs)]
     reduction_fn = _get_reduction_fn(reduction)
     weights = weights if isinstance(weights, list) else [1.0] * len(losses)
     assert len(weights) == len(ranges), "Number of functions and weights must be equal."
@@ -187,6 +189,7 @@ def _build_dice_loss(
             input: Predicted values in the range [0, 1].
             target Ground truth values. Shape is the same as `input`.
             smooth: Smoothing factor to apply to Dice coefficient, Default value is 1.0.
+                device=device,
 
         Return:
             Dice loss.
@@ -196,6 +199,68 @@ def _build_dice_loss(
         return loss
 
     return _build_loss_fn(dice_loss, reduction=reduction, smooth=smooth)
+
+
+def _build_mncc_loss(
+    *, reduction: Literal["mean", "sum", "none"] = "mean", patch_size: int = 13
+) -> Callable[[Tensor, Tensor], Tensor]:
+    """Build a torch multi-scale NCC function for the given reduction method.
+
+    The implementation of multi-scale normalized cross correlation (mNCC) follows the description given
+    in the paper titled: `Intraoperative 2D/3D Image Registration via Differentiable X-ray Rendering`
+    (https://arxiv.org/abs/2312.06358).
+
+    mNCC is the combination of two losses: a global NCC and a local one computed over corresponding
+    image patches in the two images.
+
+    `reduction` is added for consistency with losses in `torch.nn.functional`. However, the mNCC loss
+    cannot be computed without reducing the spatial dimensions since the global and local NCCs will
+    have different spatial dimensions. Therefore, those dimensions are reduced and the final loss
+    is repeated across them for spatial consistency with other losses.
+
+    Args:
+        reduction: Specifies the reduction to apply to the output (none | mean | sum). If mean,
+            the mean of the output is taken. If sum, the output will be summed. If none, no
+            reduction will be applied. Default value is mean.
+        patch_size: Size for the square patches for local NCC. Default value is 13.
+
+    Returns:
+        Multi-scale NCC loss.
+    """
+
+    def normalize(x: Tensor) -> Tensor:
+        """Normalize input by its mean and standard deviation."""
+        mu = x.mean(dim=(-3, -2), keepdim=True)
+        std = x.std(dim=(-3, -2), keepdim=True, correction=0)
+        return (x - mu) / (std + 1e-6)
+
+    def patchify(x: Tensor) -> Tensor:
+        """Divide input to square patches and zero-pad as needed."""
+        h, w = x.shape[-3:-1]
+        pad_h = (patch_size - h % patch_size) % patch_size
+        pad_w = (patch_size - w % patch_size) % patch_size
+        x_p = F.pad(x, (0, 0, 0, pad_w, 0, pad_h), mode="constant", value=0)
+        x_p = x_p.unfold(1, patch_size, patch_size).unfold(2, patch_size, patch_size)
+        x_p = x_p.permute(0, 1, 2, 4, 5, 3).contiguous().flatten(1, 2)
+        return x_p
+
+    def ncc(x: Tensor, y: Tensor) -> Tensor:
+        """Compute NCC between inputs."""
+        x_norm, y_norm = normalize(x), normalize(y)
+        return (x_norm * y_norm).mean(dim=(-3, -2))
+
+    def mncc_loss(input: Tensor, target: Tensor) -> Tensor:
+        """Compute mNCC loss."""
+        h, w = input.shape[-3:-1]
+        input_patches = patchify(input)  # (B, nP, Ps, Ps, C)
+        target_patches = patchify(target)  # (B, nP, Ps, Ps, C)
+        global_ncc = ncc(input, target)  # (B, C)
+        local_ncc = ncc(input_patches, target_patches).mean(dim=-2)  # (B, C)
+        loss = -(global_ncc + local_ncc) / 2
+        loss = loss[:, None, None].expand([-1, h, w, -1])
+        return loss
+
+    return _build_loss_fn(mncc_loss, reduction=reduction)
 
 
 def _build_loss_fn(
