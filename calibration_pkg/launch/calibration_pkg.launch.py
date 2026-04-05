@@ -59,6 +59,14 @@ def declare_arguments() -> list[DeclareLaunchArgument]:
             " Default is [240, 320].",
         )
     )
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "modalities",
+            default_value="['depth']",
+            description="Rendering modalities to use for TCP pose optimization. Options include"
+            " 'silhouette' and 'depth' only. Default is ['depth'].",
+        )
+    )
 
     # General arguments
     declared_arguments.append(
@@ -195,6 +203,7 @@ def _include_handeye_evaluation() -> IncludeLaunchDescription:
 def _include_tcp_calibration_p3d() -> IncludeLaunchDescription:
     pose_gt = LaunchConfiguration("pose_gt_tcp")
     img_center = LaunchConfiguration("img_center")
+    modalities = LaunchConfiguration("modalities")
 
     image_topic_name = LaunchConfiguration("image_topic_name")
     depth_topic_name = LaunchConfiguration("depth_topic_name")
@@ -215,6 +224,7 @@ def _include_tcp_calibration_p3d() -> IncludeLaunchDescription:
         launch_arguments={
             "pose_gt": pose_gt,
             "img_center": img_center,
+            "modalities": modalities,
             "image_topic_name": image_topic_name,
             "depth_topic_name": depth_topic_name,
             "camera_info_topic_name": camera_info_topic_name,

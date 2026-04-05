@@ -29,6 +29,14 @@ def declare_arguments() -> list[DeclareLaunchArgument]:
             " Default is [240, 320].",
         )
     )
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "modalities",
+            default_value="['depth']",
+            description="Rendering modalities to use for pose optimization. Options include"
+            " 'silhouette' and 'depth' only. Default is ['depth'].",
+        )
+    )
 
     # General arguments
     declared_arguments.append(
@@ -69,6 +77,7 @@ def generate_launch_description() -> LaunchDescription:
     # Initialize Arguments
     pose_gt = LaunchConfiguration("pose_gt")
     img_center = LaunchConfiguration("img_center")
+    modalities = LaunchConfiguration("modalities")
 
     image_topic_name = LaunchConfiguration("image_topic_name")
     depth_topic_name = LaunchConfiguration("depth_topic_name")
@@ -85,7 +94,14 @@ def generate_launch_description() -> LaunchDescription:
         package="calibration_pkg",
         executable="tcp_calibration_p3d.py",
         output="screen",
-        parameters=[{"pose_gt": pose_gt, "img_center": img_center, **config["calibration"]}],
+        parameters=[
+            {
+                "pose_gt": pose_gt,
+                "img_center": img_center,
+                "dr.shader.modalities": modalities,
+                **config["calibration"],
+            }
+        ],
         remappings=[
             ("/image", image_topic_name),
             ("/depth", depth_topic_name),

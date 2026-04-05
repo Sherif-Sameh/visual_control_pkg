@@ -4,7 +4,7 @@
 ROS node for performing TCP to camera calibration using differentiable rendering (PyTorch3D)
 """
 
-from typing import Callable
+from typing import Any, Callable
 
 import numpy as np
 import pytorch3d.renderer as renderer
@@ -28,7 +28,7 @@ from torch.optim.lr_scheduler import CosineAnnealingLR
 
 import vc_core.dr.pytorch3d as vc_pytorch3d
 from vc_core.dr.losses import wrap_combined_loss_fn
-from vc_core.dr.pytorch3d import CylinderOptimizer
+from vc_core.dr.pytorch3d import CylinderMultiLROptimizer
 from vc_core.loggers import MemoryLogger
 from vc_core.segmentation.sam import SAM2, SAMPromptConfig
 
@@ -55,23 +55,26 @@ class TcpCalibrationP3d(Node):
         self.declare_parameter("dr.init.azim", rclpy.Parameter.Type.DOUBLE)
         self.declare_parameter("dr.model.radius", rclpy.Parameter.Type.BOOL)
         self.declare_parameter("dr.model.height", rclpy.Parameter.Type.BOOL)
-        self.declare_parameter("dr.shader.sil.sigma", rclpy.Parameter.Type.DOUBLE)
-        self.declare_parameter("dr.shader.sil.gamma", rclpy.Parameter.Type.DOUBLE)
-        self.declare_parameter("dr.shader.depth", rclpy.Parameter.Type.BOOL)
-        self.declare_parameter("dr.shader.depth.zfar", rclpy.Parameter.Type.DOUBLE)
+        self.declare_parameter("dr.model.scale", rclpy.Parameter.Type.DOUBLE)
+        self.declare_parameter("dr.shader.modalities", rclpy.Parameter.Type.STRING_ARRAY)
+        self.declare_parameter("dr.shader.sigma", rclpy.Parameter.Type.DOUBLE)
+        self.declare_parameter("dr.shader.gamma", rclpy.Parameter.Type.DOUBLE)
+        self.declare_parameter("dr.shader.zfar", rclpy.Parameter.Type.DOUBLE)
         self.declare_parameter("dr.raster.size", rclpy.Parameter.Type.INTEGER)
         self.declare_parameter("dr.raster.n_faces", rclpy.Parameter.Type.INTEGER)
         self.declare_parameter("dr.optim.n_rep", rclpy.Parameter.Type.INTEGER)
         self.declare_parameter("dr.optim.sigma", rclpy.Parameter.Type.DOUBLE_ARRAY)
         self.declare_parameter("dr.optim.loss", rclpy.Parameter.Type.STRING_ARRAY)
-        self.declare_parameter("dr.optim.lr", rclpy.Parameter.Type.DOUBLE)
+        self.declare_parameter("dr.optim.loss.weights", rclpy.Parameter.Type.DOUBLE_ARRAY)
+        self.declare_parameter("dr.optim.lr.min", rclpy.Parameter.Type.DOUBLE)
+        self.declare_parameter("dr.optim.lr.max", rclpy.Parameter.Type.DOUBLE)
         self.declare_parameter("dr.optim.sched", rclpy.Parameter.Type.BOOL)
         self.declare_parameter("dr.optim.sched.eta_min", rclpy.Parameter.Type.DOUBLE)
         self.declare_parameter("dr.optim.n_iter", rclpy.Parameter.Type.INTEGER)
 
         # Initialize non-ROS class attributes
         pose_gt = self.get_parameter("pose_gt").value
-        has_depth = self.get_parameter("dr.shader.depth").value
+        has_depth = "depth" in self.get_parameter("dr.shader.modalities").value
         n_iter = self.get_parameter("dr.optim.n_iter").value
         if not torch.cuda.is_available():
             self.get_logger().warn("CUDA is not available. DR is very slow running on CPU.")
@@ -267,92 +270,121 @@ class TcpCalibrationP3d(Node):
             device=self._device,
         )
 
-    def _init_optim(self, **kwargs) -> CylinderOptimizer:
+    def _init_optim(self, **kwargs) -> CylinderMultiLROptimizer:
         """Initialize the DR-based optimizer."""
         has_optim = hasattr(self, "_optim")
         n_rep = self.get_parameter("dr.optim.n_rep").value
-
-        if not has_optim or kwargs.get("mesh", False):
-            mesh_params = {k: v.value for k, v in self.get_parameters_by_prefix("dr.mesh").items()}
-            mesh = vc_pytorch3d.CylinderMesh(n_rep=n_rep, **mesh_params).to(device=self._device)
-        else:
-            mesh = self._optim._mesh
-
-        if not has_optim or kwargs.get("model", False):
-            sigma = self.get_parameter("dr.optim.sigma").value
-            init_params = {k: v.value for k, v in self.get_parameters_by_prefix("dr.init").items()}
-            model_params = {
-                k: v.value for k, v in self.get_parameters_by_prefix("dr.model").items()
-            }
-            model_params = {k: torch.zeros(1) if v else None for k, v in model_params.items()}
-            rmat, tvec = renderer.look_at_view_transform(**init_params)
-            model = vc_pytorch3d.CylinderModel(
-                pos=tvec + torch.normal(0, sigma[0], size=(n_rep, 3)),
-                z_dir=rmat[:, :, 2] + torch.normal(0, sigma[1], size=(n_rep, 3)),
-                n_rep=n_rep,
-                **model_params,
-            ).to(device=self._device)
-        else:
-            model = self._optim._model
-
-        if not has_optim or kwargs.get("renderer", False):
-            sil_params = {
-                k: v.value for k, v in self.get_parameters_by_prefix("dr.shader.sil").items()
-            }
-            has_depth = self.get_parameter("dr.shader.depth").value
-            raster_params = {
-                k: v.value for k, v in self.get_parameters_by_prefix("dr.raster").items()
-            }
-            blend_params = renderer.BlendParams(**sil_params)
-            raster_settings = renderer.RasterizationSettings(
-                image_size=raster_params["size"],
-                blur_radius=np.log(1.0 / 1e-4 - 1.0) * blend_params.sigma,
-                faces_per_pixel=raster_params["n_faces"],
-                perspective_correct=True,
-            )
-            soft_silhouttte = vc_pytorch3d.SoftSilhouetteShader(blend_params).to(
-                device=self._device
-            )
-            soft_depth = SoftDepthShader(blend_params=blend_params).to(device=self._device)
-            mesh_renderer = renderer.MeshRenderer(
-                rasterizer=renderer.MeshRasterizer(raster_settings=raster_settings),
-                shader=vc_pytorch3d.ComposeShader(
-                    [soft_silhouttte] + ([soft_depth] if has_depth else [])
-                ),
-            ).to(device=self._device)
-        else:
-            mesh_renderer = self._optim._renderer
-
+        mesh = (
+            self._init_optim_mesh(n_rep)
+            if not has_optim or kwargs.get("mesh", False)
+            else self._optim._mesh
+        )
+        model = (
+            self._init_optim_model(n_rep)
+            if not has_optim or kwargs.get("model", False)
+            else self._optim._model
+        )
+        mesh_renderer = (
+            self._init_optim_renderer()
+            if not has_optim or kwargs.get("renderer", False)
+            else self._optim._renderer
+        )
         if not has_optim or kwargs.get("optimizer", False):
-            has_depth = self.get_parameter("dr.shader.depth").value
             optim_params = {
                 k: v.value for k, v in self.get_parameters_by_prefix("dr.optim").items()
             }
-            lr = optim_params["lr"]
-            loss_ranges = [slice(1), slice(1, 2)] if has_depth else [slice(1)]
-            loss_fn = torch.compile(
-                wrap_combined_loss_fn(
-                    optim_params["loss"], loss_ranges, device=self._device, reduction="sum"
-                )
+            loss_fn = self._init_optim_loss_fn(optim_params)
+            lr, lr_sched_cfg = self._init_optim_lr_and_sched(optim_params, n_rep)
+        else:
+            loss_fn = self._optim._loss_fn
+            lr, lr_sched_cfg = self._optim._lr, self._optim._sched_cfg
+        return CylinderMultiLROptimizer(
+            mesh, model, mesh_renderer, loss_fn, lr=lr, lr_sched_cfg=lr_sched_cfg
+        )
+
+    def _init_optim_mesh(self, n_rep: int) -> vc_pytorch3d.CylinderMesh:
+        """Intialize the cylinder mesh used by the optimizer."""
+        mesh_params = {k: v.value for k, v in self.get_parameters_by_prefix("dr.mesh").items()}
+        return vc_pytorch3d.CylinderMesh(n_rep=n_rep, **mesh_params).to(device=self._device)
+
+    def _init_optim_model(self, n_rep: int) -> vc_pytorch3d.CylinderSplitParamModel:
+        """Initialize the cylinder model used by the optimizer."""
+        radius = self.get_parameter("dr.mesh.radius").value
+        height = self.get_parameter("dr.mesh.height").value
+        sigma = self.get_parameter("dr.optim.sigma").value
+        init_params = {k: v.value for k, v in self.get_parameters_by_prefix("dr.init").items()}
+        model_params = {k: v.value for k, v in self.get_parameters_by_prefix("dr.model").items()}
+        rmat, tvec = renderer.look_at_view_transform(**init_params)
+        return vc_pytorch3d.CylinderSplitParamModel(
+            pos=tvec + torch.normal(0, sigma[0], size=(n_rep, 3)),
+            z_dir=rmat[:, :, 2] + torch.normal(0, sigma[1], size=(n_rep, 3)),
+            n_rep=n_rep,
+            radius=torch.tensor([radius]) if model_params["radius"] else None,
+            height=torch.tensor([height]) if model_params["height"] else None,
+            scale=model_params["scale"],
+        ).to(device=self._device)
+
+    def _init_optim_renderer(self) -> renderer.MeshRenderer:
+        """Initialize the renderer used by the optimizer."""
+        shader_params = {k: v.value for k, v in self.get_parameters_by_prefix("dr.shader").items()}
+        raster_params = {k: v.value for k, v in self.get_parameters_by_prefix("dr.raster").items()}
+        blend_params = renderer.BlendParams(
+            sigma=shader_params["sigma"], gamma=shader_params["gamma"]
+        )
+        raster_settings = renderer.RasterizationSettings(
+            image_size=raster_params["size"],
+            blur_radius=np.log(1.0 / 1e-4 - 1.0) * blend_params.sigma,
+            faces_per_pixel=raster_params["n_faces"],
+            perspective_correct=True,
+        )
+        shaders = []
+        if "silhouette" in shader_params["modalities"]:
+            shaders.append(vc_pytorch3d.SoftSilhouetteShader(blend_params=blend_params))
+        if "depth" in shader_params["modalities"]:
+            shaders.append(SoftDepthShader(blend_params=blend_params))
+        return renderer.MeshRenderer(
+            rasterizer=renderer.MeshRasterizer(raster_settings=raster_settings),
+            shader=vc_pytorch3d.ComposeShader(shaders),
+        ).to(device=self._device)
+
+    def _init_optim_loss_fn(
+        self, optim_params: dict[str, Any]
+    ) -> Callable[[Tensor, Tensor], Tensor]:
+        """Initialize the loss function used by the optimizer."""
+        modalities = self.get_parameter("dr.shader.modalities").value
+        losses, ranges, weights = [], [], []
+        if "silhouette" in modalities:
+            losses.append(optim_params["loss"][0])
+            ranges.append(slice(1))
+            weights.append(optim_params["loss.weights"][0])
+        if "depth" in modalities:
+            losses.append(optim_params["loss"][1])
+            ranges.append(slice(1) if len(losses) == 1 else slice(1, 2))
+            weights.append(optim_params["loss.weights"][1])
+        return torch.compile(
+            wrap_combined_loss_fn(
+                losses, ranges, weights=weights, device=self._device, reduction="mean"
             )
-            lr_sched_cfg = CylinderOptimizer.LRSchedulerCfg(
+        )
+
+    def _init_optim_lr_and_sched(self, optim_params: dict[str, Any], n_rep: int):
+        """Initialize the learning rate and LR scheduler config used by the optimzier."""
+        lr_min, lr_max = optim_params["lr.min"], optim_params["lr.max"]
+        lr = np.exp(np.random.uniform(np.log(lr_min), np.log(lr_max), n_rep)).tolist()
+        lr_sched_cfg = (
+            CylinderMultiLROptimizer.LRSchedulerCfg(
                 cls=CosineAnnealingLR,
                 kwargs={"T_max": optim_params["n_iter"], "eta_min": optim_params["sched.eta_min"]},
             )
-            lr_sched_cfg = lr_sched_cfg if optim_params["sched"] else None
-        else:
-            lr = self._optim._lr
-            loss_fn = self._optim._loss_fn
-            lr_sched_cfg = self._optim._sched_cfg
-
-        return CylinderOptimizer(
-            mesh, model, mesh_renderer, loss_fn, lr=lr, lr_sched_cfg=lr_sched_cfg
+            if optim_params["sched"]
+            else None
         )
+        return lr, lr_sched_cfg
 
     def _build_optimize_fn(self) -> Callable[[], tuple[Tensor, Tensor, float]]:
         """Build the function for pose and geometry optimization."""
         init_params = {k: v.value for k, v in self.get_parameters_by_prefix("dr.init").items()}
-        zfar = self.get_parameter("dr.shader.depth.zfar").value
+        zfar = self.get_parameter("dr.shader.zfar").value
         n_iter = self.get_parameter("dr.optim.n_iter").value
         rmat_init, tvec_init = renderer.look_at_view_transform(**init_params)
         is_ready = self._build_is_ready_fn()
@@ -376,7 +408,7 @@ class TcpCalibrationP3d(Node):
 
     def _build_is_ready_fn(self) -> Callable[[], bool]:
         """Build the function for checking if optimization is ready to run."""
-        has_depth = self.get_parameter("dr.shader.depth").value
+        has_depth = "depth" in self.get_parameter("dr.shader.modalities").value
 
         def is_ready_silhouette() -> bool:
             return self._camera is not None and self._silhoutte is not None
@@ -389,19 +421,21 @@ class TcpCalibrationP3d(Node):
 
     def _build_get_target_fn(self) -> Callable[[], Tensor]:
         """Build the function for getting the target image according to the class configuration."""
-        has_depth = self.get_parameter("dr.shader.depth").value
-        z_far = self.get_parameter("dr.shader.depth.zfar").value
+        modalities = self.get_parameter("dr.shader.modalities").value
+        zfar = self.get_parameter("dr.shader.zfar").value
         n_rep = self.get_parameter("dr.optim.n_rep").value
 
         def get_silhouette() -> Tensor:
-            return self._crop_img(self._silhoutte).unsqueeze(-1).repeat([n_rep, 1, 1, 1])
+            return self._crop_img(self._silhoutte)[None, :, :, None].expand([n_rep, -1, -1, -1])
 
-        def get_silhouette_depth() -> Tensor:
-            silhouette = self._crop_img(self._silhoutte)
-            depth = self._crop_img(torch.where(self._silhoutte > 0, self._depth, z_far))
-            return torch.stack([silhouette, depth], dim=-1).repeat([n_rep, 1, 1, 1])
+        def get_depth() -> Tensor:
+            clipped = torch.where(self._silhoutte > 0, self._depth, zfar)
+            return self._crop_img(clipped)[None, :, :, None].expand([n_rep, -1, -1, -1])
 
-        get_target = get_silhouette_depth if has_depth else get_silhouette
+        if len(modalities) == 2:
+            get_target = torch.cat([get_silhouette(), get_depth()], dim=-1)
+        else:
+            get_target = get_silhouette if "silhouette" in modalities else get_depth
         return get_target
 
     def _crop_img(self, img: Tensor) -> Tensor:

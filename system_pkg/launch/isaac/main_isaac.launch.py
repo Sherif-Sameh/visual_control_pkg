@@ -67,6 +67,14 @@ def declare_arguments() -> list[DeclareLaunchArgument]:
             choices=["tcp_calibration_p3d", ""],
         )
     )
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "modalities",
+            default_value="['depth']",
+            description="Rendering modalities to use for TCP pose optimization. Options include"
+            " 'silhouette' and 'depth' only. Default is ['depth'].",
+        )
+    )
 
     # State estimation package arguments
     declared_arguments.append(
@@ -270,6 +278,7 @@ def _launch_control_pkg() -> IncludeLaunchDescription:
 
 def _launch_calibration_pkg() -> IncludeLaunchDescription:
     calibration = LaunchConfiguration("calibration")
+    modalities = LaunchConfiguration("modalities")
 
     return IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
@@ -280,6 +289,7 @@ def _launch_calibration_pkg() -> IncludeLaunchDescription:
         launch_arguments={
             "pose_gt_tcp": POSE_GT_TCP,
             "img_center": IMG_CENTER,
+            "modalities": modalities,
             "calibration": calibration,
             "image_topic_name": IMAGE_TOPIC_NAME,
             "depth_topic_name": DEPTH_TOPIC_NAME,

@@ -5,8 +5,8 @@
 # SAM2 parameters
 "sam.variant" = "sam2.1-hiera-tiny"
 "sam.prompt.type" = "points"
-"sam.prompt.n_pos" = 2
-"sam.prompt.n_neg" = 3
+"sam.prompt.n_pos" = 3
+"sam.prompt.n_neg" = 4
 
 # Mesh parameters
 "dr.mesh.radius" = 0.003
@@ -22,12 +22,12 @@
 # Model parameters
 "dr.model.radius" = false
 "dr.model.height" = true
+"dr.model.scale" = 0.1
 
 # Shader parameters
-"dr.shader.sil.sigma" = 2e-5
-"dr.shader.sil.gamma" = 1e-4
-"dr.shader.depth" = false
-"dr.shader.depth.zfar" = 5.0
+"dr.shader.sigma" = 1e-5
+"dr.shader.gamma" = 1e-4
+"dr.shader.zfar" = 1.0
 
 # Rasterization parameters
 "dr.raster.size" = 256
@@ -35,9 +35,11 @@
 
 # Optimizer parameters
 "dr.optim.n_rep" = 8
-"dr.optim.sigma" = [0.003, 0.01]
-"dr.optim.loss" = ["mse_loss"]
-"dr.optim.lr" = 0.05
+"dr.optim.sigma" = [0.005, 0.1]
+"dr.optim.loss" = ["mse_loss", "mse_loss"]
+"dr.optim.loss.weights" = [1.0, 1.0]
+"dr.optim.lr.min" = 5e-3
+"dr.optim.lr.max" = 0.1
 "dr.optim.sched" = true
-"dr.optim.sched.eta_min" = 1e-5
+"dr.optim.sched.eta_min" = 3e-4
 "dr.optim.n_iter" = 100
