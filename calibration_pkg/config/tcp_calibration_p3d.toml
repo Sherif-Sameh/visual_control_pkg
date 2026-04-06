@@ -3,7 +3,7 @@
 [calibration]
 
 # SAM2 parameters
-"sam.variant" = "sam2.1-hiera-tiny"
+"sam.variant" = "sam2.1-hiera-small"
 "sam.prompt.type" = "points"
 "sam.prompt.n_pos" = 3
 "sam.prompt.n_neg" = 4
