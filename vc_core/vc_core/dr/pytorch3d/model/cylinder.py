@@ -18,8 +18,10 @@ class CylinderModel(nn.Module):
     vertical axis (Z-axis) relative to the camera.
 
     The position of the cylinder is parameterized by zero-centering it around the initial guess and
-    scaling its magnitude by a set scaling factor. The Z-axis is parameterized as an unnormalized
-    3-vector that is then normalized, with the other axes derived through Gram-Schmidt.
+    scaling its magnitude by a set scaling factor. The Z-axis is parameterized through offsets in
+    the 2D tangent space of the initial guess for its orientation scaled by `π`. The orthonormal
+    basis for the tangent space is derived through Gram-Schmidt and so is the X and Y-axes to form
+    a full right-handed rotation matrix.
 
     The geometry of the cylinder is parameterized through radial and height offsets that can be
     applied to a cylinder mesh (e.g., see `vc_core.dr.mesh.CylinderMesh`). These offsets are also
@@ -59,17 +61,20 @@ class CylinderModel(nn.Module):
         pos = pos.repeat((n_rep, 1)) if pos.ndim == 1 else pos
         z_dir = z_dir.repeat((n_rep, 1)) if z_dir.ndim == 1 else z_dir
         z_dir = F.normalize(z_dir, dim=-1)
+        z_basis = torch.stack(self._get_tangent_basis(z_dir), dim=-1)
         radius = torch.ones(n_rep, dtype=torch.float32, device=device) if radius is None else radius
         radius = radius.repeat(n_rep) if radius.shape[0] == 1 else radius
         height = torch.ones(n_rep, dtype=torch.float32, device=device) if height is None else height
         height = height.repeat(n_rep) if height.shape[0] == 1 else height
         # register buffers
         self.register_buffer("pos_init", pos)
+        self.register_buffer("z_dir_init", z_dir)
+        self.register_buffer("z_basis", z_basis)
         self.register_buffer("radius", radius)
         self.register_buffer("height", height)
         # create parameters
         self.pos_offset = nn.Parameter(torch.zeros_like(pos))
-        self.z_dir = nn.Parameter(z_dir)
+        self.z_tan = nn.Parameter(torch.zeros((n_rep, 2), dtype=torch.float32, device=device))
         self.r_offset = nn.Parameter(torch.zeros_like(radius), requires_grad=est_radius)
         self.h_offset = nn.Parameter(torch.zeros_like(height), requires_grad=est_height)
 
@@ -88,8 +93,8 @@ class CylinderModel(nn.Module):
         """
         # unnormalize position
         pos = self.pos_offset * self.scale + self.pos_init
-        # normalize Z-axis and create rotation matrix
-        z_dir = F.normalize(self.z_dir, dim=-1)
+        # apply tangent rotation to z-axis and create rotation matrix
+        z_dir = self._apply_tangent_rotation(self.z_dir_init, self.z_tan, self.z_basis)
         rot = self._get_rotation_from_z(z_dir)
         # unnormalize radius and height offsets
         r_offset = self.r_offset * self.radius
@@ -111,6 +116,55 @@ class CylinderModel(nn.Module):
         return n_rep
 
     @staticmethod
+    def _get_tangent_basis(vec: Tensor) -> tuple[Tensor, Tensor]:
+        """Get the orthonormal basis for the tangent plane of the given vector using Gram-Schmidt.
+
+        Args:
+            vec: Direction unit vector. Shape is (N, 3).
+
+        Returns:
+            tuple of orthonormal basis vectors that define the given vector's tangent space. Shape
+            of each is (N, 3).
+        """
+        # Ensure that direction is a unit vector
+        vec = F.normalize(vec, dim=-1)
+        # Pick arbitrary directions for first vector
+        e1 = torch.tensor([1.0, 0.0, 0.0], device=vec.device).expand_as(vec)
+        e1_alt = torch.tensor([0.0, 1.0, 0.0], device=vec.device).expand_as(vec)
+        parallel_mask = (vec * e1).sum(dim=-1, keepdim=True).abs() > 0.99
+        e1 = torch.where(parallel_mask, e1_alt, e1)
+        # Make first basis vector normal to given vector
+        e1_proj_on_vec = (e1 * vec).sum(dim=-1, keepdim=True) * vec
+        e1 = e1 - e1_proj_on_vec
+        e1 = F.normalize(e1, dim=-1)
+        # Get second basis vector that's normal to both vectors
+        e2 = torch.cross(vec, e1, dim=-1)
+        return e1, e2
+
+    @staticmethod
+    def _apply_tangent_rotation(vec: Tensor, tan: Tensor, basis: Tensor) -> Tensor:
+        """Apply tangent rotation to a unit direction vector.
+
+        Tangent vectors are clamped to [-1, 1] then scaled by `π` before applying them. Also, for
+        the exponential map, a first order approximation is used.
+
+        Args:
+            vec: Direction unit vector to apply rotation to. Shape is (N, 3).
+            tan: Tangent space delta vector. Shape is (N, 2).
+            basis: Orthonormal basis vectors for tangent space. Shape of each is (N, 3, 2).
+
+        Returns:
+            Updated unit direction vector after applying tangent rotation. Shape is (N, 3).
+        """
+        # Compute delta tangent vector in 3D
+        tan = torch.clamp(tan, -1, 1) * torch.pi
+        delta = tan[:, :1] * basis[:, :, 0] + tan[:, 1:2] * basis[:, :, 1]
+        # Update rotation using first-order approx of exponential map
+        vec_rot = vec + delta
+        vec_rot = F.normalize(vec_rot, dim=-1)
+        return vec_rot
+
+    @staticmethod
     def _get_rotation_from_z(z_dir: Tensor) -> Tensor:
         """Construct a rotation matrix from the direction of the Z-axis using Gram-Schmidt.
 
@@ -120,17 +174,9 @@ class CylinderModel(nn.Module):
         Returns:
             Complete rotation matrix contructed from Z-axis. Shape is (N, 3, 3).
         """
-        # Set initial X-axis direction
-        x_dir = torch.tensor([1.0, 0.0, 0.0], device=z_dir.device).expand_as(z_dir)
-        x_dir_alt = torch.tensor([0.0, 1.0, 0.0], device=z_dir.device).expand_as(z_dir)
-        parallel_mask = (x_dir * z_dir).sum(dim=-1, keepdim=True).abs() > 0.99
-        x_dir = torch.where(parallel_mask, x_dir_alt, x_dir)
-        # Make X-axis normal to Z-axis
-        x_proj_on_z = (x_dir * z_dir).sum(dim=-1, keepdim=True) * z_dir
-        x_dir = x_dir - x_proj_on_z
-        x_dir = F.normalize(x_dir, dim=-1)
-        # Get Y-axis and create rotation matrix
-        y_dir = torch.cross(z_dir, x_dir, dim=-1)
+        # Get orthonormal tangent basis to current Z-axis
+        x_dir, y_dir = CylinderModel._get_tangent_basis(z_dir)
+        # Combine into rotation matrix
         r_matrix = torch.stack([x_dir, y_dir, z_dir], dim=-1)  # (B, 3, 3)
         return r_matrix
 
@@ -166,7 +212,7 @@ class CylinderSplitParamModel(CylinderModel):
         super().__init__(pos, z_dir, radius=radius, height=height, n_rep=n_rep, scale=scale)
         # split each parameter to a list of parameters
         self.pos_offset_list = nn.ParameterList([nn.Parameter(t.clone()) for t in self.pos_offset])
-        self.z_dir_list = nn.ParameterList([nn.Parameter(t.clone()) for t in self.z_dir])
+        self.z_tan_list = nn.ParameterList([nn.Parameter(t.clone()) for t in self.z_tan])
         self.r_offset_list = nn.ParameterList(
             [
                 nn.Parameter(t.clone(), requires_grad=self.r_offset.requires_grad)
@@ -179,7 +225,7 @@ class CylinderSplitParamModel(CylinderModel):
                 for t in self.h_offset
             ]
         )
-        del self.pos_offset, self.z_dir, self.r_offset, self.h_offset
+        del self.pos_offset, self.z_tan, self.r_offset, self.h_offset
 
     @property
     def n_rep(self) -> int:
@@ -196,7 +242,7 @@ class CylinderSplitParamModel(CylinderModel):
         """
         # stack parameter copies
         self.pos_offset = torch.stack(list(self.pos_offset_list), dim=0)
-        self.z_dir = torch.stack(list(self.z_dir_list), dim=0)
+        self.z_tan = torch.stack(list(self.z_tan_list), dim=0)
         self.r_offset = torch.stack(list(self.r_offset_list), dim=0)
         self.h_offset = torch.stack(list(self.h_offset_list), dim=0)
         return super().forward()

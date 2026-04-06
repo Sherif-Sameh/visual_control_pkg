@@ -119,7 +119,7 @@ class CylinderMultiLROptimizer(CylinderOptimizer):
             {
                 "params": [
                     model.pos_offset_list[i],
-                    model.z_dir_list[i],
+                    model.z_tan_list[i],
                     model.r_offset_list[i],
                     model.h_offset_list[i],
                 ],
