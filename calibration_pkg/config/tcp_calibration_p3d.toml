@@ -12,7 +12,7 @@
 "dr.mesh.radius" = 0.003
 "dr.mesh.height" = 0.025
 "dr.mesh.resolution" = 20
-"dr.mesh.split" = 4
+"dr.mesh.split" = 3
 
 # Pose initialization parameters
 "dr.init.dist" = 0.125

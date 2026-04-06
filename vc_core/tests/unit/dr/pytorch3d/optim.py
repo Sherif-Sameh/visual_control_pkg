@@ -46,7 +46,7 @@ def test_cylinder_optimizer(
     # Create cylinder meshes
     radius, height = 0.003, 0.025
     n_rep = 8
-    mesh = CylinderMesh(radius, height, n_rep=n_rep).to(device)
+    mesh = CylinderMesh(radius, height, split=3, n_rep=n_rep).to(device)
     R_gt = quaternion_to_matrix(torch.tensor([[0.988, 0.152, 0.0, 0.0]])).to(device=device)
     T_gt = torch.tensor([[0.0, 0.006, 0.113]]).to(device=device)
 
@@ -99,7 +99,7 @@ def test_cylinder_optimizer(
 
     # Create cylinder model optimizer
     n_iter = 100
-    lr = 0.05 if cls == CylinderOptimizer else sample_log_uniform(5e-3, 0.1, n_rep).tolist()
+    lr = 0.01 if cls == CylinderOptimizer else sample_log_uniform(5e-3, 0.1, n_rep).tolist()
     optim = cls(
         mesh,
         model,
