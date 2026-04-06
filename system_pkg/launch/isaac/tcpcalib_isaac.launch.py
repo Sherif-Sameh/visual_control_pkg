@@ -7,7 +7,7 @@ from launch_ros.substitutions import FindPackageShare
 
 # Contants
 UR_TYPE = "ur10e"
-EXECUTION_MODE = "tracking"
+EXECUTION_MODE = "calibration"
 USE_ISAAC_CELL = "true"
 
 BASE_FRAME = "base_link"

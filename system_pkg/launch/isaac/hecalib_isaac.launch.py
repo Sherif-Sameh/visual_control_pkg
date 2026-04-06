@@ -18,7 +18,7 @@ USE_ISAAC_CELL = "true"
 BASE_FRAME = "base_link"
 EE_FRAME = "tool0"
 CAM_FRAME = "camera_color_optical_frame"
-POSE_GT = "[-0.06, 0.0, -0.035, 1.0, 0.0, 0.0, 0.0]"
+POSE_GT_HANDEYE = "[0.0, -0.04, 0.135, 0.9884, -0.1521, 0.0, 0.0]"
 
 DICT_NAME = "DICT_5X5_50"
 BOARD_XS = "10"
@@ -233,7 +233,7 @@ def _launch_calibration_pkg() -> IncludeLaunchDescription:
             "base_frame": BASE_FRAME,
             "ee_frame": EE_FRAME,
             "cam_frame": CAM_FRAME,
-            "pose_gt": POSE_GT,
+            "pose_gt_handeye": POSE_GT_HANDEYE,
             "calibration": "handeye_calibration",
             "detections_topic_name": DETECTIONS_FILTERED_TOPIC_NAME,
             "restart_topic_name": RESTART_TOPIC_NAME,
