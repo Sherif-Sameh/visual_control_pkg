@@ -38,7 +38,9 @@ Devices = Devices + [torch.device("cuda")] if torch.cuda.is_available() else Dev
     "device,cls",
     [t for d in Devices for t in [(d, CylinderOptimizer), (d, CylinderMultiLROptimizer)]],
 )
-def test_cylinder_optimizer(device: torch.device, cls: CylinderOptimizer) -> None:
+def test_cylinder_optimizer(
+    capsys: pytest.CaptureFixture, device: torch.device, cls: CylinderOptimizer
+) -> None:
     if device.type == "cpu":
         return  # Extremely slow to run test on CPU
     # Create cylinder meshes
@@ -115,7 +117,13 @@ def test_cylinder_optimizer(device: torch.device, cls: CylinderOptimizer) -> Non
     logger_first = MemoryLogger(n_log=1)
     logger_all = MemoryLogger(n_log=10)
     optim.optimize(target, n_iter=1, logger=logger_first, cameras=camera, zfar=1.0)
-    optim.optimize(target, n_iter=n_iter, logger=logger_all, cameras=camera, zfar=1.0)
+    T, R, _, _ = optim.optimize(target, n_iter=n_iter, logger=logger_all, cameras=camera, zfar=1.0)
+    T_err = torch.linalg.norm(T_gt[0] - T, dim=0)
+    z_dir_err = torch.acos(torch.dot(R_gt[0, :, -1], R[:, -1]))
+    with capsys.disabled():
+        print(f"\nOptimizer: {cls.__name__}")
+        print(f"\tPosition Error: {T_err}m")
+        print(f"\tZ direction Error: {torch.rad2deg(z_dir_err)}deg")
 
     # visualize loss history and outputs vs target
     log_first = logger_first.flush()[1]

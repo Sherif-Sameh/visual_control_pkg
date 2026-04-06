@@ -215,6 +215,7 @@ class TcpCalibrationP3d(Node):
 
     def callback_rst(self, msg: Empty) -> None:
         self._camera = None
+        self._depth = None
         self._pose = None
         self._optim = self._init_optim(model=True)
 

@@ -43,3 +43,28 @@
 "dr.optim.sched" = true
 "dr.optim.sched.eta_min" = 3e-4
 "dr.optim.n_iter" = 100
+
+
+# Modality-specific overrides
+[overrides-silhouette]  # https://wandb.ai/u1999168-girona/visual_control%7Ctcpcalib_sweeps/runs/7bhbiqd2?nw=nwuseru1999168
+"dr.shader.sigma" = 4.157e-5
+"dr.optim.sigma" = [2.026e-3, 1.224e-2]
+"dr.optim.lr.max" = 1.084e-2
+"dr.optim.sched.eta_min" = 8.228e-4
+"dr.optim.loss" = ["mse_loss", "mse_loss"]
+
+
+[overrides-depth]  # https://wandb.ai/u1999168-girona/visual_control%7Ctcpcalib_sweeps/runs/3cmrgujn?nw=nwuseru1999168
+"dr.shader.sigma" = 3.900e-6
+"dr.optim.sigma" = [1.343e-3, 1.420e-2]
+"dr.optim.lr.max" = 4.011e-2
+"dr.optim.sched.eta_min" = 3.159e-4
+"dr.optim.loss" = ["l1_loss", "l1_loss"]
+
+
+[overrides-silhouette-depth]  # https://wandb.ai/u1999168-girona/visual_control%7Ctcpcalib_sweeps/runs/muh0spim?nw=nwuseru1999168
+"dr.shader.sigma" = 1.510e-6
+"dr.optim.sigma" = [1.427e-3, 1.277e-2]
+"dr.optim.lr.max" = 2.603e-2
+"dr.optim.sched.eta_min" = 3.735e-6
+"dr.optim.loss" = ["mse_loss", "l1_loss"]
