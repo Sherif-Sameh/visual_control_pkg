@@ -27,7 +27,7 @@ from torch import Tensor
 from torch.optim.lr_scheduler import CosineAnnealingLR
 
 import vc_core.dr.pytorch3d as vc_pytorch3d
-from vc_core.dr.losses import wrap_combined_loss_fn
+from vc_core.dr.common import CylinderSplitParamModel, wrap_combined_loss_fn
 from vc_core.dr.pytorch3d import CylinderMultiLROptimizer
 from vc_core.loggers import MemoryLogger
 from vc_core.segmentation.sam import SAM2, SAMPromptConfig
@@ -308,7 +308,7 @@ class TcpCalibrationP3d(Node):
         mesh_params = {k: v.value for k, v in self.get_parameters_by_prefix("dr.mesh").items()}
         return vc_pytorch3d.CylinderMesh(n_rep=n_rep, **mesh_params).to(device=self._device)
 
-    def _init_optim_model(self, n_rep: int) -> vc_pytorch3d.CylinderSplitParamModel:
+    def _init_optim_model(self, n_rep: int) -> CylinderSplitParamModel:
         """Initialize the cylinder model used by the optimizer."""
         radius = self.get_parameter("dr.mesh.radius").value
         height = self.get_parameter("dr.mesh.height").value
@@ -316,7 +316,7 @@ class TcpCalibrationP3d(Node):
         init_params = {k: v.value for k, v in self.get_parameters_by_prefix("dr.init").items()}
         model_params = {k: v.value for k, v in self.get_parameters_by_prefix("dr.model").items()}
         rmat, tvec = renderer.look_at_view_transform(**init_params)
-        return vc_pytorch3d.CylinderSplitParamModel(
+        return CylinderSplitParamModel(
             pos=tvec + torch.normal(0, sigma[0], size=(n_rep, 3)),
             z_dir=rmat[:, :, 2] + torch.normal(0, sigma[1], size=(n_rep, 3)),
             n_rep=n_rep,

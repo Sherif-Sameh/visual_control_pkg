@@ -16,9 +16,9 @@ from pytorch3d.transforms import quaternion_to_matrix
 from pytorch3d.utils import cameras_from_opencv_projection
 from torch.optim.lr_scheduler import CosineAnnealingLR
 
-from vc_core.dr.losses import wrap_combined_loss_fn
+from vc_core.dr.common.losses import wrap_combined_loss_fn
+from vc_core.dr.common.model import CylinderModel, CylinderSplitParamModel
 from vc_core.dr.pytorch3d.mesh import CylinderMesh
-from vc_core.dr.pytorch3d.model import CylinderModel, CylinderSplitParamModel
 from vc_core.dr.pytorch3d.optim import CylinderMultiLROptimizer, CylinderOptimizer
 from vc_core.dr.pytorch3d.shader import ComposeShader, SoftSilhouetteShader
 from vc_core.loggers import MemoryLogger

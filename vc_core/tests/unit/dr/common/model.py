@@ -4,7 +4,7 @@ import pytest
 import torch
 from pytorch3d.renderer import look_at_view_transform
 
-from vc_core.dr.pytorch3d.model import CylinderModel
+from vc_core.dr.common.model import CylinderModel
 
 Devices = [torch.device("cpu")]
 Devices = Devices + [torch.device("cuda")] if torch.cuda.is_available() else Devices
