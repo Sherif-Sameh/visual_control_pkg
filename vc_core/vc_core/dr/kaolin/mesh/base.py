@@ -65,6 +65,7 @@ class Mesh:
 
     __call__ = forward
 
-    def to(self, device: str | device) -> "SurfaceMesh":
+    def to(self, device: str | device) -> "Mesh":
         self._mesh = self._mesh.to(device)
+        self._mesh_shallow = copy.copy(self._mesh)
         return self
