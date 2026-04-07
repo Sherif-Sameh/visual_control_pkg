@@ -1,6 +1,5 @@
 from pathlib import Path
 
-import torch.nn as nn
 from pytorch3d.io import load_objs_as_meshes
 
 from .base import Mesh
@@ -16,7 +15,6 @@ class ObjMesh(Mesh):
     """
 
     def __init__(self, path: str | Path, *, load_textures: bool = False, n_rep: int = 1):
-        nn.Module.__init__(self)
         path = Path(path) if isinstance(path, str) else path
         assert path.exists() and path.suffix == ".obj"
         mesh = load_objs_as_meshes([str(path)], load_textures=load_textures)

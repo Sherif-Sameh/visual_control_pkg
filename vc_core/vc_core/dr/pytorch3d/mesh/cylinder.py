@@ -4,7 +4,6 @@ from functools import partial
 from typing import TYPE_CHECKING
 
 import torch
-import torch.nn as nn
 from pytorch3d.structures import Meshes
 
 from vc_core.dr.common.mesh.cylinder import cyl_to_vert_offset, init_cylinder_mesh
@@ -41,7 +40,6 @@ class CylinderMesh(Mesh):
         texture: TexturesBase | None = None,
         n_rep: int = 1,
     ):
-        nn.Module.__init__(self)
         assert radius > 0 and height > 0
         # Initialize mesh from cylinder parameters
         vertices, face_idxs = init_cylinder_mesh(radius, height, resolution, split)
@@ -68,3 +66,5 @@ class CylinderMesh(Mesh):
         """
         vertex_offsets = self._cyl_to_vert_offset_fn(r_offset, h_offset).view(-1, 3)
         return super().forward(vertex_offsets, texture)
+
+    __call__ = forward
