@@ -39,9 +39,9 @@ def test_obj_mesh() -> None:
     mesh_single = ObjMesh(path, n_rep=1)
     mesh_repeat = ObjMesh(path, n_rep=n_rep)
 
-    # Test `mesh` property
-    assert len(mesh_single.mesh) == 1
-    assert len(mesh_repeat.mesh) == 10
+    # Test `len()` method and `mesh` property
+    assert len(mesh_single) == len(mesh_single.mesh) == 1
+    assert len(mesh_repeat) == len(mesh_repeat.mesh) == 10
 
     # Test `to()` method
     if torch.device("cuda") in Devices:
@@ -85,9 +85,9 @@ def test_cylinder_mesh() -> None:
     mesh_single = CylinderMesh(radius, height, n_rep=1)
     mesh_repeat = CylinderMesh(radius, height, n_rep=n_rep)
 
-    # Test `mesh` property
-    assert len(mesh_single.mesh) == 1
-    assert len(mesh_repeat.mesh) == 10
+    # Test `len()` method and `mesh` property
+    assert len(mesh_single) == len(mesh_single.mesh) == 1
+    assert len(mesh_repeat) == len(mesh_repeat.mesh) == 10
 
     # Test `to()` method
     if torch.device("cuda") in Devices:

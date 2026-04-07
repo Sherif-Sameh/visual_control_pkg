@@ -14,7 +14,7 @@ class Mesh(nn.Module):
     """Base class for wrapping PyTorch3D Meshes.
 
     Extends `torch.nn.Module`. The `forward()` method is used to apply vertex offsets and
-    optionally new textures to the wrapped mesh and return it.
+    optionally new textures to the wrapped mesh.
 
     Args:
         mesh: PyTorch3D mesh to wrap.
@@ -25,10 +25,19 @@ class Mesh(nn.Module):
         super().__init__()
         self._mesh = mesh.extend(n_rep)
 
+    def __len__(self) -> int:
+        """Get length of the wrapped mesh."""
+        return len(self._mesh)
+
     @property
     def mesh(self) -> Meshes:
-        """Get a copy of the cloned mesh."""
-        return self._mesh.clone()
+        """Get a reference to the wrapped mesh."""
+        return self._mesh
+
+    @mesh.setter
+    def mesh(self, value: Meshes) -> None:
+        """Set the value of the wrapped mesh."""
+        self._mesh = value
 
     def forward(self, offset: Tensor, texture: TexturesBase | None = None) -> Meshes:
         """Applying offsets to mesh and new texture if given.
