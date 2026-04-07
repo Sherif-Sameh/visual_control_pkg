@@ -32,3 +32,12 @@ drp3d = [
     "iopath",
     "pytorch3d @ git+https://github.com/facebookresearch/pytorch3d.git@stable",
 ]
+# Must be installed with the --no-build-isolation option
+# and -f https://nvidia-kaolin.s3.us-east-2.amazonaws.com/torch-{TORCH_VER}_cu{CUDA_VER}.html
+drnvd = [
+    "setuptools",
+    "wheel",
+    "ninja",
+    "kaolin==0.18.0",
+    "nvdiffrast @ git+https://github.com/NVlabs/nvdiffrast.git@v0.4.0",
+]
