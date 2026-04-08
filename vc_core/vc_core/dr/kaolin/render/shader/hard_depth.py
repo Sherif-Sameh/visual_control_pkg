@@ -48,12 +48,13 @@ class HardDepthShader(Shader):
         zfar = kwargs.get("zfar", kwargs.get("cameras", self._cameras).intrinsics.far)
 
         # apply rendering
-        invalid = (fragments.faces_image < 0).unsqueeze(0)
+        invalid = (fragments.faces_image < 0).unsqueeze(-1)
         depth = torch.where(invalid, zfar, fragments.features_image[1])
         return depth
 
     __call__ = forward
 
+    @staticmethod
     def _pre_hook_fn(face_vertices_camera: Tensor, mesh: SurfaceMesh) -> Tensor:
         """Pre-hook function for depth shader."""
         return face_vertices_camera[..., -1:]

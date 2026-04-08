@@ -54,7 +54,7 @@ class SoftSilhouetteShader(Shader):
             boxlen=blend_params.boxlen,
             knum=blend_params.knum,
             multiplier=blend_params.multiplier,
-        )
+        ).unsqueeze(-1)
         return soft_mask
 
     __call__ = forward

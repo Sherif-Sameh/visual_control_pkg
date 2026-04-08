@@ -32,7 +32,7 @@ class MeshRenderer:
         Returns:
             Rendering output. Shape is (B, H, W, shader_dim).
         """
-        fragments = self._rasterizer(mesh, *kwargs)
+        fragments = self._rasterizer(mesh, **kwargs)
         output = self._shader(fragments, mesh, **kwargs)
         return output
 

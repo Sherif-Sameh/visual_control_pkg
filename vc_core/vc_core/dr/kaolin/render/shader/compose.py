@@ -27,8 +27,8 @@ class ComposeShader(Shader):
     def __init__(self, shaders: list[Shader]):
         self._shaders = shaders
         self._pre_hook = self._build_pre_hook(shaders)
-        self._feature_idxs = np.cumsum([0] + [shader.feature_dim for shader in shaders])
-        self._feature_dim = np.max(self._feature_dim)
+        self._idxs = np.cumsum([0] + [shader.feature_dim for shader in shaders])
+        self._feature_dim = np.max(self._idxs)
 
     def forward(self, fragments: Fragments, mesh: SurfaceMesh, **kwargs) -> Tensor:
         """Render outputs of all composed shaders and return combined output.
@@ -36,12 +36,14 @@ class ComposeShader(Shader):
         Shader outputs are concatenated along their channel dimension (dim=-1) in the same order
         that they were given in.
         """
-        fragments_shader = fragments
         out = []
         for i, shader in enumerate(self._shaders):
-            fragments_shader.features_image[1] = fragments.features_image[1][
-                ..., self._feature_idxs[i] : self._feature_idxs[i + 1]
-            ]
+            fragments_shader = fragments._replace(
+                features_image=(
+                    fragments.features_image[0],
+                    fragments.features_image[1][..., self._idxs[i] : self._idxs[i + 1]],
+                )
+            )
             out.append(shader(fragments_shader, mesh, **kwargs))
         return torch.cat(out, dim=-1)
 

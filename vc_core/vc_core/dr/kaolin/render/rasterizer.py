@@ -70,6 +70,9 @@ class MeshRasterizer:
         self._settings = RasterizationSettings() if raster_settings is None else raster_settings
         if isinstance(self._settings.image_size, int):
             self._settings.image_size = (self._settings.image_size, self._settings.image_size)
+        if self._settings.backend != "cuda":
+            self._settings.eps = None
+            self._settings.multiplier = None
         assert self._settings.image_size[0] % 8 == 0, "Image height must be a multiple of 8."
         assert self._settings.image_size[1] % 8 == 0, "Image width must be a multiple of 8."
         self._pre_hook = None
@@ -93,7 +96,7 @@ class MeshRasterizer:
         T: Tensor = kwargs.get("T", cameras.extrinsics.t).view(-1, 3, 1)
 
         # prepare mesh vertices
-        vertices_camera = kal.render.camera.rotate_translate_points(mesh.vertices, R, T)
+        vertices_camera = self._transform_points(mesh.vertices, R, T)
         vertices_ndc = cameras.intrinsics.transform(vertices_camera)
         face_vertices_camera = kal.ops.mesh.index_vertices_by_faces(vertices_camera, mesh.faces)
         face_vertices_image = kal.ops.mesh.index_vertices_by_faces(
@@ -102,9 +105,12 @@ class MeshRasterizer:
         face_vertices_z = face_vertices_camera[..., -1]
 
         # apply pre-rasterization hook
-        face_features = [mesh.face_features, torch.zeros(0)]
+        face_features = [mesh.face_features]
         if self._pre_hook is not None:
-            face_features[1] = self._pre_hook(face_vertices_camera, mesh)
+            face_features.append(self._pre_hook(face_vertices_camera, mesh))
+        else:
+            B, H, W = face_vertices_z.shape
+            face_features.append(torch.zeros([B, H, W, 0], dtype=torch.float32, device=R.device))
 
         # apply rasterization
         features_image, faces_image = kal.render.mesh.rasterize(
@@ -137,4 +143,23 @@ class MeshRasterizer:
                 (B, F, 3, 3) tensor as well as the mesh to rasterize and outputs the tensor to
                 append to the `face_features` to rasterize.
         """
-        self._pre_hooks = fn
+        self._pre_hook = fn
+
+    @staticmethod
+    def _transform_points(points: Tensor, R: Tensor, T: Tensor) -> Tensor:
+        """Apply rigid-body transformation defined by `R` and `T` to `points`.
+
+        Args:
+            points: Points in frame 1. Shape is (B, N, 3).
+            R: Rotation matrix from frame 1 to frame 0. Shape is (B, 3, 3).
+            T: Translation vector from frame 1 to frame 0. Shape is (B, 3, 1).
+
+        Returns:
+            Transformed points in frame 0. Shape is (B, N, 3).
+        """
+        B, N, _ = points.shape
+        points = points.unsqueeze(-1)  # (B, N, 3, 1)
+        R = R[:, None].expand([B, N, 3, 3])  # (B, N, 3, 3)
+        T = T[:, None].expand([B, N, 3, 1])  # (B, N, 3, 1)
+        transformed = (R @ points + T).squeeze(-1)  # (B, N, 3)
+        return transformed
