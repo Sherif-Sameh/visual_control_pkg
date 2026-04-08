@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Callable
 
 if TYPE_CHECKING:
@@ -10,6 +11,28 @@ if TYPE_CHECKING:
     from torch import Tensor, device
 
     from ..rasterizer import Fragments
+
+
+@dataclass
+class BlendParams:
+    """Blending parameters for rendering soft mask.
+
+    All default parameter values match those of the `kaolin.render.mesh.dibr_soft_mask` function.
+    """
+
+    sigmainv: float = 7000.0
+    """Smoothness term for computing the soft mask, the higher the sharper. Default value is 7000."""
+
+    boxlen: float = 0.02
+    """Margin over bounding box of faces which will threshold which pixels will be influenced by the face.
+    Default value is 0.02.
+    """
+
+    knum: int = 30
+    """Maximum number of faces that can influence one pixel. Default value is 30."""
+
+    multiplier: int = 1000
+    """Muliplier for coordinates used internally to avoid numeric issues. Default value is 1000."""
 
 
 class Shader(ABC):
@@ -23,11 +46,19 @@ class Shader(ABC):
     Args:
         cameras: Optional batched cameras if needed by shader. Default value is `None`.
         lights: Optional lighting parameters if needed by shader. Default value is `None`.
+        blend_params: Optional parameters for alpha blending if needed by shader. Default value is
+            `None`.
     """
 
-    def __init__(self, cameras: Camera | None = None, lights: SgLightingParameters | None = None):
+    def __init__(
+        self,
+        cameras: Camera | None = None,
+        lights: SgLightingParameters | None = None,
+        blend_params: BlendParams | None = None,
+    ):
         self._cameras = cameras
         self._lights = lights
+        self._blend_params = blend_params
         self._pre_hook = None
         self._feature_dim = 0
 
