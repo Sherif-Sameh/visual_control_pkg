@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING, Literal, NamedTuple
 
 import kaolin as kal
 
@@ -31,6 +31,26 @@ class RasterizationSettings:
     """Backend used for the rasterization. Default value is `cuda` (i.e. DIB-R)."""
 
 
+class Fragments(NamedTuple):
+    """Named tuple grouping all outputs of rasterization."""
+
+    face_vertices_camera: Tensor
+    """Face vertices in the camera frame. Shape is (B, F, 3, 3)."""
+
+    face_vertices_image: Tensor
+    """Face vertices in the image plane (in NDC). Shape is (B, F, 3, 2)."""
+
+    features_image: Tensor
+    """Rendered features of shape corresponding to the `face_features` attribute of the input mesh.
+    Shape is (B, H, W, num_features).
+    """
+
+    faces_image: LongTensor
+    """Rendered face indices where -1 corresponds to `None` (i.e. pixels that don't intersect any
+    faces). Shape is (B, H, W).
+    """
+
+
 class MeshRasterizer:
     """Rasterizer for batched meshes using Kaolin's rasterization methods.
 
@@ -51,7 +71,7 @@ class MeshRasterizer:
         assert self._settings.image_size[0] % 8 == 0, "Image height must be a multiple of 8."
         assert self._settings.image_size[1] % 8 == 0, "Image width must be a multiple of 8."
 
-    def forward(self, mesh: SurfaceMesh, **kwargs) -> tuple[Tensor, LongTensor]:
+    def forward(self, mesh: SurfaceMesh, **kwargs) -> Fragments:
         """Rasterize input batched meshes using Kaolin.
 
         Args:
@@ -62,10 +82,7 @@ class MeshRasterizer:
                 translation part only of the view matrix.
 
         Returns:
-            tuple of output tensors. The first is the rendered features of shape
-            (B, H, W, num_features) corresponding to the `face_features` attribute of the input
-            mesh. The second is the rendered face indices of shape (B, H, W), where -1 corresponds
-            to `None` (i.e. pixels that don't intersect any faces).
+            Named tuple of rasterization outputs.
         """
         # apply overrides
         cameras: Camera = kwargs.get("cameras", self._cameras)
@@ -92,7 +109,7 @@ class MeshRasterizer:
             eps=self._settings.eps,
             backend=self._settings.backend,
         )
-        return features_image, faces_image
+        return Fragments(face_vertices_camera, face_vertices_image, features_image, faces_image)
 
     __call__ = forward
 

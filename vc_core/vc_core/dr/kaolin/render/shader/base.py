@@ -8,7 +8,9 @@ from kaolin.render.lighting import SgLightingParameters
 if TYPE_CHECKING:
     from kaolin.render.camera import Camera
     from kaolin.rep import SurfaceMesh
-    from torch import LongTensor, Tensor, device
+    from torch import Tensor, device
+
+    from ..rasterizer import Fragments
 
 
 class Shader(ABC):
@@ -30,14 +32,11 @@ class Shader(ABC):
         self._lights = lights if lights is not None else SgLightingParameters().to(device=device)
 
     @abstractmethod
-    def forward(
-        self, features_image: Tensor, faces_image: LongTensor, mesh: SurfaceMesh, **kwargs
-    ) -> Tensor:
+    def forward(self, fragments: Fragments, mesh: SurfaceMesh, **kwargs) -> Tensor:
         """Render shader output from rasterization outputs and mesh.
 
         Args:
-            features_image: Rendered features from rasterization. Shape is (B, H, W, num_features).
-            faces_image. Rendered face indices from rasterization. Shape is (B, H, W).
+            fragments: Rasterization outputs.
             mesh: Batched representation of meshes to render.
             kwargs: Optional overrides for rendering parameters.
 
