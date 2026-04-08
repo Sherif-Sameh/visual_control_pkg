@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Literal, NamedTuple
+from typing import TYPE_CHECKING, Callable, Literal, NamedTuple
 
 import kaolin as kal
+import torch
 
 if TYPE_CHECKING:
     from kaolin.render.camera import Camera
@@ -40,9 +41,10 @@ class Fragments(NamedTuple):
     face_vertices_image: Tensor
     """Face vertices in the image plane (in NDC). Shape is (B, F, 3, 2)."""
 
-    features_image: Tensor
-    """Rendered features of shape corresponding to the `face_features` attribute of the input mesh.
-    Shape is (B, H, W, num_features).
+    features_image: tuple[Tensor, Tensor]
+    """Rendered features. First entry corresponds to the `face_features` attribute of the input
+    mesh. Second entry corresponds to added features through any registered pre-hook function.
+    Shape of each entry is (B, H, W, num_features).
     """
 
     faces_image: LongTensor
@@ -70,6 +72,7 @@ class MeshRasterizer:
             self._settings.image_size = (self._settings.image_size, self._settings.image_size)
         assert self._settings.image_size[0] % 8 == 0, "Image height must be a multiple of 8."
         assert self._settings.image_size[1] % 8 == 0, "Image width must be a multiple of 8."
+        self._pre_hook = None
 
     def forward(self, mesh: SurfaceMesh, **kwargs) -> Fragments:
         """Rasterize input batched meshes using Kaolin.
@@ -98,13 +101,18 @@ class MeshRasterizer:
         )
         face_vertices_z = face_vertices_camera[..., -1]
 
+        # apply pre-rasterization hook
+        face_features = [mesh.face_features, torch.zeros(0)]
+        if self._pre_hook is not None:
+            face_features[1] = self._pre_hook(face_vertices_camera, mesh)
+
         # apply rasterization
         features_image, faces_image = kal.render.mesh.rasterize(
             self._settings.image_size[0],
             self._settings.image_size[1],
             face_vertices_z,
             face_vertices_image,
-            mesh.face_features,
+            face_features,
             multiplier=self._settings.multiplier,
             eps=self._settings.eps,
             backend=self._settings.backend,
@@ -117,3 +125,16 @@ class MeshRasterizer:
         if self._cameras is not None:
             self._cameras = self._cameras.to(device=device)
         return self
+
+    def register_hook(self, fn: Callable[[Tensor, SurfaceMesh], Tensor]) -> None:
+        """Register a pre-rasterization hook to call.
+
+        Allows calling code (e.g., renderer) to extend the input `face_features` before
+        rasterization is performed.
+
+        Args:
+            fns: functions that takes as input the rasterization input `face_vertices_camera`
+                (B, F, 3, 3) tensor as well as the mesh to rasterize and outputs the tensor to
+                append to the `face_features` to rasterize.
+        """
+        self._pre_hooks = fn
