@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-import kaolin as kal
 import torch
 from kaolin.render.camera import CameraFOV
 from kaolin.render.camera.raygen import _to_ndc_coords, generate_centered_pixel_coords
@@ -44,7 +43,9 @@ def camera_position_from_spherical_angles(
     if degrees:
         elev = torch.pi / 180.0 * elev
         azim = torch.pi / 180.0 * azim
-    x, y, z = kal.ops.coords.spherical2cartesian(azim, elev, distance=dist)
+    x = dist * torch.cos(elev) * torch.sin(azim)
+    y = dist * torch.sin(elev)
+    z = dist * torch.cos(elev) * torch.cos(azim)
     camera_position = torch.cat([x, y, z], dim=1)
     return camera_position
 
