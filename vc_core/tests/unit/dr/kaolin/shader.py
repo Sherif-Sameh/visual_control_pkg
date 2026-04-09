@@ -7,7 +7,6 @@ import pytest
 import torch
 from kaolin.render.camera import Camera
 
-from vc_core.dr.common.utils import camera_position_from_spherical_angles
 from vc_core.dr.kaolin.mesh import CylinderMesh
 from vc_core.dr.kaolin.render import (
     BlendParams,
@@ -18,6 +17,7 @@ from vc_core.dr.kaolin.render import (
     RasterizationSettings,
     SoftSilhouetteShader,
 )
+from vc_core.dr.kaolin.utils import camera_position_from_spherical_angles
 
 Devices = [torch.device("cpu")]
 Devices = Devices + [torch.device("cuda")] if torch.cuda.is_available() else Devices
