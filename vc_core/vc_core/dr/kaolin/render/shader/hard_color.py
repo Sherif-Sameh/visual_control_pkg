@@ -105,6 +105,7 @@ class HardColorDiffuseSH9Shader(Shader):
         azimuth: Optional azimuth angles for light direction. Default value is `None`.
         elevation: Optional elevation angles for light direction. Default value is `None`.
         direction: Optional unit vectors for light direction. Default value is `None`.
+        intensity: Optional light intensity. Default value is `None`.
         degrees: Whether the angles are specified in degrees or radians.
         raw_texture: Whether mesh texture is uint8 (H, W, 3) and needs conversion or is already
             processed. If `False`, the texture must be float [0, 1] (3, H, W). Default value is
@@ -118,6 +119,7 @@ class HardColorDiffuseSH9Shader(Shader):
         azimuth: Tensor | None = None,
         elevation: Tensor | None = None,
         direction: Tensor | None = None,
+        intensity: Tensor | None = None,
         degrees: bool = True,
         raw_texture: bool = True,
         uvs_origin: Literal["OpenGL", "Kaolin"] = "OpenGL",
@@ -131,7 +133,11 @@ class HardColorDiffuseSH9Shader(Shader):
             direction = torch.stack(kal.ops.coords.spherical2cartesian(azimuth, elevation), dim=-1)
             direction = direction.squeeze(0)
         self._direction = direction
+        self._intensity = intensity if intensity is not None else torch.ones(3)
         assert self._direction.ndim == 1, (
+            f"Light parameters must be 1-dim, got {self._direction.ndim}."
+        )
+        assert self._intensity.ndim == 1, (
             f"Light parameters must be 1-dim, got {self._direction.ndim}."
         )
         self._get_albedo = _build_get_albedo(raw_texture, uvs_origin)
@@ -144,14 +150,15 @@ class HardColorDiffuseSH9Shader(Shader):
         Args:
             fragments: Rasterization outputs.
             mesh: Batched representation of meshes to render.
-            kwargs: Optional overrides for rendering parameters. These include `direction`, which can
-                override the value passed to the constructor.
+            kwargs: Optional overrides for rendering parameters. These include `direction` and
+                `intensity`, which can override the value passed to the constructor.
 
         Returns:
             Rendering output. Shape is (B, H, W, 3).
         """
         # apply overrides
         direction = kwargs.get("direction", self._direction).view(3)
+        intensity = kwargs.get("intensity", self._intensity).view(3)
 
         # apply rendering
         uv_map = fragments.features_image[1][..., :2]
@@ -160,7 +167,9 @@ class HardColorDiffuseSH9Shader(Shader):
         mask = fragments.faces_image != -1
         color = torch.zeros_like(albedo)
         color[mask] = torch.clamp(
-            kal.render.lighting.sh9_diffuse(direction, normal_map[mask], albedo[mask]), 0.0, 1.0
+            kal.render.lighting.sh9_diffuse(direction, normal_map[mask], albedo[mask]) * intensity,
+            0.0,
+            1.0,
         )
         return color
 
@@ -168,6 +177,7 @@ class HardColorDiffuseSH9Shader(Shader):
 
     def to(self, device: str | device) -> "HardColorAmbientShader":
         self._direction = self._direction.to(device=device)
+        self._intensity = self._intensity.to(device=device)
         return self
 
 
@@ -203,16 +213,16 @@ class HardColorDiffuseSGFittedShader(Shader):
         self,
         azimuth: Tensor | None = None,
         elevation: Tensor | None = None,
-        degrees: bool = True,
         lights: SgLightingParameters | None = None,
+        degrees: bool = True,
         raw_texture: bool = True,
         uvs_origin: Literal["OpenGL", "Kaolin"] = "OpenGL",
     ) -> None:
         super().__init__()
         lights = lights if lights is not None else SgLightingParameters()
         if azimuth is not None and elevation is not None:
-            azimuth = azimuth.view(-1, 3)
-            elevation = elevation.view(-1, 3)
+            azimuth = azimuth.view(-1, 1)
+            elevation = elevation.view(-1, 1)
             if degrees:
                 azimuth = torch.pi / 180.0 * azimuth
                 elevation = torch.pi / 180.0 * elevation
@@ -295,19 +305,19 @@ class HardColorSpecularSGFittedShader(Shader):
         self,
         azimuth: Tensor | None = None,
         elevation: Tensor | None = None,
-        degrees: bool = True,
         spec_albedo: Tensor | None = None,
         roughness: Tensor | None = None,
         cameras: Camera | None = None,
         lights: SgLightingParameters | None = None,
+        degrees: bool = True,
         raw_texture: bool = True,
         uvs_origin: Literal["OpenGL", "Kaolin"] = "OpenGL",
     ) -> None:
         super().__init__(cameras=cameras)
         lights = lights if lights is not None else SgLightingParameters()
         if azimuth is not None and elevation is not None:
-            azimuth = azimuth.view(-1, 3)
-            elevation = elevation.view(-1, 3)
+            azimuth = azimuth.view(-1, 1)
+            elevation = elevation.view(-1, 1)
             if degrees:
                 azimuth = torch.pi / 180.0 * azimuth
                 elevation = torch.pi / 180.0 * elevation
@@ -391,7 +401,7 @@ def _build_get_albedo(
     def get_albedo(uv_map: Tensor, mesh: SurfaceMesh) -> Tensor:
         """Get albedo from rasterization output and mesh texture."""
         # get and process mesh texture
-        texture = mesh.materials[0][0]["map_Kd"]
+        texture = mesh.materials[0][0]["map_Kd"].cuda()
         if raw_texture:
             texture = _convert_raw_texture(texture)
 
