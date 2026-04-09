@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from itertools import product
+from pathlib import Path
 
 import matplotlib.pyplot as plt
 import pytest
@@ -67,6 +68,17 @@ def test_soft_silhouette_shader(device: torch.device, backend: str) -> None:
     assert silhouette.shape == (n_rep, img_size, img_size, 1)
     assert silhouette.requires_grad
 
+    # store output visualization
+    path = Path(__file__).parent / "outputs"
+    path.mkdir(exist_ok=True, parents=True)
+    plt.figure(figsize=(5, 5))
+    img = plt.imshow(silhouette[0].detach().cpu())
+    plt.colorbar(img)
+    plt.grid(False)
+    plt.tight_layout()
+    plt.savefig(path / "soft_silhouette.png", dpi=150)
+    plt.close()
+
 
 @pytest.mark.unit
 @pytest.mark.parametrize("device,backend", product(Devices, Backends))
@@ -112,6 +124,17 @@ def test_hard_depth_shader(device: torch.device, backend: str) -> None:
     depth: torch.Tensor = depth_renderer(mesh_repeat.mesh, R=R, T=T)
     assert depth.shape == (n_rep, img_size, img_size, 1)
     assert depth.requires_grad
+
+    # store output visualization
+    path = Path(__file__).parent / "outputs"
+    path.mkdir(exist_ok=True, parents=True)
+    plt.figure(figsize=(5, 5))
+    img = plt.imshow(depth[0].detach().cpu())
+    plt.colorbar(img)
+    plt.grid(False)
+    plt.tight_layout()
+    plt.savefig(path / "hard_depth.png", dpi=150)
+    plt.close()
 
 
 @pytest.mark.unit
@@ -161,7 +184,9 @@ def test_compose_shader(device: torch.device, backend: str) -> None:
     assert image.shape == (n_rep, img_size, img_size, 2)
     assert image.requires_grad
 
-    # visualize output
+    # store output visualization
+    path = Path(__file__).parent / "outputs"
+    path.mkdir(exist_ok=True, parents=True)
     silhouette = image.detach().cpu()[0, :, :, 0]
     depth = image.detach().cpu()[0, :, :, 1]
     depth /= depth.max()
@@ -173,4 +198,5 @@ def test_compose_shader(device: torch.device, backend: str) -> None:
     axes[1].set_title("Normalized Depth")
     axes[1].grid(False)
     plt.tight_layout()
-    plt.show()
+    plt.savefig(path / "compose.png", dpi=150)
+    plt.close()
