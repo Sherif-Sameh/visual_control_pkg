@@ -16,7 +16,7 @@ if TYPE_CHECKING:
 
 
 class CylinderOptimizer(Optimizer):
-    """Optimizer for optimizing a cylinder's pose and geometry using differentiable rendering.
+    """Optimizer for optimizing a cylinder's pose and geometry using differentiable rendering (PyTorch3D).
 
     This optimizer treats all parameters of the cylinder model as a single parameter group. If
     multiple copies of the cylinder's parameters exist, for example for multiple initializations,
@@ -87,7 +87,7 @@ class CylinderOptimizer(Optimizer):
 
 
 class CylinderMultiLROptimizer(CylinderOptimizer):
-    """Optimizer for optimizing a cylinder's pose and geometry using differentiable rendering.
+    """Optimizer for optimizing a cylinder's pose and geometry using differentiable rendering (PyTorch3D).
 
     This optimizer allows for setting different learning rates for each copy of the cylinder's
     parameters. This allows for implementing the multi-learning rate strategy described in the

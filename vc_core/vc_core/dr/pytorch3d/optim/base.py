@@ -19,7 +19,7 @@ T = TypeVar("T", bound=LRScheduler)
 
 
 class Optimizer(ABC):
-    """Base optimizer for optimization using differentiable rendering.
+    """Base optimizer for optimization using differentiable rendering (PyTorch3D).
 
     The optimizer makes use of the `torch.optim.Adam` optimizer internally.
 
