@@ -45,7 +45,9 @@ class HardDepthShader(Shader):
             Rendering output. Shape is (B, H, W, 1).
         """
         # apply overrides
-        zfar = kwargs.get("zfar", kwargs.get("cameras", self._cameras).intrinsics.far)
+        zfar = kwargs.get("zfar", None)
+        if zfar is None:
+            zfar = kwargs.get("cameras", self._cameras).intrinsics.far
 
         # apply rendering
         invalid = (fragments.faces_image < 0).unsqueeze(-1)
