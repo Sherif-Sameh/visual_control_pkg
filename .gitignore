@@ -49,6 +49,9 @@ data/*
 # Allow textures of meshes
 !**/meshes/**/*.png
 
+# Handeye calibration output
+**/handeye_params.toml
+
 # Proprietary end-effector 3D model
 **/end_effector.stl
 
