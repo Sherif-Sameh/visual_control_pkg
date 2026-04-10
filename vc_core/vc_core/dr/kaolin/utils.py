@@ -1,14 +1,122 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Sequence
 
 import torch
+import torch.nn.functional as F
 from kaolin.render.camera import CameraFOV
 from kaolin.render.camera.raygen import _to_ndc_coords, generate_centered_pixel_coords
 
 if TYPE_CHECKING:
     from kaolin.render.camera import Camera
     from torch import Tensor, device
+
+
+def look_at_view_transform(
+    dist: float | Tensor,
+    elev: float | Tensor,
+    azim: float | Tensor,
+    degrees: bool = True,
+    eye: Sequence[float] | Tensor | None = None,
+    at=((0, 0, 0),),  # (1, 3)
+    up=((0, 1, 0),),  # (1, 3)
+    device: str | device = "cpu",
+) -> tuple[Tensor, Tensor]:
+    """
+    This function returns a rotation and translation matrix to apply the 'Look At'
+    transformation from world -> view coordinates
+
+    Camera utility function from `pytorch3d` [0].
+
+    All inputs are converted to tensors and broadcast against each other.
+
+    Args:
+        dist: Distance of the camera from the object.
+        elev: Angle in degrees or radians. This is the angle between the vector from the object to
+            the camera, and the horizontal plane y = 0 (xz-plane).
+        azim: Angle in degrees or radians. The vector from the object to the camera is projected
+            onto a horizontal plane y = 0. azim is the angle between the projected vector and a
+            reference vector at (0, 0, 1) on the reference plane (the horizontal plane).
+        degrees: Boolean flag to indicate if the elevation and azimuth angles are specified in
+            degrees or radians.
+        eye: Position of the camera(s) in world coordinates. If eye is not `None`, it will override
+            the camera position derived from dist, elev, azim.
+        up: Direction of the x axis in the world coordinate system.
+        at: Position of the object(s) in world coordinates.
+
+    Returns:
+        2-element tuple containing
+
+        - **R**: the rotation to apply to the points to align with the camera.
+        - **T**: the translation to apply to the points to align with the camera.
+
+    References:
+    [0] https://pytorch3d.readthedocs.io/en/latest/_modules/pytorch3d/renderer/cameras.html#look_at_view_transform
+    """
+    if eye is not None:
+        args = [torch.tensor(arg) if not torch.is_tensor(arg) else arg for arg in [eye, at, up]]
+        args = [arg.view(-1, 3).to(dtype=torch.float32, device=device) for arg in args]
+        eye, at, up = args
+        C = eye
+    else:
+        args = [torch.tensor(arg) if not torch.is_tensor(arg) else arg for arg in [at, up]]
+        args = [arg.view(-1, 3).to(dtype=torch.float32, device=device) for arg in args]
+        at, up = args
+        C = (
+            camera_position_from_spherical_angles(dist, elev, azim, degrees=degrees, device=device)
+            + at
+        )
+
+    R = look_at_rotation(C, at, up, device=device)
+    T = -torch.bmm(R.transpose(1, 2), C[:, :, None])[:, :, 0]
+    return R, T
+
+
+def look_at_rotation(
+    camera_position: Sequence[float] | Tensor,
+    at=((0, 0, 0),),
+    up=((0, 1, 0),),
+    device: str | device = "cpu",
+) -> Tensor:
+    """
+    This function takes a vector 'camera_position' which specifies the location
+    of the camera in world coordinates and two vectors `at` and `up` which
+    indicate the position of the object and the up directions of the world
+    coordinate system respectively. The object is assumed to be centered at
+    the origin.
+
+    The output is a rotation matrix representing the transformation
+    from world coordinates -> view coordinates.
+
+    Camera utility function from `pytorch3d` [0].
+
+    All inputs are converted to tensors and broadcast against each other.
+
+    Args:
+        camera_position: Position of the camera in world coordinates
+        at: Position of the object in world coordinates
+        up: Vector specifying the up direction in the world coordinate frame.
+
+    Returns:
+        R: (N, 3, 3) batched rotation matrices
+
+    References:
+    [0]: https://pytorch3d.readthedocs.io/en/latest/modules/renderer/cameras.html#pytorch3d.renderer.cameras.look_at_rotation
+    """
+    args = [
+        torch.tensor(arg) if not torch.is_tensor(arg) else arg for arg in [camera_position, at, up]
+    ]
+    args = [arg.view(-1, 3).to(dtype=torch.float32, device=device) for arg in args]
+    camera_position, at, up = args
+    z_axis = F.normalize(at - camera_position, eps=1e-5)
+    x_axis = F.normalize(torch.cross(up, z_axis, dim=1), eps=1e-5)
+    y_axis = F.normalize(torch.cross(z_axis, x_axis, dim=1), eps=1e-5)
+    is_close = torch.isclose(x_axis, torch.tensor(0.0), atol=5e-3).all(dim=1, keepdim=True)
+    if is_close.any():
+        replacement = F.normalize(torch.cross(y_axis, z_axis, dim=1), eps=1e-5)
+        x_axis = torch.where(is_close, replacement, x_axis)
+    R = torch.cat((x_axis[:, None, :], y_axis[:, None, :], z_axis[:, None, :]), dim=1)
+    return R.transpose(1, 2)
 
 
 def camera_position_from_spherical_angles(
@@ -22,6 +130,8 @@ def camera_position_from_spherical_angles(
     Calculate the location of the camera based on the distance away from the target point, the
     elevation and azimuth angles.
 
+    Camera utility function from `pytorch3d` [0].
+
     All inputs are converted to tensors and broadcast against each other.
 
     Args:
@@ -33,12 +143,15 @@ def camera_position_from_spherical_angles(
 
     Returns:
         Camera position relative to the object. Shape is (N, 3).
+
+    References:
+    [0] https://pytorch3d.readthedocs.io/en/latest/modules/renderer/cameras.html#pytorch3d.renderer.cameras.camera_position_from_spherical_angles
     """
     args = [
         torch.tensor(arg) if not torch.is_tensor(arg) else arg
         for arg in [distance, elevation, azimuth]
     ]
-    args = [arg.view(-1, 1).to(device=device) for arg in args]
+    args = [arg.view(-1, 1).to(dtype=torch.float32, device=device) for arg in args]
     dist, elev, azim = args
     if degrees:
         elev = torch.pi / 180.0 * elev

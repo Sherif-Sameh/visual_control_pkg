@@ -4,9 +4,13 @@ from typing import TYPE_CHECKING, Callable, Literal
 
 import kaolin as kal
 import torch
+import torch.nn.functional as F
 from kaolin.render.lighting import SgLightingParameters
 
-from vc_core.dr.kaolin.utils import generate_pinhole_rays_batched
+from vc_core.dr.kaolin.utils import (
+    camera_position_from_spherical_angles,
+    generate_pinhole_rays_batched,
+)
 
 from .base import Shader
 
@@ -127,11 +131,10 @@ class HardColorDiffuseSH9Shader(Shader):
         if direction is None:
             azimuth = azimuth if azimuth is not None else torch.zeros(1, dtype=torch.float32)
             elevation = elevation if elevation is not None else torch.zeros_like(azimuth)
-            if degrees:
-                azimuth = torch.pi / 180.0 * azimuth
-                elevation = torch.pi / 180.0 * elevation
-            direction = torch.stack(kal.ops.coords.spherical2cartesian(azimuth, elevation), dim=-1)
-            direction = direction.squeeze(0)
+            direction = camera_position_from_spherical_angles(
+                1.0, elevation, azimuth, degrees=degrees
+            ).squeeze(0)
+            direction = F.normalize(direction, dim=-1)
         self._direction = direction
         self._intensity = intensity if intensity is not None else torch.ones(3)
         assert self._direction.ndim == 1, (
@@ -223,10 +226,10 @@ class HardColorDiffuseSGFittedShader(Shader):
         if azimuth is not None and elevation is not None:
             azimuth = azimuth.view(-1, 1)
             elevation = elevation.view(-1, 1)
-            if degrees:
-                azimuth = torch.pi / 180.0 * azimuth
-                elevation = torch.pi / 180.0 * elevation
-            direction = torch.stack(kal.ops.coords.spherical2cartesian(azimuth, elevation), dim=-1)
+            direction = camera_position_from_spherical_angles(
+                1.0, elevation, azimuth, degrees=degrees
+            )
+            direction = F.normalize(direction, dim=-1)
             lights = SgLightingParameters(lights.amplitude, direction, lights.sharpness)
         self._lights = lights
         self._get_albedo = _build_get_albedo(raw_texture, uvs_origin)
@@ -318,10 +321,10 @@ class HardColorSpecularSGFittedShader(Shader):
         if azimuth is not None and elevation is not None:
             azimuth = azimuth.view(-1, 1)
             elevation = elevation.view(-1, 1)
-            if degrees:
-                azimuth = torch.pi / 180.0 * azimuth
-                elevation = torch.pi / 180.0 * elevation
-            direction = torch.stack(kal.ops.coords.spherical2cartesian(azimuth, elevation), dim=-1)
+            direction = camera_position_from_spherical_angles(
+                1.0, elevation, azimuth, degrees=degrees
+            )
+            direction = F.normalize(direction, dim=-1)
             lights = SgLightingParameters(lights.amplitude, direction, lights.sharpness)
         self._lights = lights
         self._spec_albedo = spec_albedo if spec_albedo is not None else torch.ones(3)
