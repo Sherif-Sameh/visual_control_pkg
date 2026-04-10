@@ -8,6 +8,6 @@
 
 # Calibration engine parameters
 "calib.eng.n_poses" = 9
-"calib.eng.rot_angle" = 0.681
+"calib.eng.rot_angle" = 0.5
 "calib.eng.dist_to_target" = 0.654
 "calib.eng.calib_method" = "CALIB_HAND_EYE_TSAI"
