@@ -6,6 +6,12 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+from vc_core.utils.geometry.vector import (
+    apply_tangent_rotation,
+    get_rotation_from_z,
+    get_tangent_basis,
+)
+
 if TYPE_CHECKING:
     from torch import Tensor
 
@@ -61,7 +67,7 @@ class CylinderModel(nn.Module):
         pos = pos.repeat((n_rep, 1)) if pos.ndim == 1 else pos
         z_dir = z_dir.repeat((n_rep, 1)) if z_dir.ndim == 1 else z_dir
         z_dir = F.normalize(z_dir, dim=-1)
-        z_basis = torch.stack(self._get_tangent_basis(z_dir), dim=-1)
+        z_basis = torch.stack(get_tangent_basis(z_dir), dim=-1)
         radius = torch.ones(n_rep, dtype=torch.float32, device=device) if radius is None else radius
         radius = radius.repeat(n_rep) if radius.shape[0] == 1 else radius
         height = torch.ones(n_rep, dtype=torch.float32, device=device) if height is None else height
@@ -94,8 +100,8 @@ class CylinderModel(nn.Module):
         # unnormalize position
         pos = self.pos_offset * self.scale + self.pos_init
         # apply tangent rotation to z-axis and create rotation matrix
-        z_dir = self._apply_tangent_rotation(self.z_dir_init, self.z_tan, self.z_basis)
-        rot = self._get_rotation_from_z(z_dir)
+        z_dir = apply_tangent_rotation(self.z_dir_init, self.z_tan, self.z_basis)
+        rot = get_rotation_from_z(z_dir)
         # unnormalize radius and height offsets
         r_offset = self.r_offset * self.radius
         h_offset = self.h_offset * self.height
@@ -114,71 +120,6 @@ class CylinderModel(nn.Module):
         if height is not None and height.shape[0] > 1:
             return height.shape[0]
         return n_rep
-
-    @staticmethod
-    def _get_tangent_basis(vec: Tensor) -> tuple[Tensor, Tensor]:
-        """Get the orthonormal basis for the tangent plane of the given vector using Gram-Schmidt.
-
-        Args:
-            vec: Direction unit vector. Shape is (N, 3).
-
-        Returns:
-            tuple of orthonormal basis vectors that define the given vector's tangent space. Shape
-            of each is (N, 3).
-        """
-        # Ensure that direction is a unit vector
-        vec = F.normalize(vec, dim=-1)
-        # Pick arbitrary directions for first vector
-        e1 = torch.tensor([1.0, 0.0, 0.0], device=vec.device).expand_as(vec)
-        e1_alt = torch.tensor([0.0, 1.0, 0.0], device=vec.device).expand_as(vec)
-        parallel_mask = (vec * e1).sum(dim=-1, keepdim=True).abs() > 0.99
-        e1 = torch.where(parallel_mask, e1_alt, e1)
-        # Make first basis vector normal to given vector
-        e1_proj_on_vec = (e1 * vec).sum(dim=-1, keepdim=True) * vec
-        e1 = e1 - e1_proj_on_vec
-        e1 = F.normalize(e1, dim=-1)
-        # Get second basis vector that's normal to both vectors
-        e2 = torch.cross(vec, e1, dim=-1)
-        return e1, e2
-
-    @staticmethod
-    def _apply_tangent_rotation(vec: Tensor, tan: Tensor, basis: Tensor) -> Tensor:
-        """Apply tangent rotation to a unit direction vector.
-
-        Tangent vectors are clamped to [-1, 1] then scaled by `π` before applying them. Also, for
-        the exponential map, a first order approximation is used.
-
-        Args:
-            vec: Direction unit vector to apply rotation to. Shape is (N, 3).
-            tan: Tangent space delta vector. Shape is (N, 2).
-            basis: Orthonormal basis vectors for tangent space. Shape of each is (N, 3, 2).
-
-        Returns:
-            Updated unit direction vector after applying tangent rotation. Shape is (N, 3).
-        """
-        # Compute delta tangent vector in 3D
-        tan = torch.clamp(tan, -1, 1) * torch.pi
-        delta = tan[:, :1] * basis[:, :, 0] + tan[:, 1:2] * basis[:, :, 1]
-        # Update rotation using first-order approx of exponential map
-        vec_rot = vec + delta
-        vec_rot = F.normalize(vec_rot, dim=-1)
-        return vec_rot
-
-    @staticmethod
-    def _get_rotation_from_z(z_dir: Tensor) -> Tensor:
-        """Construct a rotation matrix from the direction of the Z-axis using Gram-Schmidt.
-
-        Args:
-            z_dir: Direction of the Z-axis. Shape is (N, 3).
-
-        Returns:
-            Complete rotation matrix contructed from Z-axis. Shape is (N, 3, 3).
-        """
-        # Get orthonormal tangent basis to current Z-axis
-        x_dir, y_dir = CylinderModel._get_tangent_basis(z_dir)
-        # Combine into rotation matrix
-        r_matrix = torch.stack([x_dir, y_dir, z_dir], dim=-1)  # (B, 3, 3)
-        return r_matrix
 
 
 class CylinderSplitParamModel(CylinderModel):
