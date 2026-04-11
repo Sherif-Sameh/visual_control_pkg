@@ -1,13 +1,16 @@
 from __future__ import annotations
 
+from itertools import product
+
 import pytest
 import torch
 
-from vc_core.dr.common.model import EyePoseModel, EyePoseTextureModel
+from vc_core.dr.common.model import EyePoseModel, EyePoseTextureMipmapModel, EyePoseTextureModel
 from vc_core.dr.kaolin.utils import look_at_view_transform
 
 Devices = [torch.device("cpu")]
 Devices = Devices + [torch.device("cuda")] if torch.cuda.is_available() else Devices
+Modes = ["nearest", "bilinear", "nearest-exact"]
 
 
 @pytest.mark.unit
@@ -53,3 +56,26 @@ def test_eye_pose_texture_model(device: torch.device) -> None:
     assert pos_m.shape == (n_view, 3)
     assert rot_m.shape == (n_view, 3, 3)
     assert text_m.shape == (3, H, W)
+    assert torch.allclose(text_m, text_rgb.view(3, 1, 1))
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("device,mode", product(Devices, Modes))
+def test_eye_pose_texture_mipmap_model(device: torch.device, mode: str) -> None:
+    # Create eye pose texture model
+    H, W = 256, 256
+    n_view, n_level = 3, 5
+    distance, elevation, azimuth = 1, 50, 30
+    R, T = look_at_view_transform(distance, elevation, azimuth, device=device)
+    text_rgb = torch.full((3,), 0.8, device=device)
+    model = EyePoseTextureMipmapModel(
+        T[0], R[0, :, -1], (H, W), text_rgb, n_view=n_view, n_level=n_level, mode=mode
+    )
+
+    # Test `forward()` method
+    pos_m, rot_m, text_m = model()
+    assert all([m.requires_grad for m in [pos_m, rot_m, text_m]])
+    assert pos_m.shape == (n_view, 3)
+    assert rot_m.shape == (n_view, 3, 3)
+    assert text_m.shape == (3, H, W)
+    assert torch.allclose(text_m, text_rgb.view(3, 1, 1))

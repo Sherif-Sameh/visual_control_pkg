@@ -207,7 +207,7 @@ class EyePoseTextureModel(nn.Module):
         # create parameters
         self.pos_offset = nn.Parameter(torch.zeros_like(pos))
         self.z_tan = nn.Parameter(torch.zeros((n_view, 2), dtype=torch.float32, device=device))
-        self._init_texture(res, text_rgb)
+        self._init_texture(res, text_rgb, **kwargs)
 
     def forward(self) -> tuple[Tensor, Tensor, Tensor]:
         """Construct the model's pose and texture estimates return them.
@@ -243,7 +243,7 @@ class EyePoseTextureModel(nn.Module):
             **kwargs: Additonal arguments for initializing texture.
         """
         # repeat initial RGB color across H and W
-        H, W = (res, res) if isinstance(res, int) else res
+        H, W = res
         text_rgb = text_rgb[:, None, None].repeat([1, H, W])
         # create texture parameter
         self.texture = nn.Parameter(text_rgb)
@@ -255,3 +255,98 @@ class EyePoseTextureModel(nn.Module):
             Texture map [0, 1]. Shape is (3, H, W).
         """
         return torch.clamp(self.texture, 0, 1)
+
+
+class EyePoseTextureMipmapModel(EyePoseTextureModel):
+    """PyTorch model for estimating the pose and texture of an eye mesh.
+
+    Since estimating both camera/eye pose and texture from a single view is an ill-posed
+    optimization problem. Multiple views of the same mesh must be used. Then, the learned texture
+    must be able to fit all of them for different poses using the same fixed meshs UVs. Therefore,
+    the `n_rep` parameter of `EyeModel` is re-purposed for this model as `n_view`.
+
+    Refer to `vc_core.dr.common.model.EyePoseModel` for a detailed description of the eye pose
+    parameterization.
+
+    Unlike `vc_core.dr.common.model.EyePoseTextureModel`, a hierarchy/pyramid of textures is used
+    to represent the final texture. The approach is based on a similar idea to mipmapping in
+    rendering. Each level stores a texture with half the resolution of the previous one, starting
+    from the full resolution set by `res`. Textures are combined by upsampling lower-res textures
+    then summing all of them. This allows coarse textures to handle low-frequency features, while
+    high-res ones focus on higher frequency details. Only the coarsest texture will be initialized
+    to `text_rgb`, others are all zero-initialized.
+
+    Args:
+        pos: Initial guess for positions. Shape is (N, 3) or (3,).
+        z_dir: Initial guess for directions of the Z-axis. Can be unnormalized. Shape is (N, 3)
+            or (3,).
+        res: Texture resolution (H, W).
+        text_rgb: Initial color [0, 1] to apply to texture. Shape is (3,).
+        n_view: Number of different views to optimize simultaneously. Ignored if any of the other
+            input parameters is 2D. Default value is 2.
+        scale: Optional scale factor for position offsets. Default value is 1.0.
+        n_level: Number of levels for texture mipmapping. Default value is 3.
+        mode: Mode for interpolation using `torch.nn.functional.interpolate`. Default value is
+            `nearest`.
+    """
+
+    def __init__(
+        self,
+        pos: Tensor,
+        z_dir: Tensor,
+        res: tuple[int, int] | int,
+        text_rgb: Tensor,
+        *,
+        n_view: int = 2,
+        scale: float = 1.0,
+        n_level: int = 2,
+        mode: str = "nearest",
+    ):
+        super().__init__(pos, z_dir, res, text_rgb, n_view=n_view, scale=scale, n_level=n_level)
+        self.mode = mode
+
+    def _init_texture(self, res: tuple[int, int], text_rgb: Tensor, **kwargs) -> None:
+        """Initialize texture parameter from inputs.
+
+        Args:
+            res: Texture resolution tuple (H, W).
+            text_rgb: Initial color [0, 1] to apply to texture. Shape is (3,).
+            **kwargs: Additonal arguments for initializing texture.
+        """
+        device = text_rgb.device
+        n_level: int = kwargs["n_level"]
+        # compute H and W for all texture levels
+        H, W = res
+        scale = 2 ** torch.arange(0, n_level, device=device).float()
+        heights, widths = (H / scale).long(), (W / scale).long()
+        assert torch.all(heights > 0) and torch.all(widths > 0)
+        # repeat initial RGB color across heights[-1] and widths[-1]
+        text_rgb = text_rgb[:, None, None].repeat([1, heights[-1], widths[-1]])
+        # create texture parameters
+        texts_init = []
+        for i, (h, w) in enumerate(zip(heights, widths)):
+            if i == (n_level - 1):
+                texts_init.append(text_rgb)
+                continue
+            texts_init.append(torch.zeros((3, h, w), dtype=torch.float32, device=device))
+        self.texture = nn.ParameterList([nn.Parameter(text) for text in texts_init])
+
+    def _get_texture(self) -> Tensor:
+        """Compute output texture from internal representation.
+
+        Returns:
+            Texture map [0, 1]. Shape is (3, H, W).
+        """
+        n_level = len(self.texture)
+        scale = 2 ** torch.arange(1, n_level).float()
+        # upsample lower-res textures
+        texture = [self.texture[0].unsqueeze(0)]
+        for i, s in enumerate(scale):
+            texture.append(
+                F.interpolate(
+                    self.texture[i + 1].unsqueeze(0), scale_factor=s.item(), mode=self.mode
+                )
+            )
+        # sum textures
+        texture = torch.cat(texture, dim=0).sum(dim=0)
+        return torch.clamp(texture, 0, 1)
