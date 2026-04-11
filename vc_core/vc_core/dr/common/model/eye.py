@@ -174,6 +174,7 @@ class EyePoseTextureModel(nn.Module):
         n_view: Number of different views to optimize simultaneously. Ignored if any of the other
             input parameters is 2D. Default value is 2.
         scale: Optional scale factor for position offsets. Default value is 1.0.
+        **kwargs: Additional arguments for initializing texture representation.
     """
 
     def __init__(
@@ -185,6 +186,7 @@ class EyePoseTextureModel(nn.Module):
         *,
         n_view: int = 2,
         scale: float = 1.0,
+        **kwargs,
     ):
         super().__init__()
         self.scale = scale
@@ -196,10 +198,8 @@ class EyePoseTextureModel(nn.Module):
         z_dir = z_dir.repeat((n_view, 1)) if z_dir.ndim == 1 else z_dir
         z_dir = F.normalize(z_dir, dim=-1).to(dtype=torch.float32, device=device)
         z_basis = torch.stack(get_tangent_basis(z_dir), dim=-1)
-        H, W = (res, res) if isinstance(res, int) else res
-        text_rgb = text_rgb.clamp(0, 1)
-        text_rgb = text_rgb.to(dtype=torch.float32, device=device)
-        text_rgb = text_rgb[:, None, None].repeat([1, H, W])
+        res = (res, res) if isinstance(res, int) else res
+        text_rgb = text_rgb.clamp(0, 1).to(dtype=torch.float32, device=device)
         # register buffers
         self.register_buffer("pos_init", pos)
         self.register_buffer("z_dir_init", z_dir)
@@ -207,7 +207,7 @@ class EyePoseTextureModel(nn.Module):
         # create parameters
         self.pos_offset = nn.Parameter(torch.zeros_like(pos))
         self.z_tan = nn.Parameter(torch.zeros((n_view, 2), dtype=torch.float32, device=device))
-        self.texture = nn.Parameter(text_rgb)
+        self._init_texture(res, text_rgb)
 
     def forward(self) -> tuple[Tensor, Tensor, Tensor]:
         """Construct the model's pose and texture estimates return them.
@@ -222,8 +222,8 @@ class EyePoseTextureModel(nn.Module):
         # apply tangent rotation to z-axis and create rotation matrix
         z_dir = apply_tangent_rotation(self.z_dir_init, self.z_tan, self.z_basis)
         rot = get_rotation_from_z(z_dir)
-        # clamp texture to [0, 1]
-        texture = torch.clamp(self.texture, 0, 1)
+        # get output texture
+        texture = self._get_texture()
         return pos, rot, texture
 
     @staticmethod
@@ -233,3 +233,25 @@ class EyePoseTextureModel(nn.Module):
         if z_dir.ndim == 2:
             return z_dir.shape[0]
         return n_view
+
+    def _init_texture(self, res: tuple[int, int], text_rgb: Tensor, **kwargs) -> None:
+        """Initialize texture parameter from inputs.
+
+        Args:
+            res: Texture resolution tuple (H, W).
+            text_rgb: Initial color [0, 1] to apply to texture. Shape is (3,).
+            **kwargs: Additonal arguments for initializing texture.
+        """
+        # repeat initial RGB color across H and W
+        H, W = (res, res) if isinstance(res, int) else res
+        text_rgb = text_rgb[:, None, None].repeat([1, H, W])
+        # create texture parameter
+        self.texture = nn.Parameter(text_rgb)
+
+    def _get_texture(self) -> Tensor:
+        """Compute output texture from internal representation.
+
+        Returns:
+            Texture map [0, 1]. Shape is (3, H, W).
+        """
+        return torch.clamp(self.texture, 0, 1)
