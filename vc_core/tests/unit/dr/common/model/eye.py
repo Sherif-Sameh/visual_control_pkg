@@ -3,7 +3,7 @@ from __future__ import annotations
 import pytest
 import torch
 
-from vc_core.dr.common.model import EyePoseModel
+from vc_core.dr.common.model import EyePoseModel, EyePoseTextureModel
 from vc_core.dr.kaolin.utils import look_at_view_transform
 
 Devices = [torch.device("cpu")]
@@ -34,3 +34,22 @@ def test_eye_pose_model(device: torch.device) -> None:
     assert rot_m_new.shape == (n_rep, 3, 3)
     assert not torch.allclose(pos_m, pos_m_new)
     assert not torch.allclose(rot_m, rot_m_new)
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("device", Devices)
+def test_eye_pose_texture_model(device: torch.device) -> None:
+    # Create eye pose texture model
+    H, W = 256, 256
+    n_view = 3
+    distance, elevation, azimuth = 1, 50, 30
+    R, T = look_at_view_transform(distance, elevation, azimuth, device=device)
+    text_rgb = torch.full((3,), 0.8, device=device)
+    model = EyePoseTextureModel(T[0], R[0, :, -1], (H, W), text_rgb, n_view=n_view)
+
+    # Test `forward()` method
+    pos_m, rot_m, text_m = model()
+    assert all([m.requires_grad for m in [pos_m, rot_m, text_m]])
+    assert pos_m.shape == (n_view, 3)
+    assert rot_m.shape == (n_view, 3, 3)
+    assert text_m.shape == (3, H, W)

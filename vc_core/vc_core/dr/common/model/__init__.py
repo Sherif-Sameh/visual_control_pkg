@@ -1,4 +1,4 @@
 from .cylinder import CylinderModel, CylinderSplitParamModel
-from .eye import EyePoseModel
+from .eye import EyePoseModel, EyePoseTextureModel
 
-__all__ = ["CylinderModel", "CylinderSplitParamModel", "EyePoseModel"]
+__all__ = ["CylinderModel", "CylinderSplitParamModel", "EyePoseModel", "EyePoseTextureModel"]
