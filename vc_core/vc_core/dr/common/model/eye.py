@@ -82,7 +82,7 @@ class EyePoseModel(nn.Module):
         """Get the number of copies of the model's pose parameters."""
         return self.pos_offset.shape[0]
 
-    def forward(self) -> tuple[Tensor, Tensor, Tensor, Tensor]:
+    def forward(self) -> tuple[Tensor, Tensor]:
         """Construct the model's pose estimates return them.
 
         Returns:
@@ -149,3 +149,87 @@ class EyePoseModel(nn.Module):
         z_dir_s = apply_tangent_rotation(z_dir, z_tan_s, z_basis)
         z_basis_s = torch.stack(get_tangent_basis(z_dir_s), dim=-1)
         return pos_s, z_dir_s, z_basis_s
+
+
+class EyePoseTextureModel(nn.Module):
+    """PyTorch model for estimating the pose and texture of an eye mesh.
+
+    Since estimating both camera/eye pose and texture from a single view is an ill-posed
+    optimization problem. Multiple views of the same mesh must be used. Then, the learned texture
+    must be able to fit all of them for different poses using the same fixed meshs UVs. Therefore,
+    the `n_rep` parameter of `EyeModel` is re-purposed for this model as `n_view`.
+
+    Refer to `vc_core.dr.common.model.EyePoseModel` for a detailed description of the eye pose
+    parameterization.
+
+    Texture is modeled only through a single full-resolution RGB image of shape (3, H, W). Only a
+    single texture is stored and output by the model.
+
+    Args:
+        pos: Initial guess for positions. Shape is (N, 3) or (3,).
+        z_dir: Initial guess for directions of the Z-axis. Can be unnormalized. Shape is (N, 3)
+            or (3,).
+        res: Texture resolution (H, W).
+        text_rgb: Initial color [0, 1] to apply to texture. Shape is (3,).
+        n_view: Number of different views to optimize simultaneously. Ignored if any of the other
+            input parameters is 2D. Default value is 2.
+        scale: Optional scale factor for position offsets. Default value is 1.0.
+    """
+
+    def __init__(
+        self,
+        pos: Tensor,
+        z_dir: Tensor,
+        res: tuple[int, int] | int,
+        text_rgb: Tensor,
+        *,
+        n_view: int = 2,
+        scale: float = 1.0,
+    ):
+        super().__init__()
+        self.scale = scale
+        device = pos.device
+        n_view = self._get_n_view(pos, z_dir, n_view)
+        # preprocess all inputs
+        pos = pos.repeat((n_view, 1)) if pos.ndim == 1 else pos
+        pos = pos.to(dtype=torch.float32, device=device)
+        z_dir = z_dir.repeat((n_view, 1)) if z_dir.ndim == 1 else z_dir
+        z_dir = F.normalize(z_dir, dim=-1).to(dtype=torch.float32, device=device)
+        z_basis = torch.stack(get_tangent_basis(z_dir), dim=-1)
+        H, W = (res, res) if isinstance(res, int) else res
+        text_rgb = text_rgb.clamp(0, 1)
+        text_rgb = text_rgb.to(dtype=torch.float32, device=device)
+        text_rgb = text_rgb[:, None, None].repeat([1, H, W])
+        # register buffers
+        self.register_buffer("pos_init", pos)
+        self.register_buffer("z_dir_init", z_dir)
+        self.register_buffer("z_basis", z_basis)
+        # create parameters
+        self.pos_offset = nn.Parameter(torch.zeros_like(pos))
+        self.z_tan = nn.Parameter(torch.zeros((n_view, 2), dtype=torch.float32, device=device))
+        self.texture = nn.Parameter(text_rgb)
+
+    def forward(self) -> tuple[Tensor, Tensor, Tensor]:
+        """Construct the model's pose and texture estimates return them.
+
+        Returns:
+            tuple containing three tensors. First is the position whose shape is (N, 3). Second is
+            the rotation matrix whose shape (N, 3, 3). Third is the texture [0, 1] whose shape is
+            (3, H, W).
+        """
+        # unnormalize position
+        pos = self.pos_offset * self.scale + self.pos_init
+        # apply tangent rotation to z-axis and create rotation matrix
+        z_dir = apply_tangent_rotation(self.z_dir_init, self.z_tan, self.z_basis)
+        rot = get_rotation_from_z(z_dir)
+        # clamp texture to [0, 1]
+        texture = torch.clamp(self.texture, 0, 1)
+        return pos, rot, texture
+
+    @staticmethod
+    def _get_n_view(pos: Tensor, z_dir: Tensor, n_view: int) -> int:
+        if pos.ndim == 2:
+            return pos.shape[0]
+        if z_dir.ndim == 2:
+            return z_dir.shape[0]
+        return n_view
