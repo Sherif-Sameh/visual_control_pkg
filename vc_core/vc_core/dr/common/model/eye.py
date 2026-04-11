@@ -12,6 +12,8 @@ from vc_core.utils.geometry.vector import (
     get_tangent_basis,
 )
 
+from .hash_encoder import HashEncoder2D, HashEncoder2DCfg
+
 if TYPE_CHECKING:
     from torch import Tensor
 
@@ -349,4 +351,103 @@ class EyePoseTextureMipmapModel(EyePoseTextureModel):
             )
         # sum textures
         texture = torch.cat(texture, dim=0).sum(dim=0)
+        return torch.clamp(texture, 0, 1)
+
+
+class EyePoseTextureHashEncoderModel(EyePoseTextureModel):
+    """PyTorch model for estimating the pose and texture of an eye mesh.
+
+    Since estimating both camera/eye pose and texture from a single view is an ill-posed
+    optimization problem. Multiple views of the same mesh must be used. Then, the learned texture
+    must be able to fit all of them for different poses using the same fixed meshs UVs. Therefore,
+    the `n_rep` parameter of `EyeModel` is re-purposed for this model as `n_view`.
+
+    Refer to `vc_core.dr.common.model.EyePoseModel` for a detailed description of the eye pose
+    parameterization.
+
+    Uses a 2D multi-resolution hash encoder for embedding inputs to generate the final RGB texture.
+    The embedding approach is based on the 3D voxel multi-res embedding presented in the paper
+    titled `Instant Neural Graphics Primitives with a Multiresolution Hash Encoding` [0]. A small
+    MLP network is used to convert the feature embeddings into RGB values. The embedding are
+    evaluated at the grid center locations.
+
+    Args:
+        pos: Initial guess for positions. Shape is (N, 3) or (3,).
+        z_dir: Initial guess for directions of the Z-axis. Can be unnormalized. Shape is (N, 3)
+            or (3,).
+        n_view: Number of different views to optimize simultaneously. Ignored if any of the other
+            input parameters is 2D. Default value is 2.
+        scale: Optional scale factor for position offsets. Default value is 1.0.
+        enc_cfg: Configuration for the 2D hash encoder. Default initialized.
+        mlp_n_layer: Number of hidden layers for RGB projection MLP. Default value is 2.
+        mlp_n_feature: Number of features per hidden layer for RGB projection MLP. Default value is 64.
+
+    References:
+    [0] https://arxiv.org/abs/2201.05989
+    """
+
+    def __init__(
+        self,
+        pos: Tensor,
+        z_dir: Tensor,
+        *,
+        n_view: int = 2,
+        scale: float = 1.0,
+        enc_cfg: HashEncoder2DCfg = HashEncoder2DCfg(),
+        mlp_n_layer: int = 2,
+        mlp_n_feature: int = 64,
+    ):
+        super().__init__(
+            pos,
+            z_dir,
+            enc_cfg.finest_res,
+            torch.zeros(3, device=pos.device),
+            n_view=n_view,
+            scale=scale,
+            enc_cfg=enc_cfg,
+            mlp_n_layer=mlp_n_layer,
+            mlp_n_feature=mlp_n_feature,
+        )
+        self.res = enc_cfg.finest_res
+        self.uv_max = enc_cfg.uv_max
+
+    def _init_texture(self, _: tuple[int, int], text_rgb: Tensor, **kwargs) -> None:
+        """Initialize texture parameter from inputs.
+
+        Args:
+            res: Texture resolution tuple (H, W).
+            text_rgb: Initial color [0, 1] to apply to texture. Shape is (3,).
+            **kwargs: Additonal arguments for initializing texture.
+        """
+        device = text_rgb.device
+        enc_cfg: HashEncoder2DCfg = kwargs["enc_cfg"]
+        mlp_n_layer: int = kwargs["mlp_n_layer"]
+        mlp_n_feature: int = kwargs["mlp_n_feature"]
+        # initialize hash encoder
+        self.enc = HashEncoder2D(enc_cfg).to(device=device)
+        # initialize projection mlp
+        layers = []
+        in_dim, out_dim = self.enc.feature_dim, mlp_n_feature
+        for _ in range(mlp_n_layer):
+            layers.append(nn.Linear(in_dim, out_dim))
+            layers.append(nn.ReLU())
+            in_dim = out_dim
+        layers.append(nn.Linear(in_dim, 3))
+        self.texture = nn.Sequential(*layers).to(device=device)
+
+    def _get_texture(self) -> Tensor:
+        """Compute output texture from internal representation.
+
+        Returns:
+            Texture map [0, 1]. Shape is (3, H, W).
+        """
+        device = self.pos_offset.device
+        # sample grid UVs
+        linear = torch.linspace(0.0, self.uv_max, self.res + 1, device=device)[:-1]
+        grid = torch.stack(torch.meshgrid(linear, linear, indexing="xy"), dim=-1)
+        # evaluate embeddings
+        embd = self.enc(grid[None])[0]  # (H, W, feature_dim)
+        # project to RGB and permute axes
+        texture = self.texture(embd)  # (H, W, 3)
+        texture = texture.permute(2, 0, 1)
         return torch.clamp(texture, 0, 1)

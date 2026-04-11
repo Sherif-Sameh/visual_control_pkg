@@ -5,7 +5,13 @@ from itertools import product
 import pytest
 import torch
 
-from vc_core.dr.common.model import EyePoseModel, EyePoseTextureMipmapModel, EyePoseTextureModel
+from vc_core.dr.common.model import (
+    EyePoseModel,
+    EyePoseTextureHashEncoderModel,
+    EyePoseTextureMipmapModel,
+    EyePoseTextureModel,
+    HashEncoder2DCfg,
+)
 from vc_core.dr.kaolin.utils import look_at_view_transform
 
 Devices = [torch.device("cpu")]
@@ -79,3 +85,30 @@ def test_eye_pose_texture_mipmap_model(device: torch.device, mode: str) -> None:
     assert rot_m.shape == (n_view, 3, 3)
     assert text_m.shape == (3, H, W)
     assert torch.allclose(text_m, text_rgb.view(3, 1, 1))
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("device", Devices)
+def test_eye_pose_texture_hash_encoder_model(device: torch.device) -> None:
+    # Create eye pose texture model
+    n_view = 3
+    res = 512
+    enc_cfg = HashEncoder2DCfg(finest_res=res)
+    mlp_n_layer, mlp_n_feature = 2, 64
+    distance, elevation, azimuth = 1, 50, 30
+    R, T = look_at_view_transform(distance, elevation, azimuth, device=device)
+    model = EyePoseTextureHashEncoderModel(
+        T[0],
+        R[0, :, -1],
+        n_view=n_view,
+        enc_cfg=enc_cfg,
+        mlp_n_layer=mlp_n_layer,
+        mlp_n_feature=mlp_n_feature,
+    )
+
+    # Test `forward()` method
+    pos_m, rot_m, text_m = model()
+    assert all([m.requires_grad for m in [pos_m, rot_m, text_m]])
+    assert pos_m.shape == (n_view, 3)
+    assert rot_m.shape == (n_view, 3, 3)
+    assert text_m.shape == (3, res, res)
