@@ -234,52 +234,6 @@ def _build_mncc_loss(
     return _build_loss_fn(mncc_loss, reduction=reduction, dim=dim)
 
 
-def _build_centroid_loss(
-    *,
-    reduction: Literal["mean", "sum", "none"] = "mean",
-    dim: int | Sequence[int] | None = None,
-    size: tuple[int, int],
-    device: str | torch.device = "cpu",
-) -> Callable[[Tensor, Tensor], Tensor]:
-    """Build a mask-based per-channel centroid loss.
-
-    Reductions are only applied across the batch and channel dimensions. If `reduction` = `none`,
-    the loss shape is (B, 1, 1, C) to allow broadcasting with other 4D mask-based losses.
-
-    Args:
-        reduction: Specifies the reduction to apply to the output (none | mean | sum). If mean,
-            the mean of the output is taken. If sum, the output will be summed. If none, no
-            reduction will be applied. Default value is mean.
-        dim: Dimensions to reduce. If `None`, all dimensions are reduced. Default value is `None`.
-        size: Spatial dimensions of the masks (H, W).
-        device: Device for pre-computing mesh-grids needed in centroid computation.
-
-    Returns:
-        Centroid loss.
-    """
-    H, W = size
-    u_coords = torch.arange(W, device=device).float()
-    v_coords = torch.arange(H, device=device).float()
-    u_grid, v_grid = torch.meshgrid(u_coords, v_coords, indexing="xy")
-    u_grid, v_grid = u_grid.view(1, H, W, 1), v_grid.view(1, H, W, 1)
-
-    def centroid(x: Tensor) -> tuple[Tensor, Tensor]:
-        """Compute centroid along spatial dimensions."""
-        mass = x.sum((-3, -2), keepdim=True) + 1e-6  # (B, 1, 1, C)
-        cu = (x * u_grid).sum((-3, -2), keepdim=True) / (mass * W)
-        cv = (x * v_grid).sum((-3, -2), keepdim=True) / (mass * H)
-        return cu, cv
-
-    def centroid_loss(input: Tensor, target: Tensor) -> Tensor:
-        """Compute centroid loss."""
-        cu_inp, cv_inp = centroid(input)
-        cu_tgt, cv_tgt = centroid(target)
-        loss = (cu_tgt - cu_inp) ** 2 + (cv_tgt - cv_inp) ** 2
-        return loss
-
-    return _build_loss_fn(centroid_loss, reduction=reduction, dim=dim)
-
-
 def _build_masked_loss(
     *,
     reduction: Literal["mean", "sum", "none"] = "mean",

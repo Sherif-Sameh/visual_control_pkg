@@ -72,9 +72,8 @@ class HardColorAmbientShader(Shader):
 
         # apply rendering
         albedo = self._get_albedo(fragments.features_image[1], mesh)
-        mask = fragments.faces_image != -1
-        color = torch.zeros_like(albedo)
-        color[mask] = torch.clamp(albedo[mask] * ambient, 0.0, 1.0)
+        mask = (fragments.faces_image != -1).unsqueeze(-1)
+        color = torch.clamp(albedo * ambient * mask, 0.0, 1.0)
         return color
 
     __call__ = forward
@@ -167,10 +166,13 @@ class HardColorDiffuseSH9Shader(Shader):
         uv_map = fragments.features_image[1][..., :2]
         normal_map = fragments.features_image[1][..., 2:]
         albedo = self._get_albedo(uv_map, mesh)
-        mask = fragments.faces_image != -1
-        color = torch.zeros_like(albedo)
-        color[mask] = torch.clamp(
-            kal.render.lighting.sh9_diffuse(direction, normal_map[mask], albedo[mask]) * intensity,
+        mask = (fragments.faces_image != -1).unsqueeze(-1)
+        color = torch.clamp(
+            kal.render.lighting.sh9_diffuse(
+                direction, normal_map.flatten(0, -2), albedo.flatten(0, -2)
+            ).view_as(albedo)
+            * intensity
+            * mask,
             0.0,
             1.0,
         )
@@ -253,12 +255,16 @@ class HardColorDiffuseSGFittedShader(Shader):
         uv_map = fragments.features_image[1][..., :2]
         normal_map = fragments.features_image[1][..., 2:]
         albedo = self._get_albedo(uv_map, mesh)
-        mask = fragments.faces_image != -1
-        color = torch.zeros_like(albedo)
-        color[mask] = torch.clamp(
+        mask = (fragments.faces_image != -1).unsqueeze(-1)
+        color = torch.clamp(
             kal.render.lighting.sg_diffuse_fitted(
-                lights.amplitude, lights.direction, lights.sharpness, normal_map[mask], albedo[mask]
-            ),
+                lights.amplitude,
+                lights.direction,
+                lights.sharpness,
+                normal_map.flatten(0, -2),
+                albedo.flatten(0, -2),
+            ).view_as(albedo)
+            * mask,
             0.0,
             1.0,
         )
@@ -353,25 +359,28 @@ class HardColorSpecularSGFittedShader(Shader):
         uv_map = fragments.features_image[1][..., :2]
         normal_map = fragments.features_image[1][..., 2:]
         albedo = self._get_albedo(uv_map, mesh)
-        mask = fragments.faces_image != -1
+        mask = (fragments.faces_image != -1).unsqueeze(-1)
         spec_albedo = spec_albedo.expand_as(albedo)
         roughness = roughness.expand_as(mask)
         _, rays_dir = generate_pinhole_rays_batched(cameras)
         rays_dir = -rays_dir.view_as(albedo)
-        color = torch.zeros_like(albedo)
-        color[mask] += kal.render.lighting.sg_diffuse_fitted(
-            lights.amplitude, lights.direction, lights.sharpness, normal_map[mask], albedo[mask]
-        )
-        color[mask] += kal.render.lighting.sg_warp_specular_term(
+        color = kal.render.lighting.sg_diffuse_fitted(
             lights.amplitude,
             lights.direction,
             lights.sharpness,
-            normal_map[mask],
-            roughness[mask],
-            rays_dir[mask],
-            spec_albedo[mask],
+            normal_map.flatten(0, -2),
+            albedo.flatten(0, -2),
         )
-        color[mask] = torch.clamp(color[mask], 0.0, 1.0)
+        color += kal.render.lighting.sg_warp_specular_term(
+            lights.amplitude,
+            lights.direction,
+            lights.sharpness,
+            normal_map.flatten(0, -2),
+            roughness.flatten(),
+            rays_dir.flatten(0, -2),
+            spec_albedo.flatten(0, -2),
+        )
+        color = torch.clamp(color.view_as(albedo) * mask, 0.0, 1.0)
         return color
 
     __call__ = forward
