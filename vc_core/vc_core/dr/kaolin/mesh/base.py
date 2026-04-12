@@ -45,22 +45,28 @@ class Mesh:
         self._mesh = value
         self._mesh_shallow = copy.copy(self._mesh)
 
-    def forward(self, offsets: dict[str, Tensor]) -> SurfaceMesh:
-        """Apply offsets to the mesh's tensor attributes.
+    def forward(self, offsets: dict[str, Tensor], texture: Tensor | None = None) -> SurfaceMesh:
+        """Apply offsets to the mesh's tensor attributes and override texture if given.
+
+        If a texture is given, it's assumed that the underlying mesh has only a single material
+        shared by all its instances and stored under the `map_Kd` key in its materials dict.
 
         **Note**: the attributes of the returned mesh instance should not be modified manually.
-        For consistent attributes, they should only be update through this function.
+        For consistent attributes, they should only be updated through this function.
 
         Args:
             offset: Dictionary of offset tensors to apply to mesh attributes. Keys must match
                 the names of the attributes in `kaolin.rep.SurfaceMesh` exactly.
+            texture: Optional texture to override mesh's texture. Default value is `None`.
 
         Returns:
-            New mesh created by applying given offsets and copying unchanged attributes from the
-            original mesh.
+            New mesh created by applying given offsets and texture and copying unchanged attributes
+            from the original mesh.
         """
         for k, v in offsets.items():
             setattr(self._mesh_shallow, k, getattr(self._mesh, k) + v)
+        if texture is not None:
+            self._mesh_shallow.materials = [[{"map_Kd": texture}]]
         return self._mesh_shallow
 
     __call__ = forward
