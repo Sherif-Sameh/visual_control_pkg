@@ -26,7 +26,9 @@ def look_at_view_transform(
     This function returns a rotation and translation matrix to apply the 'Look At'
     transformation from world -> view coordinates
 
-    Camera utility function from `pytorch3d` [0].
+    Camera utility function from `pytorch3d` [0]. The function is modified from the original
+    `pytorch3d` version such that the rotation matrix follows the OpenGL convention such that
+    the camera's Z-axis points away from the scene.
 
     All inputs are converted to tensors and broadcast against each other.
 
@@ -68,7 +70,7 @@ def look_at_view_transform(
         )
 
     R = look_at_rotation(C, at, up, device=device)
-    T = -torch.bmm(R.transpose(1, 2), C[:, :, None])[:, :, 0]
+    T = -torch.bmm(R, C[:, :, None])[:, :, 0]
     return R, T
 
 
@@ -88,7 +90,9 @@ def look_at_rotation(
     The output is a rotation matrix representing the transformation
     from world coordinates -> view coordinates.
 
-    Camera utility function from `pytorch3d` [0].
+    Camera utility function from `pytorch3d` [0]. The function is modified from the original
+    `pytorch3d` version such that the rotation matrix follows the OpenGL convention such that
+    the camera's Z-axis points away from the scene.
 
     All inputs are converted to tensors and broadcast against each other.
 
@@ -108,15 +112,15 @@ def look_at_rotation(
     ]
     args = [arg.view(-1, 3).to(dtype=torch.float32, device=device) for arg in args]
     camera_position, at, up = args
-    z_axis = F.normalize(at - camera_position, eps=1e-5)
+    z_axis = -F.normalize(at - camera_position, eps=1e-5)
     x_axis = F.normalize(torch.cross(up, z_axis, dim=1), eps=1e-5)
     y_axis = F.normalize(torch.cross(z_axis, x_axis, dim=1), eps=1e-5)
     is_close = torch.isclose(x_axis, torch.tensor(0.0), atol=5e-3).all(dim=1, keepdim=True)
     if is_close.any():
         replacement = F.normalize(torch.cross(y_axis, z_axis, dim=1), eps=1e-5)
         x_axis = torch.where(is_close, replacement, x_axis)
-    R = torch.cat((x_axis[:, None, :], y_axis[:, None, :], z_axis[:, None, :]), dim=1)
-    return R.transpose(1, 2)
+    R = torch.stack((x_axis, y_axis, z_axis), dim=1)
+    return R
 
 
 def camera_position_from_spherical_angles(
@@ -161,6 +165,23 @@ def camera_position_from_spherical_angles(
     z = dist * torch.cos(elev) * torch.cos(azim)
     camera_position = torch.cat([x, y, z], dim=1)
     return camera_position
+
+
+def transform_from_rotation_translation(rot: Tensor, trans: Tensor) -> Tensor:
+    """Combine rotation and translation into a 4x4 homogeneous transformation matrix.
+
+    Args:
+        rot: Rotation matrices. Shape is (..., 3, 3).
+        trans: Translation vectors. Shape is (..., 3).
+
+    Returns:
+        homogeneous transformation matrices. Shape is (..., 4, 4).
+    """
+    device = rot.device
+    H = torch.cat([rot, trans.unsqueeze(-1)], dim=-1)
+    bottom_row = torch.tensor([0.0, 0.0, 0.0, 1.0], dtype=torch.float32, device=device)
+    bottom_row = bottom_row.expand_as(H[..., 0, :]).unsqueeze(-2)
+    return torch.cat([H, bottom_row], dim=-2)
 
 
 def generate_pinhole_rays_batched(

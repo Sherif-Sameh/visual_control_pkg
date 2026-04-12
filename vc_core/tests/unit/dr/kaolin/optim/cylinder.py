@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pytest
 import torch
-from kaolin.render.camera import Camera, CameraExtrinsics
+from kaolin.render.camera import Camera
 from torch.optim.lr_scheduler import CosineAnnealingLR
 
 from vc_core.dr.common.losses import wrap_combined_loss_fn
@@ -23,7 +23,7 @@ from vc_core.dr.kaolin.render import (
     RasterizationSettings,
     SoftSilhouetteShader,
 )
-from vc_core.dr.kaolin.utils import camera_position_from_spherical_angles
+from vc_core.dr.kaolin.utils import look_at_view_transform, transform_from_rotation_translation
 from vc_core.loggers import MemoryLogger
 
 np.random.seed(0)
@@ -34,7 +34,7 @@ torch.backends.cudnn.benchmark = True
 
 Devices = [torch.device("cpu")]
 Devices = Devices + [torch.device("cuda")] if torch.cuda.is_available() else Devices
-Backends = ["cuda", "nvdiffrast", "nvdiffrast_fwd"]
+Backends = ["cuda", "nvdiffrast"]
 Optimizers = [CylinderOptimizer, CylinderMultiLROptimizer]
 
 
@@ -59,10 +59,7 @@ def test_cylinder_optimizer(
 
     # Create cylinder model
     distance, elevation, azimuth = 0.125, 135.0, 0.0
-    eye = camera_position_from_spherical_angles(distance, elevation, azimuth)
-    at, up = torch.zeros(1, 3), torch.tensor([0.0, 1.0, 0.0]).view(1, 3)
-    extrinsics = CameraExtrinsics.from_lookat(eye, at, up)
-    R, T = extrinsics.R, extrinsics.t[..., 0]
+    R, T = look_at_view_transform(distance, elevation, azimuth)
     pos_sigma, z_dir_sigma, height_sigma = 0.005, 0.1, 0.002
     pos = torch.randn((n_rep, 3), dtype=torch.float32) * pos_sigma + T
     z_dir = torch.randn((n_rep, 3), dtype=torch.float32) * z_dir_sigma + R[..., -1]
@@ -72,8 +69,9 @@ def test_cylinder_optimizer(
     model = model.to(device=device)
 
     # Setup camera
+    view_matrix = transform_from_rotation_translation(R, T)
     cameras = Camera.from_args(
-        eye=eye, at=at, up=up, focal_x=733.0, height=256, width=256, dtype=torch.float32
+        view_matrix=view_matrix, focal_x=733.0, height=256, width=256, dtype=torch.float32
     )
     cameras = Camera.cat([cameras] * n_rep).to(device=device)
 

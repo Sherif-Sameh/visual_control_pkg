@@ -24,7 +24,7 @@ from vc_core.dr.kaolin.render import (
     RasterizationSettings,
     SoftSilhouetteShader,
 )
-from vc_core.dr.kaolin.utils import camera_position_from_spherical_angles
+from vc_core.dr.kaolin.utils import look_at_view_transform, transform_from_rotation_translation
 
 Devices = [torch.device("cpu")]
 Devices = Devices + [torch.device("cuda")] if torch.cuda.is_available() else Devices
@@ -46,12 +46,10 @@ def test_soft_silhouette_shader(device: torch.device, backend: str) -> None:
     # Setup camera
     img_size = 256
     distance, elevation, azimuth = 1.0, 20.0, 25.0
-    eye = camera_position_from_spherical_angles(distance, elevation, azimuth)
-    at, up = torch.zeros(1, 3), torch.tensor([0.0, 1.0, 0.0]).view(1, 3)
+    R, T = look_at_view_transform(distance, elevation, azimuth)
+    view_matrix = transform_from_rotation_translation(R, T)
     camera = Camera.from_args(
-        eye=eye,
-        at=at,
-        up=up,
+        view_matrix=view_matrix,
         fov=60 * torch.pi / 180,
         width=img_size,
         height=img_size,
@@ -101,12 +99,10 @@ def test_hard_depth_shader(device: torch.device, backend: str) -> None:
     # Setup camera
     img_size = 256
     distance, elevation, azimuth = 1.0, 20.0, 25.0
-    eye = camera_position_from_spherical_angles(distance, elevation, azimuth)
-    at, up = torch.zeros(1, 3), torch.tensor([0.0, 1.0, 0.0]).view(1, 3)
+    R, T = look_at_view_transform(distance, elevation, azimuth)
+    view_matrix = transform_from_rotation_translation(R, T)
     camera = Camera.from_args(
-        eye=eye,
-        at=at,
-        up=up,
+        view_matrix=view_matrix,
         fov=60 * torch.pi / 180,
         width=img_size,
         height=img_size,
@@ -161,12 +157,10 @@ def test_hard_color_ambient_shader(caplog, device: torch.device, backend: str) -
     # Setup camera
     img_size = 256
     distance, elevation, azimuth = 1.0, 20.0, 25.0
-    eye = camera_position_from_spherical_angles(distance, elevation, azimuth)
-    at, up = torch.zeros(1, 3), torch.tensor([0.0, 1.0, 0.0]).view(1, 3)
+    R, T = look_at_view_transform(distance, elevation, azimuth)
+    view_matrix = transform_from_rotation_translation(R, T)
     camera = Camera.from_args(
-        eye=eye,
-        at=at,
-        up=up,
+        view_matrix=view_matrix,
         fov=60 * torch.pi / 180,
         width=img_size,
         height=img_size,
@@ -218,12 +212,10 @@ def test_hard_color_diffuse_sh9_shader(caplog, device: torch.device, backend: st
     # Setup camera
     img_size = 256
     distance, elevation, azimuth = 1.0, 20.0, 25.0
-    eye = camera_position_from_spherical_angles(distance, elevation, azimuth)
-    at, up = torch.zeros(1, 3), torch.tensor([0.0, 1.0, 0.0]).view(1, 3)
+    R, T = look_at_view_transform(distance, elevation, azimuth)
+    view_matrix = transform_from_rotation_translation(R, T)
     camera = Camera.from_args(
-        eye=eye,
-        at=at,
-        up=up,
+        view_matrix=view_matrix,
         fov=60 * torch.pi / 180,
         width=img_size,
         height=img_size,
@@ -288,12 +280,10 @@ def test_hard_color_diffuse_sg_fitted_shader(caplog, device: torch.device, backe
     # Setup camera
     img_size = 256
     distance, elevation, azimuth = 1.0, 20.0, 25.0
-    eye = camera_position_from_spherical_angles(distance, elevation, azimuth)
-    at, up = torch.zeros(1, 3), torch.tensor([0.0, 1.0, 0.0]).view(1, 3)
+    R, T = look_at_view_transform(distance, elevation, azimuth)
+    view_matrix = transform_from_rotation_translation(R, T)
     camera = Camera.from_args(
-        eye=eye,
-        at=at,
-        up=up,
+        view_matrix=view_matrix,
         fov=60 * torch.pi / 180,
         width=img_size,
         height=img_size,
@@ -362,12 +352,10 @@ def test_hard_color_specular_sg_fitted_shader(caplog, device: torch.device, back
     # Setup camera
     img_size = 256
     distance, elevation, azimuth = 1.0, 20.0, 25.0
-    eye = camera_position_from_spherical_angles(distance, elevation, azimuth)
-    at, up = torch.zeros(1, 3), torch.tensor([0.0, 1.0, 0.0]).view(1, 3)
+    R, T = look_at_view_transform(distance, elevation, azimuth)
+    view_matrix = transform_from_rotation_translation(R, T)
     camera = Camera.from_args(
-        eye=eye,
-        at=at,
-        up=up,
+        view_matrix=view_matrix,
         fov=60 * torch.pi / 180,
         width=img_size,
         height=img_size,
@@ -442,12 +430,10 @@ def test_compose_shader(device: torch.device, backend: str) -> None:
     # Setup camera
     img_size = 256
     distance, elevation, azimuth = 1.0, 20.0, 25.0
-    eye = camera_position_from_spherical_angles(distance, elevation, azimuth)
-    at, up = torch.zeros(1, 3), torch.tensor([0.0, 1.0, 0.0]).view(1, 3)
+    R, T = look_at_view_transform(distance, elevation, azimuth)
+    view_matrix = transform_from_rotation_translation(R, T)
     camera = Camera.from_args(
-        eye=eye,
-        at=at,
-        up=up,
+        view_matrix=view_matrix,
         fov=60 * torch.pi / 180,
         width=img_size,
         height=img_size,
