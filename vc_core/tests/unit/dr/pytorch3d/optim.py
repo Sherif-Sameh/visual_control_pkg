@@ -16,7 +16,7 @@ from pytorch3d.transforms import quaternion_to_matrix
 from pytorch3d.utils import cameras_from_opencv_projection
 from torch.optim.lr_scheduler import CosineAnnealingLR
 
-from vc_core.dr.common.losses import wrap_combined_loss_fn
+from vc_core.dr.common.losses import build_combined_loss_fn
 from vc_core.dr.common.model import CylinderModel, CylinderSplitParamModel
 from vc_core.dr.pytorch3d.mesh import CylinderMesh
 from vc_core.dr.pytorch3d.optim import CylinderMultiLROptimizer, CylinderOptimizer
@@ -105,7 +105,9 @@ def test_cylinder_optimizer(
         model,
         renderer,
         torch.compile(
-            wrap_combined_loss_fn(["mse_loss"], [slice(2)], device=device, reduction="mean")
+            build_combined_loss_fn(
+                ["mse_loss"], [slice(2)], device=device, reduction="mean", dim=(1, 2, 3)
+            )
         ),
         lr=lr,
         lr_sched_cfg=CylinderOptimizer.LRSchedulerCfg(

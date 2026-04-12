@@ -27,7 +27,7 @@ from torch import Tensor
 from torch.optim.lr_scheduler import CosineAnnealingLR
 
 import vc_core.dr.pytorch3d as vc_pytorch3d
-from vc_core.dr.common import CylinderSplitParamModel, wrap_combined_loss_fn
+from vc_core.dr.common import CylinderSplitParamModel, build_combined_loss_fn
 from vc_core.dr.pytorch3d import CylinderMultiLROptimizer
 from vc_core.loggers import MemoryLogger
 from vc_core.segmentation.sam import SAM2, SAMPromptConfig
@@ -363,8 +363,13 @@ class TcpCalibrationP3d(Node):
             ranges.append(slice(1) if len(losses) == 1 else slice(1, 2))
             weights.append(optim_params["loss.weights"][1])
         return torch.compile(
-            wrap_combined_loss_fn(
-                losses, ranges, weights=weights, device=self._device, reduction="mean"
+            build_combined_loss_fn(
+                losses,
+                ranges,
+                weights=weights,
+                device=self._device,
+                reduction="mean",
+                dim=(1, 2, 3),
             )
         )
 

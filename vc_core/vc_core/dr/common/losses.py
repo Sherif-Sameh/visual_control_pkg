@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from functools import partial
-from typing import TYPE_CHECKING, Any, Callable, Literal
+from typing import TYPE_CHECKING, Any, Callable, Literal, Sequence
 
 import torch
 import torch.nn.functional as F
@@ -10,61 +10,18 @@ if TYPE_CHECKING:
     from torch import Tensor
 
 
-def wrap_combined_loss_fn(
-    fn_names: list[str],
-    ranges: list[slice],
-    weights: list[float] | None = None,
-    device: str | torch.device = "cpu",
-    reduction: Literal["sum", "mean"] = "mean",
-    kwargs: list[dict[str, Any]] | None = None,
-) -> Callable[[Tensor, Tensor], Tensor]:
-    """Wrap a combined loss function so that the batch dimension is retained.
-
-    If all functions in `fn_names` can be compiled with `torch.compile`, then the returned function
-    retains this ability.
-
-    For more on how losses are combined, refer to `vc_core.dr.losses.build_combined_loss_fn`.
-
-    Args:
-        fn_names: Loss function names to combine from `vc_core.dr.losses` module or
-            `torch.nn.functional` that accepts input and target tensors respectively plus
-            additional fixed kwargs (e.g., `mse_loss`).
-        ranges: Slices for extracting the relevant views from input and target tensors for each
-            loss function. Length must be the same as `fn_names`. The channel dimension that is
-            sliced is assumed to be the last.
-        weights: Optional weights for combining the individual loss functions. If `None`, then all
-            losses are given equal weights of 1.0. Default value is `None`.
-        device: Device to move `weights` tensor to. Should the same device as that of the input
-            tensors. Default value is `cpu`.
-        reduction: Specifies the reduction to apply to the output (mean | sum). If mean,
-            the mean of the output is taken. If sum, the output will be summed. Default value is mean.
-        kwargs: Optional sequence of kwargs to forward to loss functions (e.g., weight).
-
-    Returns:
-        Wrapped combined loss function that reduces all input dimensions but the batch dimension.
-    """
-    assert reduction in ["sum", "mean"]
-    fn = build_combined_loss_fn(
-        fn_names, ranges, weights=weights, device=device, reduction="none", kwargs=kwargs
-    )
-    reduction_fn = _get_reduction_fn(reduction)
-
-    def loss_fn(input: Tensor, target: Tensor) -> Tensor:
-        loss = fn(input, target)
-        return reduction_fn(loss, dim=tuple(range(1, input.ndim)))
-
-    return loss_fn
-
-
 def build_combined_loss_fn(
     fn_names: list[str],
     ranges: list[slice],
     weights: list[float] | None = None,
     device: str | torch.device = "cpu",
     reduction: Literal["sum", "mean", "none"] = "mean",
+    dim: int | Sequence[int] | None = None,
     kwargs: list[dict[str, Any]] | None = None,
 ) -> Callable[[Tensor, Tensor], Tensor]:
     """Build a torch loss function made up of a combination of other losses.
+
+    `reduction` and `dim` must be set such that all losses can be combined through a weighted sum.
 
     If all functions in `fn_names` can be compiled with `torch.compile`, then the returned function
     retains this ability.
@@ -83,6 +40,7 @@ def build_combined_loss_fn(
         reduction: Specifies the reduction to apply to the output (none | mean | sum). If mean,
             the mean of the output is taken. If sum, the output will be summed. If none, no
             reduction will be applied. Default value is mean.
+        dim: Dimensions to reduce. If `None`, all dimensions are reduced. Default value is `None`.
         kwargs: Optional sequence of kwargs to forward to loss functions (e.g., weight).
 
     Returns:
@@ -92,24 +50,29 @@ def build_combined_loss_fn(
     kwargs = kwargs if isinstance(kwargs, list) else [{}] * len(fn_names)
     assert len(kwargs) == len(fn_names), "Number of functions and kwargs must be equal."
     # Build all loss functions
-    losses = [build_loss_fn(name, reduction="none", **kw) for name, kw in zip(fn_names, kwargs)]
-    reduction_fn = _get_reduction_fn(reduction)
-    if weights is not None:
-        weights = torch.tensor(weights, dtype=torch.float32, device=device)
+    losses = [
+        build_loss_fn(name, reduction=reduction, dim=dim, **kw)
+        for name, kw in zip(fn_names, kwargs)
+    ]
+    weights = (
+        torch.tensor(weights) if weights is not None else torch.ones(len(fn_names)) / len(fn_names)
+    )
+    weights = weights.to(dtype=torch.float32, device=device)
 
     def loss_fn(input: Tensor, target: Tensor) -> Tensor:
-        w = torch.ones_like(input) if weights is None else weights
-        loss = (
-            torch.cat([fn(input[..., s], target[..., s]) for fn, s in zip(losses, ranges)], dim=-1)
-            * w
+        loss = sum(
+            [fn(input[..., s], target[..., s]) * w for fn, s, w in zip(losses, ranges, weights)]
         )
-        return reduction_fn(loss)
+        return loss
 
     return loss_fn
 
 
 def build_loss_fn(
-    fn_name: str, reduction: Literal["sum", "mean", "none"] = "mean", **kwargs
+    fn_name: str,
+    reduction: Literal["sum", "mean", "none"] = "mean",
+    dim: int | Sequence[int] | None = None,
+    **kwargs,
 ) -> Callable[[Tensor, Tensor], Tensor]:
     """Build a torch loss function given its name and reduction method.
 
@@ -123,6 +86,7 @@ def build_loss_fn(
         reduction: Specifies the reduction to apply to the output (none | mean | sum). If mean,
             the mean of the output is taken. If sum, the output will be summed. If none, no
             reduction will be applied. Default value is mean.
+        dim: Dimensions to reduce. If `None`, all dimensions are reduced. Default value is `None`.
         kwargs: Optional kwargs to forward to loss function (e.g., weight).
 
     Returns:
@@ -130,19 +94,22 @@ def build_loss_fn(
     """
     # Search for function inside torch.nn.functional
     if hasattr(F, fn_name):
-        return _build_loss_fn_torch(fn_name, reduction=reduction, **kwargs)
+        return _build_loss_fn_torch(fn_name, reduction=reduction, dim=dim, **kwargs)
     # Else it must be from this module
     assert f"_build_{fn_name}" in globals(), (
         f"Function must be from torch.nn.functional or vc_core.dr.losses modules. Got {fn_name}."
     )
-    return globals()[f"_build_{fn_name}"](reduction=reduction, **kwargs)
+    return globals()[f"_build_{fn_name}"](reduction=reduction, dim=dim, **kwargs)
 
 
 # region Private
 
 
 def _build_loss_fn_torch(
-    fn_name: str, reduction: Literal["sum", "mean", "none"] = "mean", **kwargs
+    fn_name: str,
+    reduction: Literal["sum", "mean", "none"] = "mean",
+    dim: int | Sequence[int] | None = None,
+    **kwargs,
 ) -> Callable[[Tensor, Tensor], Tensor]:
     """Build a torch loss function from torch given its name and reduction method.
 
@@ -152,21 +119,23 @@ def _build_loss_fn_torch(
         reduction: Specifies the reduction to apply to the output (none | mean | sum). If mean,
             the mean of the output is taken. If sum, the output will be summed. If none, no
             reduction will be applied. Default value is mean.
+        dim: Dimensions to reduce. If `None`, all dimensions are reduced. Default value is `None`.
         kwargs: Optional kwargs to forward to loss function (e.g., weight).
 
     Returns:
         Loss function.
     """
     assert hasattr(F, fn_name), f"Function must be from torch.nn.functional. Got {fn_name}."
-    assert reduction in ["sum", "mean", "none"], (
-        f"Reduction must be one of sum, mean, none. Got {reduction}."
-    )
     fn = getattr(F, fn_name)
-    return partial(fn, reduction=reduction, **kwargs)
+    torch_loss = partial(fn, reduction="none", **kwargs)
+    return _build_loss_fn(torch_loss, reduction=reduction, dim=dim)
 
 
 def _build_dice_loss(
-    *, reduction: Literal["mean", "sum", "none"] = "mean", smooth: float = 1.0
+    *,
+    reduction: Literal["mean", "sum", "none"] = "mean",
+    dim: int | Sequence[int] | None = None,
+    smooth: float = 1.0,
 ) -> Callable[[Tensor, Tensor], Tensor]:
     """Builds a torch dice loss function for the given reduction method.
 
@@ -174,6 +143,7 @@ def _build_dice_loss(
         reduction: Specifies the reduction to apply to the output (none | mean | sum). If mean,
             the mean of the output is taken. If sum, the output will be summed. If none, no
             reduction will be applied. Default value is mean.
+        dim: Dimensions to reduce. If `None`, all dimensions are reduced. Default value is `None`.
         smooth: Smoothing factor to apply to Dice coefficient, Default value is 1.0.
 
     Returns:
@@ -187,7 +157,6 @@ def _build_dice_loss(
             input: Predicted values in the range [0, 1].
             target Ground truth values. Shape is the same as `input`.
             smooth: Smoothing factor to apply to Dice coefficient, Default value is 1.0.
-                device=device,
 
         Return:
             Dice loss.
@@ -196,34 +165,38 @@ def _build_dice_loss(
         loss = 1.0 - dice
         return loss
 
-    return _build_loss_fn(dice_loss, reduction=reduction, smooth=smooth)
+    return _build_loss_fn(dice_loss, reduction=reduction, dim=dim, smooth=smooth)
 
 
 def _build_mncc_loss(
-    *, reduction: Literal["mean", "sum", "none"] = "mean", patch_size: int = 13
+    *,
+    reduction: Literal["mean", "sum", "none"] = "mean",
+    dim: int | Sequence[int] | None = None,
+    patch_size: int = 13,
 ) -> Callable[[Tensor, Tensor], Tensor]:
     """Build a torch multi-scale NCC function for the given reduction method.
 
+    Reductions are only applied across the batch and channel dimensions. If `reduction` = `none`,
+    the loss shape is (B, 1, 1, C) to allow broadcasting with other 4D mask-based losses.
+
     The implementation of multi-scale normalized cross correlation (mNCC) follows the description given
-    in the paper titled: `Intraoperative 2D/3D Image Registration via Differentiable X-ray Rendering`
-    (https://arxiv.org/abs/2312.06358).
+    in the paper titled: `Intraoperative 2D/3D Image Registration via Differentiable X-ray Rendering` [0].
 
     mNCC is the combination of two losses: a global NCC and a local one computed over corresponding
     image patches in the two images.
-
-    `reduction` is added for consistency with losses in `torch.nn.functional`. However, the mNCC loss
-    cannot be computed without reducing the spatial dimensions since the global and local NCCs will
-    have different spatial dimensions. Therefore, those dimensions are reduced and the final loss
-    is repeated across them for spatial consistency with other losses.
 
     Args:
         reduction: Specifies the reduction to apply to the output (none | mean | sum). If mean,
             the mean of the output is taken. If sum, the output will be summed. If none, no
             reduction will be applied. Default value is mean.
+        dim: Dimensions to reduce. If `None`, all dimensions are reduced. Default value is `None`.
         patch_size: Size for the square patches for local NCC. Default value is 13.
 
     Returns:
         Multi-scale NCC loss.
+
+    References:
+    [0]: https://arxiv.org/abs/2312.06358
     """
 
     def normalize(x: Tensor) -> Tensor:
@@ -255,26 +228,77 @@ def _build_mncc_loss(
         global_ncc = ncc(input, target)  # (B, C)
         local_ncc = ncc(input_patches, target_patches).mean(dim=-2)  # (B, C)
         loss = -(global_ncc + local_ncc) / 2
-        loss = loss[:, None, None].expand([-1, h, w, -1])
+        loss = loss[:, None, None]
         return loss
 
-    return _build_loss_fn(mncc_loss, reduction=reduction)
+    return _build_loss_fn(mncc_loss, reduction=reduction, dim=dim)
+
+
+def _build_centroid_loss(
+    *,
+    reduction: Literal["mean", "sum", "none"] = "mean",
+    dim: int | Sequence[int] | None = None,
+    size: tuple[int, int],
+    device: str | torch.device = "cpu",
+) -> Callable[[Tensor, Tensor], Tensor]:
+    """Build a mask-based per-channel centroid loss.
+
+    Reductions are only applied across the batch and channel dimensions. If `reduction` = `none`,
+    the loss shape is (B, 1, 1, C) to allow broadcasting with other 4D mask-based losses.
+
+    Args:
+        reduction: Specifies the reduction to apply to the output (none | mean | sum). If mean,
+            the mean of the output is taken. If sum, the output will be summed. If none, no
+            reduction will be applied. Default value is mean.
+        dim: Dimensions to reduce. If `None`, all dimensions are reduced. Default value is `None`.
+        size: Spatial dimensions of the masks (H, W).
+        device: Device for pre-computing mesh-grids needed in centroid computation.
+
+    Returns:
+        Centroid loss.
+    """
+    H, W = size
+    u_coords = torch.arange(W, device=device).float()
+    v_coords = torch.arange(H, device=device).float()
+    u_grid, v_grid = torch.meshgrid(u_coords, v_coords, indexing="xy")
+    u_grid, v_grid = u_grid.view(1, H, W, 1), v_grid.view(1, H, W, 1)
+
+    def centroid(x: Tensor) -> tuple[Tensor, Tensor]:
+        """Compute centroid along spatial dimensions."""
+        mass = x.sum((-3, -2), keepdim=True) + 1e-6  # (B, 1, 1, C)
+        cu = (x * u_grid).sum((-3, -2), keepdim=True) / (mass * W)
+        cv = (x * v_grid).sum((-3, -2), keepdim=True) / (mass * H)
+        return cu, cv
+
+    def centroid_loss(input: Tensor, target: Tensor) -> Tensor:
+        """Compute centroid loss."""
+        cu_inp, cv_inp = centroid(input)
+        cu_tgt, cv_tgt = centroid(target)
+        loss = (cu_tgt - cu_inp) ** 2 + (cv_tgt - cv_inp) ** 2
+        return loss
+
+    return _build_loss_fn(centroid_loss, reduction=reduction, dim=dim)
 
 
 def _build_masked_loss(
-    *, reduction: Literal["mean", "sum", "none"] = "mean", inner_fn_name: str, **kwargs
+    *,
+    reduction: Literal["mean", "sum", "none"] = "mean",
+    dim: int | Sequence[int] | None = None,
+    inner_fn_name: str,
+    **kwargs,
 ) -> Callable[[Tensor, Tensor], Tensor]:
     """Build a torch masked loss wrapped around the given function and reduction method.
 
     Inputs are assumed to contain the mask at index 0 along their channel (last) dimension.
 
     Args:
-        inner_fn_name: Name of loss function to wrap from `vc_core.dr.losses` module or
-            `torch.nn.functional` that accepts input and target tensors respectively plus
-            additional fixed kwargs (e.g., `mse_loss`).
         reduction: Specifies the reduction to apply to the output (none | mean | sum). If mean,
             the mean of the output is taken. If sum, the output will be summed. If none, no
             reduction will be applied. Default value is mean.
+        dim: Dimensions to reduce. If `None`, all dimensions are reduced. Default value is `None`.
+        inner_fn_name: Name of loss function to wrap from `vc_core.dr.losses` module or
+            `torch.nn.functional` that accepts input and target tensors respectively plus
+            additional fixed kwargs (e.g., `mse_loss`).
         kwargs: Optional kwargs to forward to loss function (e.g., weight).
 
     Returns:
@@ -288,12 +312,13 @@ def _build_masked_loss(
         loss = loss * target[..., :1]
         return loss
 
-    return _build_loss_fn(masked_loss, reduction=reduction)
+    return _build_loss_fn(masked_loss, reduction=reduction, dim=dim)
 
 
 def _build_loss_fn(
     fn: Callable[[Tensor, Tensor, Any], Tensor],
     reduction: Literal["sum", "mean", "none"] = "mean",
+    dim: int | Sequence[int] | None = None,
     **kwargs,
 ) -> Callable[[Tensor, Tensor], Tensor]:
     """Build a torch loss function around the given function and reduction method.
@@ -305,12 +330,13 @@ def _build_loss_fn(
         reduction: Specifies the reduction to apply to the output (none | mean | sum). If mean,
             the mean of the output is taken. If sum, the output will be summed. If none, no
             reduction will be applied. Default value is mean.
+        dim: Dimensions to reduce. If `None`, all dimensions are reduced. Default value is `None`.
         kwargs: Optional kwargs to forward to loss function (e.g., weight).
 
     Returns:
         Loss function.
     """
-    reduction_fn = _get_reduction_fn(reduction)
+    reduction_fn = _get_reduction_fn(reduction, dim)
 
     def loss_fn(input: Tensor, target: Tensor) -> Tensor:
         loss = fn(input, target, **kwargs)
@@ -319,15 +345,17 @@ def _build_loss_fn(
     return loss_fn
 
 
-def _get_reduction_fn(reduction: Literal["sum", "mean", "none"]) -> Callable[[Tensor], Tensor]:
-    """Convert reduction literal to reduction function."""
+def _get_reduction_fn(
+    reduction: Literal["sum", "mean", "none"], dim: int | Sequence[int] | None
+) -> Callable[[Tensor], Tensor]:
+    """Convert reduction literal and dimension to reduction function."""
     assert reduction in ["sum", "mean", "none"], (
         f"Reduction must be one of sum, mean, none. Got {reduction}."
     )
     match reduction:
         case "mean":
-            return torch.mean
+            return partial(torch.mean, dim=dim)
         case "sum":
-            return torch.sum
+            return partial(torch.sum, dim=dim)
         case _:
             return lambda x: x

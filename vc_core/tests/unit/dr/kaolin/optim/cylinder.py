@@ -10,7 +10,7 @@ import torch
 from kaolin.render.camera import Camera
 from torch.optim.lr_scheduler import CosineAnnealingLR
 
-from vc_core.dr.common.losses import wrap_combined_loss_fn
+from vc_core.dr.common.losses import build_combined_loss_fn
 from vc_core.dr.common.model import CylinderModel, CylinderSplitParamModel
 from vc_core.dr.kaolin.mesh import CylinderMesh
 from vc_core.dr.kaolin.optim import CylinderMultiLROptimizer, CylinderOptimizer
@@ -103,7 +103,9 @@ def test_cylinder_optimizer(
         model,
         renderer,
         torch.compile(
-            wrap_combined_loss_fn(["mse_loss"], [slice(2)], device=device, reduction="mean")
+            build_combined_loss_fn(
+                ["mse_loss"], [slice(2)], device=device, reduction="mean", dim=(1, 2, 3)
+            )
         ),
         lr=lr,
         lr_sched_cfg=CylinderOptimizer.LRSchedulerCfg(
