@@ -96,6 +96,16 @@ class EyePoseOptimizer(Optimizer):
         pos_min, rot_min, amb = pos[min_idx].detach(), rot[min_idx].detach(), amb.detach()
         return pos_min, rot_min, amb
 
+    def resample_model_params(self, pos: Tensor, z_dir: Tensor, **kwargs) -> None:
+        """Resample the model's pose parameters around a new pose.
+
+        Args:
+            pos: Mean position to sample around. Shape is (3,).
+            z_dir: Z-axis direction to sample around. Shape is (2,)
+            **kwargs: Optional arguments to pass to the model's `resample_params()` method.
+        """
+        self._model.resample_params(pos, z_dir, **kwargs)
+
 
 class EyePoseTextureOptimizer(Optimizer):
     """Optimizer for optimizing an eye mesh's pose and texture using differentiable rendering (Kaolin).
