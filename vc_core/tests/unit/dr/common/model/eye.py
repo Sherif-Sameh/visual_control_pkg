@@ -30,19 +30,22 @@ def test_eye_pose_model(device: torch.device) -> None:
     model = EyePoseModel(T[0], R[0, :, -1], T_sigma, 0.05, n_rep=n_rep)
 
     # Test `forward()` method
-    pos_m, rot_m = model()
-    assert pos_m.requires_grad and rot_m.requires_grad
+    pos_m, rot_m, amb_m = model()
+    assert all([m.requires_grad for m in [pos_m, rot_m, amb_m]])
     assert pos_m.shape == (n_rep, 3)
     assert rot_m.shape == (n_rep, 3, 3)
+    assert amb_m.shape == (3,)
 
     # Test `resample_params()` method
     model.resample_params(pos_m[0], rot_m[0, :, -1])
-    pos_m_new, rot_m_new = model()
-    assert pos_m_new.requires_grad and rot_m_new.requires_grad
+    pos_m_new, rot_m_new, amb_m_new = model()
+    assert all([m.requires_grad for m in [pos_m_new, rot_m_new, amb_m_new]])
     assert pos_m_new.shape == (n_rep, 3)
     assert rot_m_new.shape == (n_rep, 3, 3)
+    assert amb_m_new.shape == (3,)
     assert not torch.allclose(pos_m, pos_m_new)
     assert not torch.allclose(rot_m, rot_m_new)
+    assert torch.allclose(amb_m, amb_m_new)
 
 
 @pytest.mark.unit

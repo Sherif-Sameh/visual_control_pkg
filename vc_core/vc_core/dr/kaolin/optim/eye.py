@@ -74,9 +74,9 @@ class EyePoseOptimizer(Optimizer):
         )
         # optimization loop
         for iter in range(n_iter):
-            pos, rot = self._model()
+            pos, rot, amb = self._model()
             meshes = self._mesh({})
-            images = self._renderer(meshes, T=pos, R=rot, **kwargs)
+            images = self._renderer(meshes, T=pos, R=rot, ambient=amb, **kwargs)
             loss = self._loss_fn(images, target)
             optim.zero_grad()
             loss.sum().backward()
@@ -92,9 +92,9 @@ class EyePoseOptimizer(Optimizer):
                 sched.step()
         # get final parameters
         min_idx = torch.argmin(loss.detach(), dim=0)
-        pos, rot = self._model()
-        pos_min, rot_min = pos[min_idx].detach(), rot[min_idx].detach()
-        return pos_min, rot_min
+        pos, rot, amb = self._model()
+        pos_min, rot_min, amb = pos[min_idx].detach(), rot[min_idx].detach(), amb.detach()
+        return pos_min, rot_min, amb
 
 
 class EyePoseTextureOptimizer(Optimizer):
