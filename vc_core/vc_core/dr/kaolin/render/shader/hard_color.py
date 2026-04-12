@@ -410,7 +410,9 @@ def _build_get_albedo(
 
         # sample texture
         B = uv_map.shape[0]
-        albedo = kal.render.mesh.texture_mapping(uv_map, texture[None].expand([B, -1, -1, -1]))
+        albedo = kal.render.mesh.texture_mapping(
+            uv_map, texture[None].expand([B, -1, -1, -1]), mode="bilinear"
+        )
         return albedo
 
     return get_albedo
