@@ -120,8 +120,8 @@ class HardColorDiffuseSH9Shader(Shader):
 
     def __init__(
         self,
-        azimuth: Tensor | None = None,
-        elevation: Tensor | None = None,
+        azimuth: float | Tensor | None = None,
+        elevation: float | Tensor | None = None,
         direction: Tensor | None = None,
         intensity: Tensor | None = None,
         degrees: bool = True,
@@ -214,8 +214,8 @@ class HardColorDiffuseSGFittedShader(Shader):
 
     def __init__(
         self,
-        azimuth: Tensor | None = None,
-        elevation: Tensor | None = None,
+        azimuth: float | Tensor | None = None,
+        elevation: float | Tensor | None = None,
         lights: SgLightingParameters | None = None,
         degrees: bool = True,
         raw_texture: bool = True,
@@ -224,8 +224,6 @@ class HardColorDiffuseSGFittedShader(Shader):
         super().__init__()
         lights = lights if lights is not None else SgLightingParameters()
         if azimuth is not None and elevation is not None:
-            azimuth = azimuth.view(-1, 1)
-            elevation = elevation.view(-1, 1)
             direction = camera_position_from_spherical_angles(
                 1.0, elevation, azimuth, degrees=degrees
             )
@@ -306,8 +304,8 @@ class HardColorSpecularSGFittedShader(Shader):
 
     def __init__(
         self,
-        azimuth: Tensor | None = None,
-        elevation: Tensor | None = None,
+        azimuth: float | Tensor | None = None,
+        elevation: float | Tensor | None = None,
         spec_albedo: Tensor | None = None,
         roughness: Tensor | None = None,
         cameras: Camera | None = None,
@@ -319,8 +317,6 @@ class HardColorSpecularSGFittedShader(Shader):
         super().__init__(cameras=cameras)
         lights = lights if lights is not None else SgLightingParameters()
         if azimuth is not None and elevation is not None:
-            azimuth = azimuth.view(-1, 1)
-            elevation = elevation.view(-1, 1)
             direction = camera_position_from_spherical_angles(
                 1.0, elevation, azimuth, degrees=degrees
             )
