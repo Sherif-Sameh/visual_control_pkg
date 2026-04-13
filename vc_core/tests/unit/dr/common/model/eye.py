@@ -55,8 +55,8 @@ def test_eye_pose_texture_model(device: torch.device) -> None:
     n_view = 3
     distance, elevation, azimuth = 1, 50, 30
     R, T = look_at_view_transform(distance, elevation, azimuth, device=device)
-    text_rgb = torch.full((3,), 0.8, device=device)
-    model = EyePoseTextureModel(T[0], R[0, :, -1], (H, W), text_rgb, n_view=n_view)
+    text_init = torch.full((3,), 0.8, device=device)
+    model = EyePoseTextureModel(T[0], R[0, :, -1], (H, W), text_init, n_view=n_view)
 
     # Test `forward()` method
     pos_m, rot_m, text_m = model()
@@ -64,7 +64,7 @@ def test_eye_pose_texture_model(device: torch.device) -> None:
     assert pos_m.shape == (n_view, 3)
     assert rot_m.shape == (n_view, 3, 3)
     assert text_m.shape == (3, H, W)
-    assert torch.allclose(text_m, text_rgb.view(3, 1, 1))
+    assert torch.allclose(text_m, torch.sigmoid(text_init.view(3, 1, 1)))
 
 
 @pytest.mark.unit
@@ -75,9 +75,9 @@ def test_eye_pose_texture_mipmap_model(device: torch.device, mode: str) -> None:
     n_view, n_level = 3, 5
     distance, elevation, azimuth = 1, 50, 30
     R, T = look_at_view_transform(distance, elevation, azimuth, device=device)
-    text_rgb = torch.full((3,), 0.8, device=device)
+    text_init = torch.full((3,), 0.8, device=device)
     model = EyePoseTextureMipmapModel(
-        T[0], R[0, :, -1], (H, W), text_rgb, n_view=n_view, n_level=n_level, mode=mode
+        T[0], R[0, :, -1], (H, W), text_init, n_view=n_view, n_level=n_level, mode=mode
     )
 
     # Test `forward()` method
@@ -86,7 +86,7 @@ def test_eye_pose_texture_mipmap_model(device: torch.device, mode: str) -> None:
     assert pos_m.shape == (n_view, 3)
     assert rot_m.shape == (n_view, 3, 3)
     assert text_m.shape == (3, H, W)
-    assert torch.allclose(text_m, text_rgb.view(3, 1, 1))
+    assert torch.allclose(text_m, torch.sigmoid(text_init.view(3, 1, 1)))
 
 
 @pytest.mark.unit

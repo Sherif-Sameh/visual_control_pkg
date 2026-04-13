@@ -186,7 +186,7 @@ class EyePoseTextureModel(nn.Module):
         z_dir: Initial guess for directions of the Z-axis. Can be unnormalized. Shape is (N, 3)
             or (3,).
         res: Texture resolution (H, W).
-        text_rgb: Initial color [0, 1] to apply to texture. Shape is (3,).
+        text_init: Initial value to apply to texture. Shape is (3,).
         n_view: Number of different views to optimize simultaneously. Ignored if any of the other
             input parameters is 2D. Default value is 2.
         scale: Optional scale factor for position offsets. Default value is 1.0.
@@ -198,7 +198,7 @@ class EyePoseTextureModel(nn.Module):
         pos: Tensor,
         z_dir: Tensor,
         res: tuple[int, int] | int,
-        text_rgb: Tensor,
+        text_init: Tensor,
         *,
         n_view: int = 2,
         scale: float = 1.0,
@@ -215,7 +215,7 @@ class EyePoseTextureModel(nn.Module):
         z_dir = F.normalize(z_dir, dim=-1).to(dtype=torch.float32, device=device)
         z_basis = torch.stack(get_tangent_basis(z_dir), dim=-1)
         res = (res, res) if isinstance(res, int) else res
-        text_rgb = text_rgb.clamp(0, 1).to(dtype=torch.float32, device=device)
+        text_init = text_init.to(dtype=torch.float32, device=device)
         # register buffers
         self.register_buffer("pos_init", pos)
         self.register_buffer("z_dir_init", z_dir)
@@ -223,7 +223,7 @@ class EyePoseTextureModel(nn.Module):
         # create parameters
         self.pos_offset = nn.Parameter(torch.zeros_like(pos))
         self.z_tan = nn.Parameter(torch.zeros((n_view, 2), dtype=torch.float32, device=device))
-        self._init_texture(res, text_rgb, **kwargs)
+        self._init_texture(res, text_init, **kwargs)
 
     def forward(self) -> tuple[Tensor, Tensor, Tensor]:
         """Construct the model's pose and texture estimates return them.
@@ -250,19 +250,19 @@ class EyePoseTextureModel(nn.Module):
             return z_dir.shape[0]
         return n_view
 
-    def _init_texture(self, res: tuple[int, int], text_rgb: Tensor, **kwargs) -> None:
+    def _init_texture(self, res: tuple[int, int], text_init: Tensor, **kwargs) -> None:
         """Initialize texture parameter from inputs.
 
         Args:
             res: Texture resolution tuple (H, W).
-            text_rgb: Initial color [0, 1] to apply to texture. Shape is (3,).
+            text_init: Initial value to apply to texture. Shape is (3,).
             **kwargs: Additonal arguments for initializing texture.
         """
-        # repeat initial RGB color across H and W
+        # repeat initial value across H and W
         H, W = res
-        text_rgb = text_rgb[:, None, None].repeat([1, H, W])
+        text_init = text_init[:, None, None].repeat([1, H, W])
         # create texture parameter
-        self.texture = nn.Parameter(text_rgb)
+        self.texture = nn.Parameter(text_init)
 
     def _get_texture(self) -> Tensor:
         """Compute output texture from internal representation.
@@ -290,20 +290,20 @@ class EyePoseTextureMipmapModel(EyePoseTextureModel):
     from the full resolution set by `res`. Textures are combined by upsampling lower-res textures
     then summing all of them. This allows coarse textures to handle low-frequency features, while
     high-res ones focus on higher frequency details. Only the coarsest texture will be initialized
-    to `text_rgb`, others are all zero-initialized.
+    to `text_init`, others are all zero-initialized.
 
     Args:
         pos: Initial guess for positions. Shape is (N, 3) or (3,).
         z_dir: Initial guess for directions of the Z-axis. Can be unnormalized. Shape is (N, 3)
             or (3,).
         res: Texture resolution (H, W).
-        text_rgb: Initial color [0, 1] to apply to texture. Shape is (3,).
+        text_init: Initial value to apply to texture. Shape is (3,).
         n_view: Number of different views to optimize simultaneously. Ignored if any of the other
             input parameters is 2D. Default value is 2.
         scale: Optional scale factor for position offsets. Default value is 1.0.
         n_level: Number of levels for texture mipmapping. Default value is 3.
         mode: Mode for interpolation using `torch.nn.functional.interpolate`. Default value is
-            `nearest`.
+            `bilinear`.
     """
 
     def __init__(
@@ -311,38 +311,38 @@ class EyePoseTextureMipmapModel(EyePoseTextureModel):
         pos: Tensor,
         z_dir: Tensor,
         res: tuple[int, int] | int,
-        text_rgb: Tensor,
+        text_init: Tensor,
         *,
         n_view: int = 2,
         scale: float = 1.0,
         n_level: int = 2,
-        mode: str = "nearest",
+        mode: str = "bilinear",
     ):
-        super().__init__(pos, z_dir, res, text_rgb, n_view=n_view, scale=scale, n_level=n_level)
+        super().__init__(pos, z_dir, res, text_init, n_view=n_view, scale=scale, n_level=n_level)
         self.mode = mode
 
-    def _init_texture(self, res: tuple[int, int], text_rgb: Tensor, **kwargs) -> None:
+    def _init_texture(self, res: tuple[int, int], text_init: Tensor, **kwargs) -> None:
         """Initialize texture parameter from inputs.
 
         Args:
             res: Texture resolution tuple (H, W).
-            text_rgb: Initial color [0, 1] to apply to texture. Shape is (3,).
+            text_init: Initial value to apply to texture. Shape is (3,).
             **kwargs: Additonal arguments for initializing texture.
         """
-        device = text_rgb.device
+        device = text_init.device
         n_level: int = kwargs["n_level"]
         # compute H and W for all texture levels
         H, W = res
         scale = 2 ** torch.arange(0, n_level, device=device).float()
         heights, widths = (H / scale).long(), (W / scale).long()
         assert torch.all(heights > 0) and torch.all(widths > 0)
-        # repeat initial RGB color across heights[-1] and widths[-1]
-        text_rgb = text_rgb[:, None, None].repeat([1, heights[-1], widths[-1]])
+        # repeat initial value across heights[-1] and widths[-1]
+        text_init = text_init[:, None, None].repeat([1, heights[-1], widths[-1]])
         # create texture parameters
         texts_init = []
         for i, (h, w) in enumerate(zip(heights, widths)):
             if i == (n_level - 1):
-                texts_init.append(text_rgb)
+                texts_init.append(text_init)
                 continue
             texts_init.append(torch.zeros((3, h, w), dtype=torch.float32, device=device))
         self.texture = nn.ParameterList([nn.Parameter(text) for text in texts_init])
@@ -425,15 +425,15 @@ class EyePoseTextureHashEncoderModel(EyePoseTextureModel):
         self.res = enc_cfg.finest_res
         self.uv_max = enc_cfg.uv_max
 
-    def _init_texture(self, _: tuple[int, int], text_rgb: Tensor, **kwargs) -> None:
+    def _init_texture(self, _: tuple[int, int], text_init: Tensor, **kwargs) -> None:
         """Initialize texture parameter from inputs.
 
         Args:
             res: Texture resolution tuple (H, W).
-            text_rgb: Initial color [0, 1] to apply to texture. Shape is (3,).
+            text_init: Initial value to apply to texture. Unused. Shape is (3,).
             **kwargs: Additonal arguments for initializing texture.
         """
-        device = text_rgb.device
+        device = text_init.device
         enc_cfg: HashEncoder2DCfg = kwargs["enc_cfg"]
         mlp_n_layer: int = kwargs["mlp_n_layer"]
         mlp_n_feature: int = kwargs["mlp_n_feature"]
@@ -464,4 +464,4 @@ class EyePoseTextureHashEncoderModel(EyePoseTextureModel):
         # project to RGB and permute axes
         texture = self.texture(embd)  # (H, W, 3)
         texture = texture.permute(2, 0, 1)
-        return torch.clamp(texture)
+        return torch.sigmoid(texture)
