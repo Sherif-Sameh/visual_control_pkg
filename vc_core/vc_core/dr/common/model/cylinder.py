@@ -7,7 +7,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from vc_core.utils.geometry.vector import (
-    apply_tangent_rotation,
+    apply_tangent_rotation_exact,
     get_rotation_from_z,
     get_tangent_basis,
 )
@@ -100,7 +100,7 @@ class CylinderModel(nn.Module):
         # unnormalize position
         pos = self.pos_offset * self.scale + self.pos_init
         # apply tangent rotation to z-axis and create rotation matrix
-        z_dir = apply_tangent_rotation(self.z_dir_init, self.z_tan, self.z_basis)
+        z_dir = apply_tangent_rotation_exact(self.z_dir_init, self.z_tan, self.z_basis)
         rot = get_rotation_from_z(z_dir)
         # unnormalize radius and height offsets
         r_offset = self.r_offset * self.radius

@@ -8,7 +8,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from vc_core.utils.geometry.vector import (
-    apply_tangent_rotation,
+    apply_tangent_rotation_exact,
     get_rotation_from_z,
     get_tangent_basis,
 )
@@ -96,7 +96,7 @@ class EyePoseModel(nn.Module):
         # unnormalize position
         pos = self.pos_offset * self.scale + self.pos_init
         # apply tangent rotation to z-axis and create rotation matrix
-        z_dir = apply_tangent_rotation(self.z_dir_init, self.z_tan, self.z_basis)
+        z_dir = apply_tangent_rotation_exact(self.z_dir_init, self.z_tan, self.z_basis)
         rot = get_rotation_from_z(z_dir)
         return pos, rot
 
@@ -162,7 +162,7 @@ class EyePoseModel(nn.Module):
         z_tan_s = torch.stack(torch.meshgrid(z_tan_0, z_tan_1, indexing="xy"), dim=-1).view(-1, 2)
 
         # update Z-axis directions and re-compute basis
-        z_dir_s = apply_tangent_rotation(z_dir, z_tan_s, z_basis)
+        z_dir_s = apply_tangent_rotation_exact(z_dir, z_tan_s, z_basis)
         z_basis_s = torch.stack(get_tangent_basis(z_dir_s), dim=-1)
         return pos_s, z_dir_s, z_basis_s
 
@@ -236,7 +236,7 @@ class EyePoseTextureModel(nn.Module):
         # unnormalize position
         pos = self.pos_offset * self.scale + self.pos_init
         # apply tangent rotation to z-axis and create rotation matrix
-        z_dir = apply_tangent_rotation(self.z_dir_init, self.z_tan, self.z_basis)
+        z_dir = apply_tangent_rotation_exact(self.z_dir_init, self.z_tan, self.z_basis)
         rot = get_rotation_from_z(z_dir)
         # get output texture
         texture = self._get_texture()

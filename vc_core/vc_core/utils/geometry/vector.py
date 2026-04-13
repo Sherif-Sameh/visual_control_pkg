@@ -58,6 +58,35 @@ def apply_tangent_rotation(vec: Tensor, tan: Tensor, basis: Tensor) -> Tensor:
     return vec_rot
 
 
+def apply_tangent_rotation_exact(vec: Tensor, tan: Tensor, basis: Tensor) -> Tensor:
+    """
+    Apply exact tangent rotation to a unit direction vector using the exponential map.
+
+    Tangent vectors are clamped to [-1, 1] then scaled by `π` before applying them.
+
+    Args:
+        vec: Direction unit vector to apply rotation to. Shape is (N, 3).
+        tan: Tangent space delta vector. Shape is (N, 2).
+        basis: Orthonormal basis vectors for tangent space. Shape is (N, 3, 2).
+
+    Returns:
+        Updated unit direction vector after applying tangent rotation. Shape is (N, 3).
+    """
+    eps = 1e-6
+    # Compute delta tangent vector in 3D
+    tan = torch.clamp(tan, -1, 1) * torch.pi
+    delta = tan[:, :1] * basis[:, :, 0] + tan[:, 1:2] * basis[:, :, 1]
+    # Compute rotation magnitude and its sinc and cosine
+    theta = torch.linalg.norm(delta, dim=-1, keepdim=True)
+    mask = (theta > eps).float()
+    sinc = mask * (torch.sin(theta) / (theta + eps)) + (1.0 - mask)
+    cosine = torch.cos(theta)
+    # Update rotation using exact exponential map
+    vec_rot = cosine * vec + sinc * delta
+    vec_rot = F.normalize(vec_rot, dim=-1)
+    return vec_rot
+
+
 def get_rotation_from_z(z_dir: Tensor) -> Tensor:
     """Construct a rotation matrix from the direction of the Z-axis using Gram-Schmidt.
 
