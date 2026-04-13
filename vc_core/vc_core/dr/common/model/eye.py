@@ -270,7 +270,7 @@ class EyePoseTextureModel(nn.Module):
         Returns:
             Texture map [0, 1]. Shape is (3, H, W).
         """
-        return torch.clamp(self.texture, 0, 1)
+        return torch.sigmoid(self.texture)
 
 
 class EyePoseTextureMipmapModel(EyePoseTextureModel):
@@ -365,7 +365,7 @@ class EyePoseTextureMipmapModel(EyePoseTextureModel):
             )
         # sum textures
         texture = torch.cat(texture, dim=0).sum(dim=0)
-        return torch.clamp(texture, 0, 1)
+        return torch.sigmoid(texture)
 
 
 class EyePoseTextureHashEncoderModel(EyePoseTextureModel):
@@ -464,4 +464,4 @@ class EyePoseTextureHashEncoderModel(EyePoseTextureModel):
         # project to RGB and permute axes
         texture = self.texture(embd)  # (H, W, 3)
         texture = texture.permute(2, 0, 1)
-        return torch.clamp(texture, 0, 1)
+        return torch.clamp(texture)
