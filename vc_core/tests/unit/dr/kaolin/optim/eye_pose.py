@@ -76,6 +76,7 @@ def test_eye_pose_optimizer(
     pos_sigma, z_tan_range = 0.0, 0.2
     model = EyePoseModel(pos, z_dir, pos_sigma, z_tan_range, n_rep=n_rep, scale=0.2)
     model = torch.compile(model.to(device=device))
+
     # Setup camera
     img_size = 256
     cameras = Camera.from_args(
@@ -104,7 +105,7 @@ def test_eye_pose_optimizer(
 
     # Render target inputs
     elevation, azimuth = 30.0, 10.0
-    lights = kal.render.lighting.SgLightingParameters(amplitude=2.5, sharpness=2.5)
+    lights = kal.render.lighting.SgLightingParameters(amplitude=3.0, sharpness=2.0)
     renderer_gt = MeshRenderer(
         rasterizer=MeshRasterizer(
             cameras=None,
@@ -150,14 +151,13 @@ def test_eye_pose_optimizer(
     logger_first = MemoryLogger(n_log=1)
     logger_all = MemoryLogger(n_log=10)
     optim.optimize(target, n_iter=1, logger=logger_first, cameras=cameras)
-    T, R, amb = optim.optimize(target, n_iter=n_iter, logger=logger_all, cameras=cameras)
+    T, R = optim.optimize(target, n_iter=n_iter, logger=logger_all, cameras=cameras)
     T_err = torch.linalg.norm(T_gt[0] - T, dim=0)
     z_dir_err = torch.acos(torch.dot(R_gt[0, :, -1], R[:, -1]))
     with capsys.disabled():
         print(f"\nBackend: {backend}, GT Distance: {distance:.2f}m")
         print(f"\tPosition Error: {T_err}m")
         print(f"\tZ direction Error: {torch.rad2deg(z_dir_err)}deg")
-        print(f"\tAmbient Intensity: {amb[0]:.4f}")
 
     # visualize loss history and outputs vs target
     log_first = logger_first.flush()[1]

@@ -24,17 +24,13 @@ class EyePoseModel(nn.Module):
 
     Only 5 DOFs of the relative pose as observed by a camera can be estimated.
     These 5 DOFs are represented through the position of the eye and the orientation of its
-    vertical axis (Z-axis) relative to the camera. In addition to these 5 DOFs, a sixth is
-    added for scaling ambient light (i.e. diffuse albedo) to allow the model to fit to scenes
-    that are uniformly brighter or dimmer than the mesh's own texture (i.e. diffuse albedo).
+    vertical axis (Z-axis) relative to the camera.
 
     The position is parameterized by zero-centering it around the initial guess/previous estimate
     and by scaling its magnitude by a set scaling factor. The Z-axis is parameterized through
     offsets in the 2D tangent space of the initial guess/previous estimate for its orientation
     scaled by `π`. The orthonormal basis for the tangent space is derived through Gram-Schmidt
-    and so are the X and Y-axes to form a full right-handed rotation matrix. Ambient light is
-    parameterized by zero-centering it around a default value of ones and scaling the learned
-    parameter by a constant factor of 0.1.
+    and so are the X and Y-axes to form a full right-handed rotation matrix.
 
     Args:
         pos: Initial guess for the position. Shape is (3,).
@@ -47,8 +43,6 @@ class EyePoseModel(nn.Module):
             square root is exact. Default value is 1.
         scale: Optional scale factor for position offsets. Default value is 1.0.
     """
-
-    AMBIENT_SCALE_FACTOR = 0.1
 
     def __init__(
         self,
@@ -86,29 +80,25 @@ class EyePoseModel(nn.Module):
         # create parameters
         self.pos_offset = nn.Parameter(torch.zeros_like(pos))
         self.z_tan = nn.Parameter(torch.zeros((n_rep, 2), dtype=torch.float32, device=device))
-        self.amb_mult = nn.Parameter(torch.zeros(1, dtype=torch.float32, device=device))
 
     @property
     def n_rep(self) -> int:
         """Get the number of copies of the model's pose parameters."""
         return self.pos_offset.shape[0]
 
-    def forward(self) -> tuple[Tensor, Tensor, Tensor]:
+    def forward(self) -> tuple[Tensor, Tensor]:
         """Construct the model's pose and ambient light estimates return them.
 
         Returns:
             tuple containing three tensors. First is the position whose shape is (N, 3). Second is
-            the rotation matrix whose shape (N, 3, 3). Third is the ambient light whose shape is (3,).
+            the rotation matrix whose shape (N, 3, 3).
         """
-        device = self.pos_offset.device
         # unnormalize position
         pos = self.pos_offset * self.scale + self.pos_init
         # apply tangent rotation to z-axis and create rotation matrix
         z_dir = apply_tangent_rotation(self.z_dir_init, self.z_tan, self.z_basis)
         rot = get_rotation_from_z(z_dir)
-        # compute ambient light intensity
-        amb = torch.ones(3, device=device) + self.amb_mult * self.AMBIENT_SCALE_FACTOR
-        return pos, rot, amb
+        return pos, rot
 
     @torch.no_grad
     def resample_params(self, pos: Tensor, z_dir: Tensor, **kwargs) -> None:

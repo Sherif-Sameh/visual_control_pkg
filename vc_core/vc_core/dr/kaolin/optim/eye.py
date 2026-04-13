@@ -77,9 +77,9 @@ class EyePoseOptimizer(Optimizer):
         )
         # optimization loop
         for iter in range(n_iter):
-            pos, rot, amb = self._model()
+            pos, rot = self._model()
             meshes = self._mesh({})
-            images = self._renderer(meshes, T=pos, R=rot, ambient=amb, **kwargs)
+            images = self._renderer(meshes, T=pos, R=rot, **kwargs)
             loss = self._loss_fn(images, target)
             loss += self.tan_norm_w * torch.linalg.norm(self._model.z_tan, dim=-1)
             optim.zero_grad()
@@ -96,9 +96,9 @@ class EyePoseOptimizer(Optimizer):
                 sched.step()
         # get final parameters
         min_idx = torch.argmin(loss.detach(), dim=0)
-        pos, rot, amb = self._model()
-        pos_min, rot_min, amb = pos[min_idx].detach(), rot[min_idx].detach(), amb.detach()
-        return pos_min, rot_min, amb
+        pos, rot = self._model()
+        pos_min, rot_min = pos[min_idx].detach(), rot[min_idx].detach()
+        return pos_min, rot_min
 
     def resample_model_params(self, pos: Tensor, z_dir: Tensor, **kwargs) -> None:
         """Resample the model's pose parameters around a new pose.
