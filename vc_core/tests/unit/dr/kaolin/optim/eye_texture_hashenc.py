@@ -9,10 +9,10 @@ import numpy as np
 import pytest
 import torch
 from kaolin.render.camera import Camera
-from torch.optim.lr_scheduler import CosineAnnealingLR, CosineAnnealingWarmRestarts
+from torch.optim.lr_scheduler import CosineAnnealingLR
 
 from vc_core.dr.common.losses import build_combined_loss_fn
-from vc_core.dr.common.model import EyePoseTextureMipmapModel
+from vc_core.dr.common.model import EyePoseTextureHashEncoderModel, HashEncoder2DCfg
 from vc_core.dr.kaolin.mesh import ObjMesh
 from vc_core.dr.kaolin.optim import EyePoseTextureOptimizer
 from vc_core.dr.kaolin.render import (
@@ -32,6 +32,7 @@ torch.manual_seed(0)
 torch.cuda.manual_seed(0)
 torch.backends.cudnn.deterministic = True
 torch.backends.cudnn.benchmark = True
+torch.set_float32_matmul_precision("high")
 
 Devices = [torch.device("cpu")]
 Devices = Devices + [torch.device("cuda")] if torch.cuda.is_available() else Devices
@@ -75,9 +76,13 @@ def test_eye_pose_texture_optimizer(
         distance, elevation + 10 * noise, azimuth + 10 * noise, device=device
     )
     T = T + torch.tensor([0.05, -0.05, -0.1], device=device) * distance
-    text_init = torch.ones(3, device=device) * 0.5
-    model = EyePoseTextureMipmapModel(
-        T, R[:, :, -1], res=512, text_init=text_init, n_view=n_view, scale=0.2, n_level=5
+    model = EyePoseTextureHashEncoderModel(
+        T,
+        R[:, :, -1],
+        n_view=n_view,
+        scale=0.2,
+        enc_cfg=HashEncoder2DCfg(finest_res=1024, n_level=10, log2_hashmap_size=16),
+        mlp_n_layer=0,
     )
     model = torch.compile(model.to(device=device))
     _, _, texture_init = model()
@@ -148,7 +153,7 @@ def test_eye_pose_texture_optimizer(
 
     # Create eye pose texture optimizer
     n_iter, n_iter_text = 300, 20
-    lr = 0.025
+    lr = 0.01
     optim = EyePoseTextureOptimizer(
         mesh,
         model,
@@ -164,10 +169,10 @@ def test_eye_pose_texture_optimizer(
                 kwargs=[{}, {"inner_fn_name": "l1_loss"}],
             )
         ),
-        symmetry_w=0.02,
+        symmetry_w=0.05,
         lr=lr,
         lr_sched_cfg=EyePoseTextureOptimizer.LRSchedulerCfg(
-            CosineAnnealingWarmRestarts, {"T_0": 100, "eta_min": 3e-4}
+            CosineAnnealingLR, {"T_max": n_iter, "eta_min": 5e-5}
         ),
     )
 
@@ -186,7 +191,7 @@ def test_eye_pose_texture_optimizer(
         print(f"\tZ direction Errors (deg): {torch.rad2deg(z_dir_err).cpu()}")
 
     # Store initial, final and target visualizations
-    path = Path(__file__).parent / "outputs/texture_mipmap"
+    path = Path(__file__).parent / "outputs/texture_hashenc"
     path.mkdir(parents=True, exist_ok=True)
     for state, name in zip([initial, final, target], ["initial", "final", "target"]):
         _, axes = plt.subplots(3, 3, figsize=(10, 10), sharex=True, sharey=True)

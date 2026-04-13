@@ -40,7 +40,7 @@ Backends = ["cuda", "nvdiffrast"]
 
 @pytest.mark.unit
 @pytest.mark.parametrize("device,backend", product(Devices, Backends))
-def test_eye_pose_optimizer(
+def test_eye_pose_texture_optimizer(
     caplog: pytest.LogCaptureFixture,
     capsys: pytest.CaptureFixture,
     device: torch.device,
