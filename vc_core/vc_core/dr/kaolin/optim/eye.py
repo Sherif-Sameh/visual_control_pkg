@@ -4,6 +4,8 @@ from typing import TYPE_CHECKING, Callable, Sequence
 
 import torch
 
+from vc_core.dr.common.losses import build_loss_fn
+
 from .base import Optimizer
 
 if TYPE_CHECKING:
@@ -43,8 +45,8 @@ class EyePoseOptimizer(Optimizer):
         lr: float | Sequence[float] = 1e-2,
         lr_sched_cfg: Optimizer.LRSchedulerCfg | None = None,
     ):
-        self.tan_norm_w = tan_norm_w
         super().__init__(mesh, model, renderer, loss_fn, lr=lr, lr_sched_cfg=lr_sched_cfg)
+        self._tan_norm_w = tan_norm_w
 
     def optimize(
         self,
@@ -81,7 +83,7 @@ class EyePoseOptimizer(Optimizer):
             meshes = self._mesh({})
             images = self._renderer(meshes, T=pos, R=rot, **kwargs)
             loss = self._loss_fn(images, target)
-            loss += self.tan_norm_w * torch.linalg.norm(self._model.z_tan, dim=-1)
+            loss += self._tan_norm_w * torch.linalg.norm(self._model.z_tan, dim=-1)
             optim.zero_grad()
             loss.sum().backward()
             optim.step()
@@ -90,7 +92,7 @@ class EyePoseOptimizer(Optimizer):
                     iter + 1,
                     {"output": images.detach().cpu().numpy(), "loss": loss.detach().cpu().numpy()},
                 )
-            if loss.detach().min() <= eps:
+            if loss.min() <= eps:
                 break
             if sched is not None:
                 sched.step()
@@ -124,6 +126,9 @@ class EyePoseTextureOptimizer(Optimizer):
         model: Model of learnable parameters for eye pose and texture.
         renderer: Renderer to render output images.
         loss_fn: Loss function. Order of arguments is input then target.
+        symmetry_loss: Name of loss to use for symmetry loss function. Default value is `mse_loss`.
+        symmetry_w: Weight for texture symmetry-based loss. Default value is 0.1.
+        tan_norm_w: Weight for norm loss penalty of model tangent offsets. Default value is 5e-4.
         lr: Learning rate for Adam optimizer. Default value is 1e-2.
         lr_sched_cfg: Optional configuration for learning rate scheduler. Default value is `None`.
     """
@@ -135,16 +140,25 @@ class EyePoseTextureOptimizer(Optimizer):
         renderer: MeshRenderer,
         loss_fn: Callable[[Tensor, Tensor], Tensor],
         *,
+        symmetry_loss: str = "mse_loss",
+        symmetry_w: float = 0.1,
+        tan_norm_w: float = 5e-4,
         lr: float | Sequence[float] = 1e-2,
         lr_sched_cfg: Optimizer.LRSchedulerCfg | None = None,
     ):
         super().__init__(mesh, model, renderer, loss_fn, lr=lr, lr_sched_cfg=lr_sched_cfg)
+        self._tan_norm_w = tan_norm_w
+        self._symmetry_loss = torch.compile(
+            build_loss_fn("symmetry_loss", reduction="mean", inner_fn_name=symmetry_loss)
+        )
+        self._symmetry_w = symmetry_w
 
     def optimize(
         self,
         target: Tensor,
         *,
         n_iter: int = 10,
+        n_iter_text: int = 5,
         eps: float | None = None,
         logger: Logger | None = None,
         **kwargs,
@@ -154,6 +168,8 @@ class EyePoseTextureOptimizer(Optimizer):
         Args:
             target: Target images for loss computation. Shape is (B, H, W, C).
             n_iter: Number of iterations to perform.
+            n_iter_text: Number of initial iterations from `n_iter` to optimize texture only,
+                keeping poses fixed. Default value is 5.
             eps: Optional threshold for early stopping. Default value is `None`.
             logger: Optional logger for logging loss and output values. Default value is `None`.
             kwargs: Optional kwargs to pass to the renderer's `forward()` method.
@@ -161,6 +177,7 @@ class EyePoseTextureOptimizer(Optimizer):
         Returns:
             Output detached learned parameters after optimization.
         """
+        assert n_iter_text <= n_iter
         eps = -torch.inf if eps is None else eps
         # Reset optimizer and LR scheduler
         optim = self.reset()
@@ -172,9 +189,13 @@ class EyePoseTextureOptimizer(Optimizer):
         # optimization loop
         for iter in range(n_iter):
             pos, rot, texture = self._model()
+            if iter < n_iter_text:
+                pos, rot = pos.detach(), rot.detach()
             meshes = self._mesh({}, texture=texture)
             images = self._renderer(meshes, T=pos, R=rot, **kwargs)
-            loss = self._loss_fn(images, target).sum()
+            loss = self._loss_fn(images, target)
+            loss += self._symmetry_w * self._symmetry_loss(texture, None)
+            loss += self._tan_norm_w * torch.linalg.norm(self._model.z_tan, dim=-1).mean()
             optim.zero_grad()
             loss.backward()
             optim.step()

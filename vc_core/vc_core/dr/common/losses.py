@@ -269,6 +269,41 @@ def _build_masked_loss(
     return _build_loss_fn(masked_loss, reduction=reduction, dim=dim)
 
 
+def _build_symmetry_loss(
+    *,
+    reduction: Literal["mean", "sum", "none"] = "mean",
+    dim: int | Sequence[int] | None = None,
+    inner_fn_name: str,
+    **kwargs,
+) -> Callable[[Tensor, Tensor], Tensor]:
+    """Build a torch image symmetry-based loss for the given reduction method.
+
+    Inputs are assumed to have a shape of (..., C, H, W).
+
+    Args:
+        reduction: Specifies the reduction to apply to the output (none | mean | sum). If mean,
+            the mean of the output is taken. If sum, the output will be summed. If none, no
+            reduction will be applied. Default value is mean.
+        dim: Dimensions to reduce. If `None`, all dimensions are reduced. Default value is `None`.
+        inner_fn_name: Name of loss function to use for comparing the input with its flipped
+            version to compute the symmetry loss. A function from the `vc_core.dr.losses` module or
+            `torch.nn.functional` that accepts input and target tensors respectively plus
+            additional fixed kwargs (e.g., `mse_loss`).
+        kwargs: Optional kwargs to forward to loss function (e.g., weight).
+    Returns:
+        Image symmetry loss.
+    """
+    fn = build_loss_fn(inner_fn_name, reduction="none", **kwargs)
+
+    def symmetry_loss(input: Tensor, _: Tensor) -> Tensor:
+        hflip = torch.flip(input, dims=[-1])
+        vflip = torch.flip(input, dims=[-2])
+        loss = fn(input, hflip) + fn(input, vflip)
+        return loss
+
+    return _build_loss_fn(symmetry_loss, reduction=reduction, dim=dim)
+
+
 def _build_loss_fn(
     fn: Callable[[Tensor, Tensor, Any], Tensor],
     reduction: Literal["sum", "mean", "none"] = "mean",
