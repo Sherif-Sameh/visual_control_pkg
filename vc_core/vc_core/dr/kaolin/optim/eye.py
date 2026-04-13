@@ -27,6 +27,7 @@ class EyePoseOptimizer(Optimizer):
         model: Model of learnable parameters for eye pose.
         renderer: Renderer to render output images.
         loss_fn: Loss function. Order of arguments is input then target.
+        tan_norm_w: Weight for norm loss penalty of model tangent offsets. Default value is 5e-4.
         lr: Learning rate for Adam optimizer. Default value is 1e-2.
         lr_sched_cfg: Optional configuration for learning rate scheduler. Default value is `None`.
     """
@@ -38,9 +39,11 @@ class EyePoseOptimizer(Optimizer):
         renderer: MeshRenderer,
         loss_fn: Callable[[Tensor, Tensor], Tensor],
         *,
+        tan_norm_w: float = 5e-4,
         lr: float | Sequence[float] = 1e-2,
         lr_sched_cfg: Optimizer.LRSchedulerCfg | None = None,
     ):
+        self.tan_norm_w = tan_norm_w
         super().__init__(mesh, model, renderer, loss_fn, lr=lr, lr_sched_cfg=lr_sched_cfg)
 
     def optimize(
@@ -78,6 +81,7 @@ class EyePoseOptimizer(Optimizer):
             meshes = self._mesh({})
             images = self._renderer(meshes, T=pos, R=rot, ambient=amb, **kwargs)
             loss = self._loss_fn(images, target)
+            loss += self.tan_norm_w * torch.linalg.norm(self._model.z_tan, dim=-1)
             optim.zero_grad()
             loss.sum().backward()
             optim.step()
