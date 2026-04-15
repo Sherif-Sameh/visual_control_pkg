@@ -22,12 +22,13 @@ from scipy.spatial.transform import Rotation as R
 from sensor_msgs.msg import CameraInfo, Image
 from std_msgs.msg import Empty
 from std_srvs.srv import SetBool
-from tf2_ros import StaticTransformBroadcaster
+from tf2_ros import TransformBroadcaster
 from torch import Tensor
 from torch.optim.lr_scheduler import CosineAnnealingLR
 
 import vc_core.dr.pytorch3d as vc_pytorch3d
-from vc_core.dr.common import CylinderSplitParamModel, build_combined_loss_fn
+from vc_core.dr.common.losses import build_combined_loss_fn
+from vc_core.dr.common.model import CylinderSplitParamModel
 from vc_core.dr.pytorch3d import CylinderMultiLROptimizer
 from vc_core.loggers import MemoryLogger
 from vc_core.segmentation.sam import SAM2, SAMPromptConfig
@@ -106,7 +107,7 @@ class TcpCalibrationP3d(Node):
         self._srv_trgr = self.create_service(
             SetBool, "/tcp_calibration_p3d/trigger", self.callback_trgr
         )
-        self._tf_broadcaster = StaticTransformBroadcaster(self)
+        self._tf_broadcaster = TransformBroadcaster(self)
         self.add_on_set_parameters_callback(self.callback_params)
 
     def publish_perr(self, tvec: Tensor, rmat: Tensor, loss: float) -> None:
