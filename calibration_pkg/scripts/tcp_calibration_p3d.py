@@ -241,9 +241,12 @@ class TcpCalibrationP3d(Node):
         # Check for params that are allowed to change at runtime
         ParamType = rclpy.Parameter.Type
         for param in params:
-            if param.name in ["dr.shader.sil.sigma", "dr.optim.lr", "dr.optim.sched.eta_min"] and (
-                param.type_ != ParamType.DOUBLE or param.value < 0
-            ):
+            if param.name in [
+                "dr.shader.sigma",
+                "dr.optim.lr.min",
+                "dr.optim.lr.max",
+                "dr.optim.sched.eta_min",
+            ] and (param.type_ != ParamType.DOUBLE or param.value < 0):
                 failed(f"{param.name} must be double >= 0.")
                 break
             if (
