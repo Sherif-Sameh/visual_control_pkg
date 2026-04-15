@@ -70,6 +70,7 @@ install(TARGETS
 # Install Python executables
 install(PROGRAMS
   scripts/tcp_calibration_p3d.py
+  scripts/eye_calibration.py
   DESTINATION lib/${PROJECT_NAME}
 )
 
