@@ -8,6 +8,10 @@ import torch
 from sam2.build_sam import build_sam2_hf
 from sam2.sam2_image_predictor import SAM2ImagePredictor
 from torch import Tensor
+from ultralytics.models.sam import SAM2DynamicInteractivePredictor
+from ultralytics.utils.ops import scale_masks
+
+from vc_core.utils.common import apply_overrides_dict
 
 from .common import SAMPromptConfig
 
@@ -172,3 +176,107 @@ class SAM2:
         self._point_prompts.clear()
         self._label_prompts.clear()
         self._box_prompt = None
+
+
+class SAM2LiveVideo(SAM2):
+    """Extends `vc_core.segmentation.sam.SAM2` for live-video prediction.
+
+    The wrapper provides the same functionalities but is based on the `SAM2DynamicInteractivePredictor`
+    from `ultralytics`. These functionalities are summarized in the following:
+
+    - Sampling +ve and -ve point prompts through the `sample_points` method.
+    - Sampling box prompts through the `sample_box` method.
+    - Applying the model using gathered prompts through the `segment` method.
+
+    **Note:** Currently as of `ultralytics==8.4.37`, SAM2 models do not support negative point
+    prompts. Segmentation will work as expected with positive points. If negative points are added,
+    typically no masks will be detected.
+    See the related issue at: https://github.com/ultralytics/ultralytics/issues/14982
+
+    Args:
+        var: Variant of the SAM2/2.1 models to load.
+        cfg: Configuration for collecting prompts for the SAM2 model.
+        device: Device to use. Resorts to `cpu ` if `cuda` fails. Default value is `cuda`.
+        max_obj_num: Maximum number of objects to track. Default value is 1.
+        overrides: Overrides to apply to default config and pass to the SAM2 constructor.
+    """
+
+    DEFAULT_CFG = {
+        "conf": 0.01,
+        "task": "segment",
+        "mode": "predict",
+        "imgsz": 480,
+        "save": False,
+        "half": True,
+        "compile": True,
+        "verbose": False,
+    }
+
+    def __init__(
+        self,
+        var: SAM2_VARIANT = "sam2.1-hiera-tiny",
+        cfg: SAMPromptConfig = SAMPromptConfig(),
+        *,
+        device: str | torch.device = "cuda",
+        max_obj_num: int = 1,
+        overrides: dict[str, Any] = {},
+    ):
+        overrides = (
+            apply_overrides_dict(self.DEFAULT_CFG, overrides) if overrides else self.DEFAULT_CFG
+        )
+        overrides["model"] = var.split("-")[0] + "_" + var.split("-")[-1][0] + ".pt"
+        overrides["device"] = device
+
+        self._predictor = SAM2DynamicInteractivePredictor(
+            overrides=overrides, max_obj_num=max_obj_num
+        )
+        self._predictor.postprocess
+        self._predictor.setup_model()
+        self._cfg = cfg
+        self._device = device if isinstance(device, str) else device.type
+        self._dtype = torch.half if overrides["half"] else torch.float32
+
+        # Prompt buffers
+        self._point_prompts = []
+        self._label_prompts = []
+        self._box_prompt = None
+
+    def segment(self, img: NDArray, obj_ids: list[int], update_memory: bool = False) -> Tensor:
+        """Perform segmentation using collected prompts.
+
+        Args:
+            img: Input RGB image. Expected to have shape (H, W, 3) and dtype of `np.uint8`.
+            obj_ids: Object IDs corresponding to the set prompts. Length must match that of the
+                point and box prompts.
+            update_memory: Update the model's memory banks with the set prompts. Applicable only
+                if new prompts have been set. Default value is `False`.
+
+        Returns:
+            Segmentation mask returned by SAM2 model. Shape is (H, W).
+        """
+        # Run inference (slower pipeline for initialization)
+        if update_memory:
+            results = self._predictor(
+                source=cv2.cvtColor(img, cv2.COLOR_RGB2BGR),
+                points=self._point_prompts if self._point_prompts else None,
+                labels=self._label_prompts if self._label_prompts else None,
+                bboxes=self._box_prompt if self._box_prompt is not None else None,
+                obj_ids=obj_ids,
+                update_memory=True,
+            )
+            return results[0].masks.data[0]
+
+        # Convert input image to torch format
+        img = (
+            torch.from_numpy(img.transpose((2, 0, 1)))
+            .contiguous()
+            .to(dtype=self._dtype, device=self._device)
+            .div(255)
+            .unsqueeze(0)
+        )
+        # Run inference and post-process masks
+        masks, scores = self._predictor.inference(img)
+        masks = scale_masks(masks[None].float(), img.shape[2:], padding=False)[0]
+        masks = masks > self._predictor.model.mask_threshold
+        # Return the mask with the highest score
+        return masks[torch.argmax(scores)]
