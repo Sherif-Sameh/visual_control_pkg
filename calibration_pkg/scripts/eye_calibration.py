@@ -4,6 +4,7 @@
 ROS node for performing eye texture calibration using differentiable rendering (Kaolin)
 """
 
+import logging
 from typing import Any, Callable
 
 import numpy as np
@@ -30,6 +31,8 @@ import vc_core.dr.common as common
 import vc_core.dr.kaolin as vc_kal
 from vc_core.segmentation.sam import SAM2, SAMPromptConfig
 from vc_core.utils.ros.tf2 import lookup_transform
+
+logging.getLogger("kaolin.rep.surface_mesh").setLevel(logging.ERROR)
 
 
 class EyeCalibration(Node):
