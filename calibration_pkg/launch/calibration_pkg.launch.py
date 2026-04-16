@@ -68,6 +68,45 @@ def declare_arguments() -> list[DeclareLaunchArgument]:
         )
     )
 
+    # Eye calibration arguments
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "marker_frame",
+            default_value="tag36h11:0",
+            description="Name of the reference marker frame. Default value is tag36h11:0.",
+        )
+    )
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "eye_gt_frame",
+            default_value="eye_left",
+            description="Name of the ground truth target eye frame. Default value is eye_left.",
+        )
+    )
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "marker_id",
+            default_value="0",
+            description="ID of the reference marker. Default value is 0.",
+        )
+    )
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "ref_pose",
+            default_value="[0.075, 0.025, 0.15, 1.0, 0.0, 0.0, 0.0]",
+            description="Estimate of the target eye pose wrt to the reference marker."
+            " Default value is [0.075, 0.025, 0.15, 1.0, 0.0, 0.0, 0.0]",
+        )
+    )
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "model",
+            default_value="mipmap",
+            description="Eye pose + texture model type to use. Default value is mipmap.",
+            choices=["simple", "mipmap", "hashenc"],
+        )
+    )
+
     # General arguments
     declared_arguments.append(
         DeclareLaunchArgument(
@@ -127,6 +166,8 @@ def launch_setup(context: LaunchContext) -> list[IncludeLaunchDescription]:
         launch.append(_include_handeye_evaluation())
     if "tcp_calibration_p3d" in calibration:
         launch.append(_include_tcp_calibration_p3d())
+    if "eye_calibration" in calibration:
+        launch.append(_include_eye_calibration())
     return launch
 
 
@@ -227,6 +268,38 @@ def _include_tcp_calibration_p3d() -> IncludeLaunchDescription:
             "modalities": modalities,
             "image_topic_name": image_topic_name,
             "depth_topic_name": depth_topic_name,
+            "camera_info_topic_name": camera_info_topic_name,
+            "restart_topic_name": restart_topic_name,
+        }.items(),
+    )
+
+
+def _include_eye_calibration() -> IncludeLaunchDescription:
+    cam_frame = LaunchConfiguration("cam_frame")
+    marker_frame = LaunchConfiguration("marker_frame")
+    eye_gt_frame = LaunchConfiguration("eye_gt_frame")
+    marker_id = LaunchConfiguration("marker_id")
+    ref_pose = LaunchConfiguration("ref_pose")
+    model = LaunchConfiguration("model")
+
+    image_topic_name = LaunchConfiguration("image_topic_name")
+    camera_info_topic_name = LaunchConfiguration("camera_info_topic_name")
+    restart_topic_name = LaunchConfiguration("restart_topic_name")
+
+    return IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(
+            PathJoinSubstitution(
+                [FindPackageShare("calibration_pkg"), "launch", "eye", "eye_calibration.launch.py"]
+            )
+        ),
+        launch_arguments={
+            "cam_frame": cam_frame,
+            "marker_frame": marker_frame,
+            "eye_gt_frame": eye_gt_frame,
+            "marker_id": marker_id,
+            "ref_pose": ref_pose,
+            "model": model,
+            "image_topic_name": image_topic_name,
             "camera_info_topic_name": camera_info_topic_name,
             "restart_topic_name": restart_topic_name,
         }.items(),
