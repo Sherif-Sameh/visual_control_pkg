@@ -3,18 +3,18 @@
 [calibration]
 
 # Reference pose parameters
-"ref.pose.tol" = [0.03, 0.1]
+"ref.pose.tol" = [0.01, 0.05]
 
 # SAM2 parameters
 "sam.variant" = "sam2.1-hiera-small"
-"sam.prompt.n_pos" = 2
+"sam.prompt.n_pos" = 3
 "sam.prompt.n_neg" = 2
 
 # Target pose parameters
-"pose.n_view_sqrt" = 3
+"pose.n_view_sqrt" = 2
 "pose.dist" = 0.3
-"pose.range.elev" = 15.0 
-"pose.range.azim" = 15.0
+"pose.range.elev" = [10.0, -10.0] 
+"pose.range.azim" = [5.0, -10.0]
 
 # Model parameters
 "dr.model.res" = 512

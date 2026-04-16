@@ -6,13 +6,14 @@ ROS node for performing eye texture calibration using differentiable rendering (
 
 import logging
 from copy import copy
+from pathlib import Path
 from typing import Any, Callable
 
 import numpy as np
 import rclpy
 import torch
 from cv_bridge import CvBridge
-from geometry_msgs.msg import PoseStamped, Transform, Twist
+from geometry_msgs.msg import PoseStamped, Transform, TransformStamped, Twist
 from kaolin.render.camera import Camera
 from numpy.typing import NDArray
 from rcl_interfaces.msg import SetParametersResult
@@ -20,11 +21,9 @@ from rclpy.node import Node
 from scipy.spatial.transform import Rotation as R
 from sensor_msgs.msg import CameraInfo, Image
 from std_msgs.msg import Empty, Header
-from tf2_ros.buffer import Buffer
-from tf2_ros.transform_listener import TransformListener
+from tf2_ros import Buffer, TransformBroadcaster, TransformListener
 from torch import LongTensor, Tensor
 from torch.optim.lr_scheduler import CosineAnnealingLR, CosineAnnealingWarmRestarts
-from torchvision.transforms.functional import to_tensor
 from torchvision.utils import save_image
 from trajectory_msgs.msg import MultiDOFJointTrajectory, MultiDOFJointTrajectoryPoint
 
@@ -38,6 +37,8 @@ logging.getLogger("kaolin.rep.surface_mesh").setLevel(logging.ERROR)
 
 class EyeCalibration(Node):
     """ROS node for performing eye texture calibration using differentiable rendering (Kaolin)."""
+
+    EYE_ROT_OFFSET = R.from_quat([1.0, 0.0, 0.0, 0.0])
 
     def __init__(self):
         super().__init__("eye_calibration")
@@ -55,8 +56,8 @@ class EyeCalibration(Node):
         self.declare_parameter("sam.prompt.n_neg", rclpy.Parameter.Type.INTEGER)
         self.declare_parameter("pose.n_view_sqrt", rclpy.Parameter.Type.INTEGER)
         self.declare_parameter("pose.dist", rclpy.Parameter.Type.DOUBLE)
-        self.declare_parameter("pose.range.elev", rclpy.Parameter.Type.DOUBLE)
-        self.declare_parameter("pose.range.azim", rclpy.Parameter.Type.DOUBLE)
+        self.declare_parameter("pose.range.elev", rclpy.Parameter.Type.DOUBLE_ARRAY)
+        self.declare_parameter("pose.range.azim", rclpy.Parameter.Type.DOUBLE_ARRAY)
         self.declare_parameter("dr.mesh.path", rclpy.Parameter.Type.STRING)
         self.declare_parameter("dr.model.type", rclpy.Parameter.Type.STRING)
         self.declare_parameter("dr.model.res", rclpy.Parameter.Type.INTEGER)
@@ -115,10 +116,11 @@ class EyeCalibration(Node):
         )
         self._tf_buffer = Buffer()
         self._tf_listener = TransformListener(self._tf_buffer, self)
+        self._tf_broadcaster = TransformBroadcaster(self)
         self.add_on_set_parameters_callback(self.callback_params)
 
-    def publish_target(self) -> None:
-        """Publish the next marker wrt camera target pose."""
+    def publish_target(self, header: Header) -> None:
+        """Publish the next marker wrt camera target pose and TF transform."""
         tvec_mk_cam, quat_mk_cam = self._pose_target
         transform = Transform()
         transform.translation.x = float(tvec_mk_cam[0])
@@ -130,50 +132,62 @@ class EyeCalibration(Node):
         transform.rotation.w = float(quat_mk_cam[3])
 
         msg = MultiDOFJointTrajectory()
-        msg.header.stamp = self.get_clock().now().to_msg()
+        msg.header.frame_id = self._frames["marker"]
+        msg.header.stamp = header.stamp
         msg.joint_names.append(str(self._ref_id))
         msg.points.append(
             MultiDOFJointTrajectoryPoint(transforms=[transform], velocities=[Twist()])
         )
+        transform_stamped = TransformStamped(
+            header=msg.header,
+            child_frame_id=f"{self._frames['cam']}:{self._ref_id}",
+            transform=transform,
+        )
         self._pub_target.publish(msg)
+        self._tf_broadcaster.sendTransform(transform_stamped)
 
     def publish_perr(self) -> None:
         """Publish the estimated eye wrt camera pose error."""
         if len(self._poses_gt) != self._poses[0].shape[0]:
             return
-        stamp = self.get_clock().now().to_msg()
+        # compute per-pose errors
+        tvec_err, rot_err = [], []
         for i, (pose_gt, tvec, rmat) in enumerate(
             zip(self._poses_gt, self._poses[0], self._poses[1])
         ):
-            rot_eye_cam = R.from_matrix(rmat.T.cpu().numpy())
+            tvec_cam_eye, rot_cam_eye = self._apply_rot_offset(tvec, rmat)
             rot_cam_gt_eye = R.from_quat(pose_gt[3:])
-            tvec_err = tvec.cpu().numpy() - pose_gt[:3]
-            quat_err = (rot_cam_gt_eye * rot_eye_cam).as_quat()
+            tvec_err.append(tvec_cam_eye - pose_gt[:3])
+            rot_err.append(rot_cam_gt_eye * rot_cam_eye.inv())
+        # average pose errors
+        tvec_err = np.abs(np.stack(tvec_err, axis=0)).mean(axis=0)
+        quat_err = R.concatenate(rot_err).mean().as_quat()
 
-            msg = PoseStamped()
-            msg.header.stamp = stamp + i * 0.1
-            msg.pose.position.x = float(tvec_err[0])
-            msg.pose.position.y = float(tvec_err[1])
-            msg.pose.position.z = float(tvec_err[2])
-            msg.pose.orientation.x = float(quat_err[0])
-            msg.pose.orientation.y = float(quat_err[1])
-            msg.pose.orientation.z = float(quat_err[2])
-            msg.pose.orientation.w = float(quat_err[3])
-            self._pub_perr.publish(msg)
+        msg = PoseStamped()
+        msg.header.stamp = self.get_clock().now().to_msg()
+        msg.pose.position.x = float(tvec_err[0])
+        msg.pose.position.y = float(tvec_err[1])
+        msg.pose.position.z = float(tvec_err[2])
+        msg.pose.orientation.x = float(quat_err[0])
+        msg.pose.orientation.y = float(quat_err[1])
+        msg.pose.orientation.z = float(quat_err[2])
+        msg.pose.orientation.w = float(quat_err[3])
+        self._pub_perr.publish(msg)
 
-    def publish_seg(self, img: NDArray, mask: NDArray, header: Header) -> None:
+    def publish_seg(self, img: NDArray, mask: NDArray) -> None:
         """Publish alpha-blended RGB + segmentation mask image.
 
         Args:
             rgb: Input RGB image. Shape is (H, W, 3) and dtype is `np.uint8`.
             mask: Output segmentation mask. Shape is (H, W) and dtype is `np.float32`.
-            header: Header of the original Image message.
         """
         alpha = 0.6
         color = np.array((30, 144, 255))
         mask_img = mask[:, :, None] * color.reshape(1, 1, 3)  # (H, W, 3)
         seg_img = np.where(mask_img > 0, img * (1 - alpha) + mask_img * alpha, img).astype(np.uint8)
-        msg = self._bridge.cv2_to_imgmsg(seg_img, encoding="rgb8", header=header)
+        msg = self._bridge.cv2_to_imgmsg(
+            seg_img, encoding="rgb8", header=Header(stamp=self.get_clock().now().to_msg())
+        )
         self._pub_seg.publish(msg)
 
     def callback_timer(self) -> None:
@@ -201,7 +215,7 @@ class EyeCalibration(Node):
             return  # optimization done
         if self._pose_target is None:
             self._pose_target = self._get_target_pose()
-            self.publish_target()
+        self.publish_target(msg.header)
         if not self._pose_target_reached:
             return
         # store GT pose if available
@@ -220,10 +234,14 @@ class EyeCalibration(Node):
         mask = self._sam.segment(img)
         self.publish_seg(img, mask)
         # store silhouette and RGB
-        self._silhouette.append(torch.from_numpy(mask).to(dtype=torch.float32, device=self._device))
-        self._rgb.append(to_tensor(img).to(device=self._device))
+        self._silhouette.append(
+            torch.from_numpy(mask).contiguous().to(dtype=torch.float32, device=self._device)
+        )
+        self._rgb.append(
+            torch.from_numpy(img).contiguous().to(dtype=torch.float32, device=self._device).div(255)
+        )
         # perform optimization if all views are available
-        if len(self._silhouette) == self._n_view:
+        if (n_curr + 1) == self._n_view:
             self._silhouette = torch.stack(self._silhouette, dim=0)
             self._rgb = torch.stack(self._rgb, dim=0)
             self._optimize()
@@ -238,7 +256,7 @@ class EyeCalibration(Node):
                 view_matrix=torch.eye(4),
                 focal_x=msg.k[0],
                 x0=msg.k[2] - msg.width / 2,
-                y0=msg.k[5] - msg.header / 2,
+                y0=msg.k[5] - msg.height / 2,
                 height=self._size,
                 width=self._size,
                 dtype=torch.float32,
@@ -298,11 +316,18 @@ class EyeCalibration(Node):
         dist = pose_params["dist"]
         range_elev, range_azim = pose_params["range.elev"], pose_params["range.azim"]
         elev, azim = torch.meshgrid(
-            torch.linspace(-range_elev, range_elev, pose_params["n_view_sqrt"]),
-            torch.linspace(-range_azim, range_azim, pose_params["n_view_sqrt"]),
+            torch.linspace(range_elev[0], range_elev[1], pose_params["n_view_sqrt"]),
+            torch.linspace(range_azim[0], range_azim[1], pose_params["n_view_sqrt"]),
             indexing="xy",
         )
-        elev, azim = elev.flatten(), azim.flatten()
+        elev_sorted, azim_sorted = [], []
+        for i, (row_e, row_a) in enumerate(zip(elev, azim)):
+            if i % 2 == 1:
+                row_e = torch.flip(row_e, dims=[0])
+                row_a = torch.flip(row_a, dims=[0])
+            elev_sorted.append(row_e)
+            azim_sorted.append(row_a)
+        elev, azim = torch.cat(elev_sorted, 0), torch.cat(azim_sorted, 0)
         rmat, tvec = vc_kal.utils.look_at_view_transform(dist, elev, azim, device=self._device)
         return tvec, rmat
 
@@ -445,13 +470,23 @@ class EyeCalibration(Node):
         """Compute the next marker wrt camera target pose."""
         n_curr = len(self._rgb)
         tvec, rmat = self._poses[0][n_curr], self._poses[1][n_curr]
-        tvec_eye_cam = (-rmat.T @ tvec).cpu().numpy()
-        rot_eye_cam = R.from_matrix(rmat.T.cpu().numpy())
+        tvec_eye_cam, rot_eye_cam = self._apply_rot_offset(-rmat.T @ tvec, rmat.T)
         tvec_mk_eye = self._ref_pose[:3]
         rot_mk_eye = R.from_quat(self._ref_pose[3:], scalar_first=True)
         tvec_mk_cam = rot_mk_eye.apply(tvec_eye_cam) + tvec_mk_eye
         quat_mk_cam = (rot_mk_eye * rot_eye_cam).as_quat()
         return tvec_mk_cam, quat_mk_cam
+
+    def _apply_rot_offset(self, tvec: Tensor, rmat: Tensor) -> tuple[NDArray, R]:
+        """Apply the fixed rotation offset between for eye wrt camera poses.
+
+        This offset is caused by two rotations. Firstly between the OpenGL and ROS camera
+        conventions. Secondly between the eye mesh's coordinate frame and the eye frame we use.
+        Both are corrected by a rotation of 180deg around the X-axis.
+        """
+        tvec_new = self.EYE_ROT_OFFSET.apply(tvec.cpu().numpy())
+        rot_new = self.EYE_ROT_OFFSET * R.from_matrix(rmat.cpu().numpy()) * self.EYE_ROT_OFFSET
+        return tvec_new, rot_new
 
     def _optimize(self) -> None:
         """Run optimization for eye pose and texture parameters."""
@@ -459,7 +494,7 @@ class EyeCalibration(Node):
         n_iter_text = self.get_parameter("dr.optim.n_iter.text").value
         # prepare target and cameras
         center = torch.stack([self._get_centroid(sil) for sil in self._silhouette], dim=0)
-        center = center.mean(dim=0).long()
+        center = center.float().mean(dim=0).long()
         target = self._get_target(center)
         self._cameras.x0 -= center[1] - self._size / 2
         self._cameras.y0 -= center[0] - self._size / 2
@@ -467,7 +502,7 @@ class EyeCalibration(Node):
         self._optimize_silhouette(target)
         # run main optimization
         tvec, rmat, texture = self._optim.optimize(
-            target, n_iter, n_iter_text, cameras=self._cameras
+            target, n_iter=n_iter, n_iter_text=n_iter_text, cameras=self._cameras
         )
         self._poses = (tvec, rmat)
         # render final output with texture and poses
@@ -511,11 +546,13 @@ class EyeCalibration(Node):
 
     def _store_outputs(self, texture: Tensor, final: Tensor) -> None:
         """Store the output texture and final renders."""
-        path = self.get_parameter("output_path").value
-        texture = texture.permute(2, 0, 1)
+        path = Path(self.get_parameter("output_path").value)
+        n_view_sqrt = self.get_parameter("pose.n_view_sqrt").value
+        path.mkdir(parents=True, exist_ok=True)
         final = final.permute(0, 3, 1, 2)
         save_image(texture, f"{path}/texture.png")
-        save_image(final, f"{path}/final.png", nrow=self._n_view)
+        save_image(final[:, 1:], f"{path}/final.png", nrow=n_view_sqrt)
+        self.get_logger().info(f"Outputs stored at {path}.")
 
     def _reset(self) -> None:
         """Reset all attributes that are initialized from callbacks."""
