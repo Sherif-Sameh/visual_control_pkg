@@ -1,0 +1,86 @@
+### Eye Calibration ROS Sweep Configuration ###
+
+# Launch script parameters  
+[launch]
+
+# General parameters
+timer_period = 0.1
+n_runs_per_set = 5
+target_nodes = ["eye_calibration"]
+
+# Objective function parameters
+"obj.flags" = [
+    "jnt_vel",
+    "pos",
+    "rot",
+    "pose",
+]
+"obj.weights" = [
+    0.0,
+    0.0,
+    0.0,
+    1.0,
+]
+
+# WandB logger parameters
+"wandb.n_log" = 1
+"wandb.n_flush" = 40
+"wandb.config.entity" = "u1999168-girona"
+"wandb.config.project" = "visual_control|eyecalib_sweeps"
+"wandb.config.params" = [
+    "eye_calibration-ref.pose",
+    "eye_calibration-ref.pose.tol",
+    "eye_calibration-sam.variant",
+    "eye_calibration-sam.prompt.n_pos",
+    "eye_calibration-sam.prompt.n_neg",
+    "eye_calibration-pose.n_view_sqrt",
+    "eye_calibration-pose.dist",
+    "eye_calibration-pose.range.elev",
+    "eye_calibration-pose.range.azim",
+    "eye_calibration-dr.model.type",
+    "eye_calibration-dr.model.res",
+    "eye_calibration-dr.model.scale",
+    "eye_calibration-dr.model.n_level",
+    "eye_calibration-dr.model.log2_hsz",
+    "eye_calibration-dr.model.mlp_n_layer",
+    "eye_calibration-dr.shader.sigma",
+    "eye_calibration-dr.shader.boxlen",
+    "eye_calibration-dr.shader.knum",
+    "eye_calibration-dr.raster.size",
+    "eye_calibration-dr.raster.backend",
+    "eye_calibration-dr.optim.loss",
+    "eye_calibration-dr.optim.loss.weights",
+    "eye_calibration-dr.optim.loss.symmetry",
+    "eye_calibration-dr.optim.loss.tan_norm",
+    "eye_calibration-dr.optim.lr",
+    "eye_calibration-dr.optim.sched.T_0",
+    "eye_calibration-dr.optim.sched.T_mult",
+    "eye_calibration-dr.optim.sched.eta_min",
+    "eye_calibration-dr.optim.n_iter.init",
+    "eye_calibration-dr.optim.n_iter.text",
+    "eye_calibration-dr.optim.n_iter.full",
+]
+
+
+# Sweep hyperparameters
+[sweep]
+program = "scripts/sweepers/ros_sweeper.py"
+method = "bayes"
+
+[sweep.metric]
+name = "objective"
+goal = "minimize"
+
+[sweep.parameters]
+"eye_calibration-dr.shader.sigma" = { distribution = "log_uniform_values", min = 1e-6, max = 1e-4 }
+"eye_calibration-dr.shader.boxlen" = { distribution = "log_uniform_values", min = 5e-3, max = 5e-2 }
+"eye_calibration-dr.raster.backend" = { values = ["cuda", "nvdiffrast"] }
+"eye_calibration-dr.optim.loss.symmetry" = { distribution = "log_uniform_values", min = 5e-3, max = 0.1 }
+"eye_calibration-dr.optim.lr" = { distribution = "log_uniform_values", min = 5e-3, max = 0.1 }
+"eye_calibration-dr.optim.sched.eta_min" = { distribution = "log_uniform_values", min = 1e-6, max = 1e-4 }
+[sweep.parameters."eye_calibration-dr.optim.loss"]
+values = [
+    ["mse_loss", "mse_loss"],
+    ["l1_loss", "l1_loss"],
+    ["dice_loss", "mncc_loss"],
+]
