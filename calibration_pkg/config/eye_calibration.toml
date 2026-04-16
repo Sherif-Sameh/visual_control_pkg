@@ -1,0 +1,64 @@
+### Eye Calibration Configuration ###
+
+[calibration]
+
+# Reference pose parameters
+"ref.pose.tol" = [0.03, 0.1]
+
+# SAM2 parameters
+"sam.variant" = "sam2.1-hiera-small"
+"sam.prompt.n_pos" = 2
+"sam.prompt.n_neg" = 2
+
+# Target pose parameters
+"pose.n_view_sqrt" = 3
+"pose.dist" = 0.3
+"pose.range.elev" = 15.0 
+"pose.range.azim" = 15.0
+
+# Model parameters
+"dr.model.res" = 512
+"dr.model.scale" = 0.2
+"dr.model.n_level" = 5
+"dr.model.log2_hsz" = 14
+"dr.model.mlp_n_layer" = 0
+
+# Shader parameters
+"dr.shader.sigma" = 3e-5
+"dr.shader.boxlen" = 1e-2
+"dr.shader.knum" = 10
+
+# Rasterization parameters
+"dr.raster.size" = 256
+"dr.raster.backend" = "cuda"
+
+# Optimizer parameters
+"dr.optim.loss" = ["l1_loss", "l1_loss"]
+"dr.optim.loss.weights" = [0.5, 0.5]
+"dr.optim.loss.symmetry" = 5e-2
+"dr.optim.loss.tan_norm" = 5e-4
+"dr.optim.lr" = 2e-2
+"dr.optim.sched.T_0" = 150
+"dr.optim.sched.T_mult" = 1
+"dr.optim.sched.eta_min" = 5e-5
+"dr.optim.n_iter.init" = 100
+"dr.optim.n_iter.text" = 20
+"dr.optim.n_iter.full" = 300
+
+
+# Model-type-specific overrides
+[overrides-simple]
+"dr.model.res" = 256
+"dr.optim.loss.symmetry" = 0.1
+"dr.optim.lr" = 5e-2
+
+[overrides-mipmap]
+"dr.model.res" = 512
+"dr.optim.loss.symmetry" = 2e-2
+"dr.optim.lr" = 2.5e-2
+
+[overrides-hashenc]
+"dr.model.res" = 512
+"dr.model.n_level" = 16
+"dr.optim.loss.symmetry" = 5e-2
+"dr.optim.lr" = 1e-2
