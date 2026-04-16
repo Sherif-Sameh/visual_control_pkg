@@ -63,6 +63,39 @@ class SAM2:
         self._label_prompts = []
         self._box_prompt = None
 
+    @property
+    def point_prompts(self) -> list[tuple[int, int]]:
+        """Get stored point prompts."""
+        return self._point_prompts
+
+    @property
+    def label_prompts(self) -> list[int]:
+        """Get stored label prompts."""
+        return self._label_prompts
+
+    @property
+    def box_prompt(self) -> list[int]:
+        """Get stored bounding box prompt."""
+        return self._box_prompt
+
+    @point_prompts.setter
+    def point_prompts(self, value: list[tuple[int, int]]) -> None:
+        """Set point prompts."""
+        assert all([len(v) == 2] for v in value)
+        self._point_prompts = value
+
+    @label_prompts.setter
+    def label_prompts(self, value: list[int]) -> None:
+        """Set label prompts. Point prompts must have been set beforehand."""
+        assert len(value) == len(self._point_prompts)
+        self._label_prompts = value
+
+    @box_prompt.setter
+    def box_prompt(self, value: list[int]) -> None:
+        """Set bounding box prompt."""
+        assert len(value) == 4
+        self._box_prompt = value
+
     def sample_points(self, img: NDArray | Tensor, *, clear: bool = False) -> None:
         """Sample positive and negative point prompts for segmentation.
 

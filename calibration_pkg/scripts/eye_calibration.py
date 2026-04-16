@@ -5,6 +5,7 @@ ROS node for performing eye texture calibration using differentiable rendering (
 """
 
 import logging
+from copy import copy
 from typing import Any, Callable
 
 import numpy as np
@@ -93,6 +94,7 @@ class EyeCalibration(Node):
         self._size = self.get_parameter("dr.raster.size").value
         self._bridge = CvBridge()
         self._sam = self._init_seg()
+        self._sam_prompts = []
         self._poses = self._init_poses()
         self._optim = self._init_optim()
         self._reset()
@@ -194,7 +196,8 @@ class EyeCalibration(Node):
         self._pose_target_reached = tvec_err < self._ref_ptol[0] and rot_err < self._ref_ptol[1]
 
     def callback_img(self, msg: Image) -> None:
-        if len(self._silhouette) == self._n_view:
+        n_curr = len(self._silhouette)
+        if n_curr == self._n_view:
             return  # optimization done
         if self._pose_target is None:
             self._pose_target = self._get_target_pose()
@@ -208,7 +211,12 @@ class EyeCalibration(Node):
             self._poses_gt.append(np.array([pos.x, pos.y, pos.z, ori.x, ori.y, ori.z, ori.w]))
         # get segmentation mask
         img = self._bridge.imgmsg_to_cv2(msg, desired_encoding="rgb8")
-        self._sam.sample_points(img)
+        if len(self._sam_prompts) < self._n_view:
+            self._sam.sample_points(img)
+            self._sam_prompts.append((copy(self._sam.point_prompts), copy(self._sam.label_prompts)))
+        else:
+            self._sam.point_prompts = self._sam_prompts[n_curr][0]
+            self._sam.label_prompts = self._sam_prompts[n_curr][1]
         mask = self._sam.segment(img)
         self.publish_seg(img, mask)
         # store silhouette and RGB
