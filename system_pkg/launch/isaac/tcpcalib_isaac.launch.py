@@ -14,7 +14,7 @@ BASE_FRAME = "base_link"
 EE_FRAME = "tool0"
 CAM_FRAME = "camera_color_optical_frame"
 
-POSE_GT_TCP = "[0.0, 0.006, 0.113, 0.988, 0.152, 0.0, 0.0]"
+POSE_GT_TCP = "[0.0, 0.011, 0.099, 0.988, 0.152, 0.0, 0.0]"
 IMG_CENTER = "[300, 320]"
 
 CAMERA_INFO_TOPIC_NAME = "/isaaclab/camera/camera_info"

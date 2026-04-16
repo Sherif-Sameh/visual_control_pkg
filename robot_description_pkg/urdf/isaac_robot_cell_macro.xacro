@@ -56,17 +56,17 @@
     <xacro:marker 
       name="apriltag_0"
       parent="world"
-      xyz="0.65 -0.175 0.794"
+      xyz="0.65 -0.145 0.794"
       rpy="${pi} 0 ${-pi/2}"
-      size="0.1"
+      size="0.06"
       texture_file="tag36_11_00000.png"
     />
     <xacro:marker 
       name="apriltag_1"
       parent="world"
-      xyz="0.65 0.175 0.794"
+      xyz="0.65 0.145 0.794"
       rpy="${pi} 0 ${-pi/2}"
-      size="0.1"
+      size="0.06"
       texture_file="tag36_11_00001.png"
     />
 

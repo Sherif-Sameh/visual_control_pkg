@@ -18,7 +18,7 @@ USE_ISAAC_CELL = "true"
 BASE_FRAME = "base_link"
 EE_FRAME = "tool0"
 CAM_FRAME = "camera_color_optical_frame"
-POSE_GT_HANDEYE = "[0.0, -0.04, 0.135, 0.9884, -0.1521, 0.0, 0.0]"
+POSE_GT_HANDEYE = "[0.0, -0.04, 0.15, 0.9884, -0.1521, 0.0, 0.0]"
 
 DICT_NAME = "DICT_5X5_50"
 BOARD_XS = "10"
