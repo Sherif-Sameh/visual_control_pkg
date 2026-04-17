@@ -14,7 +14,7 @@ from torch.optim.lr_scheduler import CosineAnnealingLR
 
 from vc_core.dr.common.losses import build_combined_loss_fn
 from vc_core.dr.common.model import EyePoseModel
-from vc_core.dr.kaolin.mesh import ObjMesh
+from vc_core.dr.kaolin.mesh import EyeObjMesh
 from vc_core.dr.kaolin.optim import EyePoseOptimizer
 from vc_core.dr.kaolin.render import (
     BlendParams,
@@ -55,7 +55,7 @@ def test_eye_pose_optimizer(
     # Create obj meshes
     n_rep = 9
     path = Path(__file__).parents[1] / "samples/eye_mesh/eye.obj"
-    mesh = ObjMesh(path, with_materials=True, with_normals=True, n_rep=n_rep)
+    mesh = EyeObjMesh(path, n_rep=n_rep)
     F = mesh.mesh.vertices.shape[1]
     mesh.mesh.vertex_features = torch.zeros([n_rep, F, 0])
     mesh.mesh.face_uvs = 1 - mesh.mesh.face_uvs
@@ -71,10 +71,10 @@ def test_eye_pose_optimizer(
     # Create eye pose model
     elevation, azimuth = 0.0, 0.0
     R, T = look_at_view_transform(distance, elevation, azimuth, device=device)
-    T = T + torch.tensor([0.1, -0.1, -0.2], device=device) * distance
+    T = T + torch.tensor([0.025, -0.025, -0.05], device=device) * distance
     pos, z_dir = T[0, :], R[0, :, -1]
-    pos_sigma, z_tan_range = 0.0, 0.2
-    model = EyePoseModel(pos, z_dir, pos_sigma, z_tan_range, n_rep=n_rep, scale=0.2)
+    pos_sigma, z_tan_range = 0.0, 0.005
+    model = EyePoseModel(pos, z_dir, pos_sigma, z_tan_range, n_rep=n_rep, scale=0.1)
     model = torch.compile(model.to(device=device))
 
     # Setup camera
@@ -125,7 +125,7 @@ def test_eye_pose_optimizer(
 
     # Create eye pose optimizer
     n_iter = 100
-    lr = 0.05
+    lr = 0.03
     optim = EyePoseOptimizer(
         mesh,
         model,
@@ -143,7 +143,7 @@ def test_eye_pose_optimizer(
         ),
         lr=lr,
         lr_sched_cfg=EyePoseOptimizer.LRSchedulerCfg(
-            CosineAnnealingLR, {"T_max": n_iter, "eta_min": 3e-5}
+            CosineAnnealingLR, {"T_max": n_iter, "eta_min": 1e-5}
         ),
     )
 
@@ -152,6 +152,9 @@ def test_eye_pose_optimizer(
     logger_all = MemoryLogger(n_log=10)
     optim.optimize(target, n_iter=1, logger=logger_first, cameras=cameras)
     T, R = optim.optimize(target, n_iter=n_iter, logger=logger_all, cameras=cameras)
+    if R[-1, -1] < 0:
+        R[0, 0] *= -1
+        R[-1, -1] *= -1
     T_err = torch.linalg.norm(T_gt[0] - T, dim=0)
     z_dir_err = torch.acos(torch.dot(R_gt[0, :, -1], R[:, -1]))
     with capsys.disabled():

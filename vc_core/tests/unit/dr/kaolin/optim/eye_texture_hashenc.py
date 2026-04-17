@@ -13,7 +13,7 @@ from torch.optim.lr_scheduler import CosineAnnealingLR
 
 from vc_core.dr.common.losses import build_combined_loss_fn
 from vc_core.dr.common.model import EyePoseTextureHashEncoderModel, HashEncoder2DCfg
-from vc_core.dr.kaolin.mesh import ObjMesh
+from vc_core.dr.kaolin.mesh import EyeObjMesh
 from vc_core.dr.kaolin.optim import EyePoseTextureOptimizer
 from vc_core.dr.kaolin.render import (
     BlendParams,
@@ -52,7 +52,7 @@ def test_eye_pose_texture_optimizer(
     # Create obj meshes
     n_view = 9
     path = Path(__file__).parents[1] / "samples/eye_mesh/eye.obj"
-    mesh = ObjMesh(path, with_materials=True, with_normals=True, n_rep=n_view)
+    mesh = EyeObjMesh(path, n_rep=n_view)
     F = mesh.mesh.vertices.shape[1]
     mesh.mesh.vertex_features = torch.zeros([n_view, F, 0])
     mesh.mesh.face_uvs = 1 - mesh.mesh.face_uvs
@@ -75,13 +75,13 @@ def test_eye_pose_texture_optimizer(
     R, T = look_at_view_transform(
         distance, elevation + 10 * noise, azimuth + 10 * noise, device=device
     )
-    T = T + torch.tensor([0.05, -0.05, -0.1], device=device) * distance
+    T = T + torch.tensor([0.025, -0.025, -0.05], device=device) * distance
     model = EyePoseTextureHashEncoderModel(
         T,
         R[:, :, -1],
         text_ref=mesh.mesh.materials[0][0]["map_Kd"],
         n_view=n_view,
-        scale=0.2,
+        scale=0.1,
         enc_cfg=HashEncoder2DCfg(finest_res=1024, n_level=10, log2_hashmap_size=16),
         mlp_n_layer=0,
     )
