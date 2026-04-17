@@ -13,12 +13,12 @@
 # Target pose parameters
 "pose.n_view_sqrt" = 2
 "pose.dist" = 0.3
-"pose.range.elev" = [10.0, -10.0] 
+"pose.range.elev" = [15.0, -5.0] 
 "pose.range.azim" = [5.0, -10.0]
 
 # Model parameters
 "dr.model.res" = 512
-"dr.model.scale" = 0.2
+"dr.model.scale" = 0.05
 "dr.model.n_level" = 5
 "dr.model.log2_hsz" = 14
 "dr.model.mlp_n_layer" = 0

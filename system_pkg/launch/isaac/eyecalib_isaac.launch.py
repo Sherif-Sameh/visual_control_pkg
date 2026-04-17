@@ -22,7 +22,7 @@ MARKER_FRAME = "tag36h11:1f"
 EYE_GT_FRAME = "eye_left"
 
 MARKER_ID = "1"
-REF_POSE = "[0.12, -0.05, -0.2, 1.0, 0.0, 0.0, 0.0]"
+REF_POSE = "[0.12, -0.065, -0.2, 1.0, 0.0, 0.0, 0.0]"
 
 TAG_FAMILY = "tag36h11"
 TAG_IDS = "[0, 1]"

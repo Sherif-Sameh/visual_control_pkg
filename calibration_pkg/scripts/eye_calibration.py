@@ -22,7 +22,7 @@ from scipy.spatial.transform import Rotation as R
 from sensor_msgs.msg import CameraInfo, Image
 from std_msgs.msg import Empty, Header
 from tf2_ros import Buffer, TransformBroadcaster, TransformListener
-from torch import LongTensor, Tensor
+from torch import Tensor
 from torch.optim.lr_scheduler import CosineAnnealingLR, CosineAnnealingWarmRestarts
 from torchvision.utils import save_image
 from trajectory_msgs.msg import MultiDOFJointTrajectory, MultiDOFJointTrajectoryPoint
@@ -152,9 +152,7 @@ class EyeCalibration(Node):
             return
         # compute per-pose errors
         tvec_err, rot_err = [], []
-        for i, (pose_gt, tvec, rmat) in enumerate(
-            zip(self._poses_gt, self._poses[0], self._poses[1])
-        ):
+        for pose_gt, tvec, rmat in zip(self._poses_gt, self._poses[0], self._poses[1]):
             tvec_cam_eye, rot_cam_eye = self._apply_rot_offset(tvec, rmat)
             rot_cam_gt_eye = R.from_quat(pose_gt[3:])
             tvec_err.append(tvec_cam_eye - pose_gt[:3])
@@ -376,6 +374,7 @@ class EyeCalibration(Node):
         # load mesh from obj
         path = self.get_parameter("dr.mesh.path").value
         mesh = vc_kal.mesh.ObjMesh(path, with_materials=True, with_normals=True, n_rep=n_view)
+        mesh.mesh.vertices[..., -1] -= mesh.mesh.vertices[..., -1].amax()
         # ensure that vertex_features is not None
         n_face = mesh.mesh.vertices.shape[1]
         mesh.mesh.vertex_features = torch.zeros([n_view, n_face, 0])
@@ -492,14 +491,16 @@ class EyeCalibration(Node):
         """Run optimization for eye pose and texture parameters."""
         n_iter = self.get_parameter("dr.optim.n_iter.full").value
         n_iter_text = self.get_parameter("dr.optim.n_iter.text").value
-        # prepare target and cameras
-        center = torch.stack([self._get_centroid(sil) for sil in self._silhouette], dim=0)
-        center = center.float().mean(dim=0).long()
-        target = self._get_target(center)
-        self._cameras.x0 -= center[1] - self._size / 2
-        self._cameras.y0 -= center[0] - self._size / 2
-        # run silhouette-only optimization
-        self._optimize_silhouette(target)
+        # get target and initial renders
+        target = self._get_target()
+        initial = self._optim._renderer(
+            self._optim._mesh.mesh, cameras=self._cameras, R=self._poses[1], T=self._poses[0]
+        ).detach()
+        # run silhouette-only optimization and get intermediate renders
+        tvec, rmat = self._optimize_silhouette(target)
+        interm = self._optim._renderer(
+            self._optim._mesh.mesh, cameras=self._cameras, R=rmat, T=tvec
+        ).detach()
         # run main optimization
         tvec, rmat, texture = self._optim.optimize(
             target, n_iter=n_iter, n_iter_text=n_iter_text, cameras=self._cameras
@@ -509,7 +510,7 @@ class EyeCalibration(Node):
         final = self._optim._renderer(
             self._optim._mesh({}, texture=texture), cameras=self._cameras, R=rmat, T=tvec
         ).detach()
-        self._store_outputs(texture, final)
+        self._store_outputs(texture, initial, interm, final, target)
 
     def _optimize_silhouette(self, target: Tensor) -> None:
         """Run silhouette-only optimizer to reduce pose errors before main optimization."""
@@ -525,34 +526,42 @@ class EyeCalibration(Node):
             cls=CosineAnnealingLR, kwargs={"T_max": n_iter, "eta_min": 1e-6}
         )
         # run optimizer to update model's pose parameters
-        self._optim.optimize(target, n_iter=n_iter, n_iter_text=0, cameras=self._cameras)
+        tvec, rmat, _ = self._optim.optimize(
+            target, n_iter=n_iter, n_iter_text=0, cameras=self._cameras
+        )
         # reset optimizer back to its initial state
         self._optim = self._init_optim(optimizer=True)
+        return tvec, rmat
 
-    def _get_target(self, center: LongTensor) -> Tensor:
+    def _get_target(self) -> Tensor:
         """Get the target image from stored silhouette and RGB images."""
-        silhouette = self._crop_img(self._silhouette.unsqueeze(-1), center)
-        rgb = self._crop_img(self._rgb * self._silhouette.unsqueeze(-1), center)
+        silhouette = self._crop_img(self._silhouette.unsqueeze(-1))
+        rgb = self._crop_img(self._rgb * self._silhouette.unsqueeze(-1))
         return torch.cat([silhouette, rgb], dim=-1)
 
-    def _crop_img(self, img: Tensor, center: LongTensor) -> Tensor:
-        """Crop input image at the given center and size to prepare for rendering."""
+    def _crop_img(self, img: Tensor) -> Tensor:
+        """Crop input image at its center to prepare for rendering."""
         H, W = img.shape[-3:-1]
-        top = max(int(center[0] - self._size / 2), 0)
-        left = max(int(center[1] - self._size / 2), 0)
+        top = max(int((H - self._size) / 2), 0)
+        left = max(int((W - self._size) / 2), 0)
         right = min(left + self._size, W)
         bottom = min(top + self._size, H)
         return img[..., top:bottom, left:right, :]
 
-    def _store_outputs(self, texture: Tensor, final: Tensor) -> None:
-        """Store the output texture and final renders."""
+    def _store_outputs(
+        self, texture: Tensor, initial: Tensor, interm: Tensor, final: Tensor, target: Tensor
+    ) -> None:
+        """Store the output texture, renders and targets."""
         path = Path(self.get_parameter("output_path").value)
         n_view_sqrt = self.get_parameter("pose.n_view_sqrt").value
         path.mkdir(parents=True, exist_ok=True)
-        final = final.permute(0, 3, 1, 2)
         save_image(texture, f"{path}/texture.png")
-        save_image(final[:, 1:], f"{path}/final.png", nrow=n_view_sqrt)
-        self.get_logger().info(f"Outputs stored at {path}.")
+        args = (initial, interm, final, target)
+        labels = ("initial", "interm", "final", "target")
+        for arg, label in zip(args, labels):
+            arg = arg.permute(0, 3, 1, 2)
+            save_image(arg[:, 1:], f"{path}/{label}.png", nrow=n_view_sqrt, pad_value=1.0)
+        self.get_logger().info(f"Outputs stored at {path}")
 
     def _reset(self) -> None:
         """Reset all attributes that are initialized from callbacks."""
@@ -562,14 +571,6 @@ class EyeCalibration(Node):
         self._poses_gt = []
         self._pose_target = None
         self._pose_target_reached = False
-
-    @staticmethod
-    def _get_centroid(mask: Tensor) -> LongTensor | None:
-        """Compute the centroid (row, col) of a boolean segmentation (H, W) mask."""
-        indices = torch.nonzero(mask).float()
-        if indices.shape[0] == 0:
-            return None  # empty mask
-        return indices.mean(dim=0).long()
 
 
 def main(args=None):
