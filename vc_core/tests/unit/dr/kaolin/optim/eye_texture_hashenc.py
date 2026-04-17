@@ -79,6 +79,7 @@ def test_eye_pose_texture_optimizer(
     model = EyePoseTextureHashEncoderModel(
         T,
         R[:, :, -1],
+        text_ref=mesh.mesh.materials[0][0]["map_Kd"],
         n_view=n_view,
         scale=0.2,
         enc_cfg=HashEncoder2DCfg(finest_res=1024, n_level=10, log2_hashmap_size=16),

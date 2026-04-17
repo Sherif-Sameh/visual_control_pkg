@@ -51,19 +51,19 @@ def test_eye_pose_model(device: torch.device) -> None:
 @pytest.mark.parametrize("device", Devices)
 def test_eye_pose_texture_model(device: torch.device) -> None:
     # Create eye pose texture model
-    H, W = 256, 256
+    res = 256
     n_view = 3
     distance, elevation, azimuth = 1, 50, 30
     R, T = look_at_view_transform(distance, elevation, azimuth, device=device)
     text_init = torch.full((3,), 0.8, device=device)
-    model = EyePoseTextureModel(T[0], R[0, :, -1], (H, W), text_init, n_view=n_view)
+    model = EyePoseTextureModel(T[0], R[0, :, -1], res, text_init, n_view=n_view)
 
     # Test `forward()` method
     pos_m, rot_m, text_m = model()
     assert all([m.requires_grad for m in [pos_m, rot_m, text_m]])
     assert pos_m.shape == (n_view, 3)
     assert rot_m.shape == (n_view, 3, 3)
-    assert text_m.shape == (3, H, W)
+    assert text_m.shape == (3, res, res)
     assert torch.allclose(text_m, torch.sigmoid(text_init.view(3, 1, 1)))
 
 
@@ -71,13 +71,13 @@ def test_eye_pose_texture_model(device: torch.device) -> None:
 @pytest.mark.parametrize("device,mode", product(Devices, Modes))
 def test_eye_pose_texture_mipmap_model(device: torch.device, mode: str) -> None:
     # Create eye pose texture model
-    H, W = 256, 256
+    res = 256
     n_view, n_level = 3, 5
     distance, elevation, azimuth = 1, 50, 30
     R, T = look_at_view_transform(distance, elevation, azimuth, device=device)
     text_init = torch.full((3,), 0.8, device=device)
     model = EyePoseTextureMipmapModel(
-        T[0], R[0, :, -1], (H, W), text_init, n_view=n_view, n_level=n_level, mode=mode
+        T[0], R[0, :, -1], res, text_init, n_view=n_view, n_level=n_level, mode=mode
     )
 
     # Test `forward()` method
@@ -85,7 +85,7 @@ def test_eye_pose_texture_mipmap_model(device: torch.device, mode: str) -> None:
     assert all([m.requires_grad for m in [pos_m, rot_m, text_m]])
     assert pos_m.shape == (n_view, 3)
     assert rot_m.shape == (n_view, 3, 3)
-    assert text_m.shape == (3, H, W)
+    assert text_m.shape == (3, res, res)
     assert torch.allclose(text_m, torch.sigmoid(text_init.view(3, 1, 1)))
 
 

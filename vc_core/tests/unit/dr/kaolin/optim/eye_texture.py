@@ -77,7 +77,13 @@ def test_eye_pose_texture_optimizer(
     T = T + torch.tensor([0.05, -0.05, -0.1], device=device) * distance
     text_init = torch.zeros(3, device=device)
     model = EyePoseTextureModel(
-        T, R[:, :, -1], res=256, text_init=text_init, n_view=n_view, scale=0.2
+        T,
+        R[:, :, -1],
+        res=256,
+        text_init=text_init,
+        text_ref=mesh.mesh.materials[0][0]["map_Kd"],
+        n_view=n_view,
+        scale=0.2,
     )
     model = torch.compile(model.to(device=device))
     _, _, texture_init = model()
