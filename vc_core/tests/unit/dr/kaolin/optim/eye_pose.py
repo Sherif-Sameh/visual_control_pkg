@@ -125,7 +125,7 @@ def test_eye_pose_optimizer(
 
     # Create eye pose optimizer
     n_iter = 100
-    lr = 0.03
+    lr = 0.025
     optim = EyePoseOptimizer(
         mesh,
         model,

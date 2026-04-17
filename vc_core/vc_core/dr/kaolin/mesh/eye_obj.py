@@ -23,9 +23,9 @@ class EyeObjMesh(Mesh):
     Args:
         path: Path to the .obj file to load mesh from.
         elev_lim: Elevation limits (min, max) in degrees for filtering mesh vertices. Default value
-            is (-35, 35).
+            is (-30, 30).
         azim_lim: Azimuth limits (min, max) in degrees for filtering mesh vertices. Default value
-            is (-90, 90).
+            is (-75, 75).
         n_rep: Number of times to repeat the wrapped mesh. Default value is 1.
         kwargs: Other arguments to pass to the `kaolin.io.obj.import_mesh` function.
     """
@@ -34,8 +34,8 @@ class EyeObjMesh(Mesh):
         self,
         path: str | Path,
         *,
-        elev_lim: tuple[float, float] = (-35.0, 35.0),
-        azim_lim: tuple[float, float] = (-90.0, 90.0),
+        elev_lim: tuple[float, float] = (-30.0, 30.0),
+        azim_lim: tuple[float, float] = (-75.0, 75.0),
         n_rep: int = 1,
         **kwargs,
     ):
@@ -56,11 +56,22 @@ class EyeObjMesh(Mesh):
         x, y, z = torch.split(mesh.vertices, 1, dim=-1)
         elev = torch.rad2deg(torch.atan2(y, torch.sqrt(x**2 + z**2)))
         azim = torch.rad2deg(torch.atan2(x, z))
-        # filter vertices and vertex attributes according to spherical coordinates
+        # compute vertex mask according to spherical coordinates
+        elev_lim_pos = torch.where(
+            azim > 0,
+            elev_lim[1] * (1 - (azim / azim_lim[1]) ** 1.5),
+            elev_lim[1] * (1 - (azim / azim_lim[0]) ** 1.5),
+        )
+        elev_lim_neg = torch.where(
+            azim > 0,
+            elev_lim[0] * (1 - (azim / azim_lim[1]) ** 1.5),
+            elev_lim[0] * (1 - (azim / azim_lim[0]) ** 1.5),
+        )
         mask = torch.logical_and(
-            torch.logical_and(elev >= elev_lim[0], elev <= elev_lim[1]),
+            torch.logical_and(elev >= elev_lim_neg, elev <= elev_lim_pos),
             torch.logical_and(azim >= azim_lim[0], azim <= azim_lim[1]),
         ).squeeze()
+        # filter vertices and vertex attributes according to spherical coordinates
         vertices = mesh.vertices[mask]
         normals = mesh.normals[mask]
         uvs = mesh.uvs[mask]
