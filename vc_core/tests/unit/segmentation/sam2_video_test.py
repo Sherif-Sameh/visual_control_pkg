@@ -35,19 +35,26 @@ def test_sam2_video_points(device: torch.device) -> None:
     prompts_set = False
     segmented_frames = []
     while cap.isOpened():
-        ret, img = cap.read()
+        ret, img_np = cap.read()
         if not ret:
             break
-        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-        img = cv2.resize(img, (640, 480))
-        img = img[:480, :480]
+        img_np = cv2.cvtColor(img_np, cv2.COLOR_BGR2RGB)
+        img_np = cv2.resize(img_np, (640, 480))[:480, :480]
+        img = (
+            torch.from_numpy(img_np.transpose((2, 0, 1)))
+            .contiguous()
+            .float()
+            .to(device=device)
+            .div(255)
+        )
         if not prompts_set:
             model.sample_points(img)
         mask = model.segment(img, obj_ids, update_memory=not prompts_set)
         prompts_set = True
         mask = mask.cpu().numpy()
-        assert mask.shape == img.shape[:2]
-        out_img = blend_img_mask(img, mask, rgb=(30, 144, 255))
+        assert mask.shape == img.shape[1:]
+
+        out_img = blend_img_mask(img_np, mask, rgb=(30, 144, 255))
         out_img = cv2.cvtColor(out_img, cv2.COLOR_RGB2BGR)
         segmented_frames.append(out_img)
     cap.release()
@@ -80,19 +87,26 @@ def test_sam2_video_box(device: torch.device) -> None:
     prompts_set = False
     segmented_frames = []
     while cap.isOpened():
-        ret, img = cap.read()
+        ret, img_np = cap.read()
         if not ret:
             break
-        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-        img = cv2.resize(img, (640, 480))
-        img = img[:480, :480]
+        img_np = cv2.cvtColor(img_np, cv2.COLOR_BGR2RGB)
+        img_np = cv2.resize(img_np, (640, 480))[:480, :480]
+        img = (
+            torch.from_numpy(img_np.transpose((2, 0, 1)))
+            .contiguous()
+            .float()
+            .to(device=device)
+            .div(255)
+        )
         if not prompts_set:
             model.sample_box(img)
         mask = model.segment(img, obj_ids, update_memory=not prompts_set)
         prompts_set = True
         mask = mask.cpu().numpy()
-        assert mask.shape == img.shape[:2]
-        out_img = blend_img_mask(img, mask, rgb=(30, 144, 255))
+        assert mask.shape == img.shape[1:]
+
+        out_img = blend_img_mask(img_np, mask, rgb=(30, 144, 255))
         out_img = cv2.cvtColor(out_img, cv2.COLOR_RGB2BGR)
         segmented_frames.append(out_img)
     cap.release()

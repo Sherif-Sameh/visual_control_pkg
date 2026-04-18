@@ -274,11 +274,11 @@ class SAM2LiveVideo(SAM2):
         self._label_prompts = []
         self._box_prompt = None
 
-    def segment(self, img: NDArray, obj_ids: list[int], update_memory: bool = False) -> Tensor:
+    def segment(self, img: Tensor, obj_ids: list[int], update_memory: bool = False) -> Tensor:
         """Perform segmentation using collected prompts.
 
         Args:
-            img: Input RGB image. Expected to have shape (H, W, 3) and dtype of `np.uint8`.
+            img: Input RGB image. Expected to have shape (3, H, W) and dtype of `torch.float32`.
             obj_ids: Object IDs corresponding to the set prompts. Length must match that of the
                 point and box prompts.
             update_memory: Update the model's memory banks with the set prompts. Applicable only
@@ -288,9 +288,10 @@ class SAM2LiveVideo(SAM2):
             Segmentation mask returned by SAM2 model. Shape is (H, W).
         """
         # Run inference (slower pipeline for initialization)
+        img = img.to(dtype=self._dtype).unsqueeze(0)
         if update_memory:
             results = self._predictor(
-                source=cv2.cvtColor(img, cv2.COLOR_RGB2BGR),
+                source=img,
                 points=self._point_prompts if self._point_prompts else None,
                 labels=self._label_prompts if self._label_prompts else None,
                 bboxes=self._box_prompt if self._box_prompt is not None else None,
@@ -299,14 +300,6 @@ class SAM2LiveVideo(SAM2):
             )
             return results[0].masks.data[0]
 
-        # Convert input image to torch format
-        img = (
-            torch.from_numpy(img.transpose((2, 0, 1)))
-            .contiguous()
-            .to(dtype=self._dtype, device=self._device)
-            .div(255)
-            .unsqueeze(0)
-        )
         # Run inference and post-process masks
         masks, scores = self._predictor.inference(img)
         masks = scale_masks(masks[None].float(), img.shape[2:], padding=False)[0]
