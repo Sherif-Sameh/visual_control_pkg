@@ -59,6 +59,9 @@ class EyeCalibration(Node):
         self.declare_parameter("pose.range.elev", rclpy.Parameter.Type.DOUBLE_ARRAY)
         self.declare_parameter("pose.range.azim", rclpy.Parameter.Type.DOUBLE_ARRAY)
         self.declare_parameter("dr.mesh.path", rclpy.Parameter.Type.STRING)
+        self.declare_parameter("dr.mesh.scale", rclpy.Parameter.Type.DOUBLE)
+        self.declare_parameter("dr.mesh.elev_lim", rclpy.Parameter.Type.DOUBLE_ARRAY)
+        self.declare_parameter("dr.mesh.azim_lim", rclpy.Parameter.Type.DOUBLE_ARRAY)
         self.declare_parameter("dr.model.type", rclpy.Parameter.Type.STRING)
         self.declare_parameter("dr.model.res", rclpy.Parameter.Type.INTEGER)
         self.declare_parameter("dr.model.scale", rclpy.Parameter.Type.DOUBLE)
@@ -159,7 +162,7 @@ class EyeCalibration(Node):
             rot_err.append(rot_cam_gt_eye * rot_cam_eye.inv())
         # average pose errors
         tvec_err = np.abs(np.stack(tvec_err, axis=0)).mean(axis=0)
-        quat_err = R.concatenate(rot_err).mean().as_quat()
+        quat_err = R.from_euler("x", R.concatenate(rot_err).magnitude().mean()).as_quat()
 
         msg = PoseStamped()
         msg.header.stamp = self.get_clock().now().to_msg()
@@ -282,6 +285,7 @@ class EyeCalibration(Node):
                 "dr.shader.sigma",
                 "dr.shader.boxlen",
                 "dr.optim.loss.symmetry",
+                "dr.optim.loss.tan_norm",
                 "dr.optim.lr",
                 "dr.optim.sched.eta_min",
             ] and (param.type_ != ParamType.DOUBLE or param.value < 0):
@@ -333,12 +337,12 @@ class EyeCalibration(Node):
         """Initialize the DR-based eye pose and texture optimizer."""
         has_optim = hasattr(self, "_optim")
         mesh = (
-            self._init_optim_mesh(self._n_view)
+            self._init_optim_mesh()
             if not has_optim or kwargs.get("mesh", False)
             else self._optim._mesh
         )
         model = (
-            self._init_optim_model(self._n_view)
+            self._init_optim_model(mesh)
             if not has_optim or kwargs.get("model", False)
             else self._optim._model
         )
@@ -369,15 +373,21 @@ class EyeCalibration(Node):
             lr_sched_cfg=lr_sched_cfg,
         )
 
-    def _init_optim_mesh(self, n_view: int) -> vc_kal.mesh.ObjMesh:
+    def _init_optim_mesh(self) -> vc_kal.mesh.EyeObjMesh:
         """Intialize the obj mesh used by the optimizer."""
         # load mesh from obj
-        path = self.get_parameter("dr.mesh.path").value
-        mesh = vc_kal.mesh.ObjMesh(path, with_materials=True, with_normals=True, n_rep=n_view)
+        mesh_params = {k: v.value for k, v in self.get_parameters_by_prefix("dr.mesh").items()}
+        mesh = vc_kal.mesh.EyeObjMesh(
+            mesh_params["path"],
+            n_rep=self._n_view,
+            elev_lim=mesh_params["elev_lim"],
+            azim_lim=mesh_params["azim_lim"],
+        )
+        mesh.mesh.vertices *= mesh_params["scale"]
         mesh.mesh.vertices[..., -1] -= mesh.mesh.vertices[..., -1].amax()
         # ensure that vertex_features is not None
         n_face = mesh.mesh.vertices.shape[1]
-        mesh.mesh.vertex_features = torch.zeros([n_view, n_face, 0])
+        mesh.mesh.vertex_features = torch.zeros([self._n_view, n_face, 0])
         # update UVs and texture to Kaolin conventions
         mesh.mesh.face_uvs = 1 - mesh.mesh.face_uvs
         mesh.mesh.materials[0][0]["map_Kd"] = (
@@ -385,7 +395,7 @@ class EyeCalibration(Node):
         )
         return mesh.to(device=self._device)
 
-    def _init_optim_model(self, n_view: int) -> common.model.EyePoseTextureModel:
+    def _init_optim_model(self, mesh: vc_kal.mesh.EyeObjMesh) -> common.model.EyePoseTextureModel:
         """Initialize the eye pose and texture model used by the optimizer."""
         model_params = {k: v.value for k, v in self.get_parameters_by_prefix("dr.model").items()}
         model_type = model_params["type"]
@@ -394,7 +404,7 @@ class EyeCalibration(Node):
             "pos": self._poses[0],
             "z_dir": self._poses[1][..., -1],
             "res": model_params["res"],
-            "n_view": n_view,
+            "text_ref": mesh.mesh.materials[0][0]["map_Kd"],
             "scale": model_params["scale"],
         }
         match model_type:

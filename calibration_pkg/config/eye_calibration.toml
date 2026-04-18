@@ -3,7 +3,7 @@
 [calibration]
 
 # Reference pose parameters
-"ref.pose.tol" = [0.01, 0.05]
+"ref.pose.tol" = [0.005, 0.025]
 
 # SAM2 parameters
 "sam.variant" = "sam2.1-hiera-small"
@@ -11,16 +11,21 @@
 "sam.prompt.n_neg" = 2
 
 # Target pose parameters
-"pose.n_view_sqrt" = 2
+"pose.n_view_sqrt" = 3
 "pose.dist" = 0.3
-"pose.range.elev" = [15.0, -5.0] 
-"pose.range.azim" = [5.0, -10.0]
+"pose.range.elev" = [20.0, -10.0] 
+"pose.range.azim" = [2.5, -10.0]
+
+# Mesh parameters
+"dr.mesh.scale" = 1.0
+"dr.mesh.elev_lim" = [-30.0, 25.0]
+"dr.mesh.azim_lim" = [-90.0, 90.0]
 
 # Model parameters
 "dr.model.res" = 512
 "dr.model.scale" = 0.05
 "dr.model.n_level" = 5
-"dr.model.log2_hsz" = 14
+"dr.model.log2_hsz" = 16
 "dr.model.mlp_n_layer" = 0
 
 # Shader parameters
@@ -40,7 +45,7 @@
 "dr.optim.lr" = 2e-2
 "dr.optim.sched.T_0" = 150
 "dr.optim.sched.T_mult" = 1
-"dr.optim.sched.eta_min" = 5e-5
+"dr.optim.sched.eta_min" = 3e-4
 "dr.optim.n_iter.init" = 100
 "dr.optim.n_iter.text" = 20
 "dr.optim.n_iter.full" = 300
@@ -54,7 +59,7 @@
 
 [overrides-mipmap]
 "dr.model.res" = 512
-"dr.optim.loss.symmetry" = 2e-2
+"dr.optim.loss.symmetry" = 1e-1
 "dr.optim.lr" = 2.5e-2
 
 [overrides-hashenc]
