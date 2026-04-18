@@ -9,7 +9,7 @@ target_nodes = ["eye_calibration"]
 # Console logger parameters
 "console.n_log" = 5
 "console.n_flush" = 5
-"console.filter" = ["JT", "PE"]
+"console.filter" = ["PE"]
 "console.config.precision" = 3
 "console.config.separator" = "  "
 "console.config.sign" = "+"
@@ -17,12 +17,12 @@ target_nodes = ["eye_calibration"]
 # CSV logger parameters
 "csv.n_log" = 1
 "csv.n_flush" = 100
-"csv.filter" = [""]
+"csv.filter" = ["PE"]
 
 # WandB logger parameters
 "wandb.n_log" = 1
 "wandb.n_flush" = 40
-"wandb.filter" = ["JS", "PE"]
+"wandb.filter" = ["PE"]
 "wandb.config.entity" = "u1999168-girona"
 "wandb.config.project" = "visual_control|eyecalib"
 "wandb.config.params" = [
@@ -35,6 +35,9 @@ target_nodes = ["eye_calibration"]
     "eye_calibration-pose.dist",
     "eye_calibration-pose.range.elev",
     "eye_calibration-pose.range.azim",
+    "eye_calibration-dr.mesh.scale",
+    "eye_calibration-dr.mesh.elev_lim",
+    "eye_calibration-dr.mesh.azim_lim",
     "eye_calibration-dr.model.type",
     "eye_calibration-dr.model.res",
     "eye_calibration-dr.model.scale",

@@ -89,7 +89,7 @@ class ROSLogger(Node):
             rclpy.shutdown()
         self._metrics: dict[str, list[float | ComposeMetric]] = dict()
         self._loggers: ComposeLogger | None = None
-        self._start_time = None
+        self._start_time = self.get_clock().now().nanoseconds * 1e-9
 
         # Initialize ROS attributes
         self._sub_js = self.create_subscription(JointState, "/joint_states", self.callback_js, 10)

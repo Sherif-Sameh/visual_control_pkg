@@ -67,7 +67,7 @@ class ROSSweeper(Node):
         self._metrics_nan = [True, True]
         self._wandb: WandBLogger | None = None
         self._wandb_kwargs: dict[str, Any] = {}
-        self._start_time = None
+        self._start_time = self.get_clock().now().nanoseconds * 1e-9
         assert len(self._obj_flags) == len(self._obj_weights)
 
         # Initialize ROS attributes
