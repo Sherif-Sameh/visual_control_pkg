@@ -384,14 +384,16 @@ class EyeCalibration(Node):
             azim_lim=mesh_params["azim_lim"],
         )
         mesh.mesh.vertices *= mesh_params["scale"]
-        mesh.mesh.vertices[..., -1] -= mesh.mesh.vertices[..., -1].amax()
+        self._mesh_offset = torch.tensor(
+            [0.0, 0.0, mesh.mesh.vertices[..., -1].amax()], device=self._device
+        )
         # ensure that vertex_features is not None
         n_face = mesh.mesh.vertices.shape[1]
         mesh.mesh.vertex_features = torch.zeros([self._n_view, n_face, 0])
         # update UVs and texture to Kaolin conventions
         mesh.mesh.face_uvs = 1 - mesh.mesh.face_uvs
         mesh.mesh.materials[0][0]["map_Kd"] = (
-            mesh.mesh.materials[0][0]["map_Kd"].float().permute(2, 0, 1) / 255.0
+            mesh.mesh.materials[0][0]["map_Kd"].permute(2, 0, 1).contiguous().float().div(255)
         )
         return mesh.to(device=self._device)
 
@@ -424,7 +426,7 @@ class EyeCalibration(Node):
                 model = common.model.EyePoseTextureHashEncoderModel(
                     enc_cfg=enc_cfg, mlp_n_layer=model_params["mlp_n_layer"], **kwargs
                 )
-        return model.to(device=self._device)
+        return torch.compile(model.to(device=self._device))
 
     def _init_optim_renderer(self) -> vc_kal.render.MeshRenderer:
         """Initialize the renderer used by the optimizer."""
@@ -515,6 +517,7 @@ class EyeCalibration(Node):
         tvec, rmat, texture = self._optim.optimize(
             target, n_iter=n_iter, n_iter_text=n_iter_text, cameras=self._cameras
         )
+        tvec = tvec + rmat @ self._mesh_offset
         self._poses = (tvec, rmat)
         # render final output with texture and poses
         final = self._optim._renderer(
