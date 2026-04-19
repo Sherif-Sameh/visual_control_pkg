@@ -1,0 +1,51 @@
+### Eye Detector ROS Logger Configuration ###
+
+[logger]
+
+# General parameters
+timer_period = 0.1
+target_nodes = ["eye_detector"]
+
+# Console logger parameters
+"console.n_log" = 5
+"console.n_flush" = 5
+"console.filter" = ["PE"]
+"console.config.precision" = 3
+"console.config.separator" = "  "
+"console.config.sign" = "+"
+
+# CSV logger parameters
+"csv.n_log" = 1
+"csv.n_flush" = 100
+"csv.filter" = ["PE"]
+
+# WandB logger parameters
+"wandb.n_log" = 1
+"wandb.n_flush" = 40
+"wandb.filter" = ["PE"]
+"wandb.config.entity" = "u1999168-girona"
+"wandb.config.project" = "visual_control|eyedtc"
+"wandb.config.params" = [
+    "eye_detector-ref.dist",
+    "eye_detector-ref.pose",
+    "eye_detector-sam.variant",
+    "eye_detector-sam.prompt.n_pos",
+    "eye_detector-dr.mesh.scale",
+    "eye_detector-dr.mesh.elev_lim",
+    "eye_detector-dr.mesh.azim_lim",
+    "eye_detector-dr.model.n_rep",
+    "eye_detector-dr.model.pos",
+    "eye_detector-dr.model.tan",
+    "eye_detector-dr.model.scale",
+    "eye_detector-dr.shader.sigma",
+    "eye_detector-dr.shader.boxlen",
+    "eye_detector-dr.shader.knum",
+    "eye_detector-dr.raster.size",
+    "eye_detector-dr.raster.backend",
+    "eye_detector-dr.optim.loss",
+    "eye_detector-dr.optim.loss.weights",
+    "eye_detector-dr.optim.loss.tan_norm",
+    "eye_detector-dr.optim.lr",
+    "eye_detector-dr.optim.sched.eta_min",
+    "eye_detector-dr.optim.n_iter",
+]

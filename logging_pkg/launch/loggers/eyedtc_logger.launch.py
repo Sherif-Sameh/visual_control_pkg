@@ -1,7 +1,11 @@
-from launch import LaunchContext, LaunchDescription
-from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription, OpaqueFunction
-from launch.launch_description_sources import PythonLaunchDescriptionSource
+import os
+
+import toml
+from ament_index_python.packages import get_package_share_directory
+from launch import LaunchDescription
+from launch.actions import DeclareLaunchArgument
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
+from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
 
 
@@ -49,20 +53,12 @@ def declare_arguments() -> list[DeclareLaunchArgument]:
     declared_arguments.append(
         DeclareLaunchArgument(
             "wandb_group",
-            default_value="group",
-            description="Group name for run to use for WandB logger. Default value group.",
+            default_value="EyeDtc|ideal",
+            description="Group name for run to use for WandB logger. Default is EyeDtc|ideal.",
         )
     )
 
     # General arguments
-    declared_arguments.append(
-        DeclareLaunchArgument(
-            "logger",
-            default_value="",
-            description="Logger to launch. Default value '' is (empty string).",
-            choices=["pbvs", "ibvs", "hecalib", "heeval", "tcpcalib_p3d", "eyecalib", "eyedtc", ""],
-        )
-    )
     declared_arguments.append(
         DeclareLaunchArgument(
             "joint_states_topic_name",
@@ -105,48 +101,20 @@ def declare_arguments() -> list[DeclareLaunchArgument]:
     return declared_arguments
 
 
-def launch_setup(context: LaunchContext) -> list[IncludeLaunchDescription]:
-    logger = LaunchConfiguration("logger").perform(context)
-    # Launch chosen logger
-    match logger:
-        case "pbvs":
-            return [_include_ros_logger("pbvs")]
-        case "ibvs":
-            return [_include_ros_logger("ibvs")]
-        case "hecalib":
-            return [_include_ros_logger("hecalib")]
-        case "heeval":
-            return [_include_ros_logger("heeval")]
-        case "tcpcalib_p3d":
-            return [_include_ros_logger("tcpcalib_p3d")]
-        case "eyecalib":
-            return [_include_ros_logger("eyecalib")]
-        case "eyedtc":
-            return [_include_ros_logger("eyedtc")]
-        case _:
-            return []
-
-
 def generate_launch_description() -> LaunchDescription:
     # Declare arguments
     declared_arguments = declare_arguments()
 
-    # Add opaque functions
-    opaque_functions = [OpaqueFunction(function=launch_setup)]
-    return LaunchDescription(declared_arguments + opaque_functions)
-
-
-##
-# Private functions
-##
-
-
-def _include_ros_logger(label: str) -> IncludeLaunchDescription:
+    # Initialize Arguments
     n_runs = LaunchConfiguration("n_runs")
     smooth = LaunchConfiguration("smooth")
     console = LaunchConfiguration("console")
     csv = LaunchConfiguration("csv")
     wandb = LaunchConfiguration("wandb")
+    csv_dir = PathJoinSubstitution([FindPackageShare("logging_pkg"), "../../../../logs/csv/eyedtc"])
+    wandb_dir = PathJoinSubstitution(
+        [FindPackageShare("logging_pkg"), "../../../../logs/wandb/eyedtc"]
+    )
     wandb_group = LaunchConfiguration("wandb_group")
 
     joint_states_topic_name = LaunchConfiguration("joint_states_topic_name")
@@ -155,23 +123,37 @@ def _include_ros_logger(label: str) -> IncludeLaunchDescription:
     setpoint_error_topic_name = LaunchConfiguration("setpoint_error_topic_name")
     restart_topic_name = LaunchConfiguration("restart_topic_name")
 
-    return IncludeLaunchDescription(
-        PythonLaunchDescriptionSource(
-            PathJoinSubstitution(
-                [FindPackageShare("logging_pkg"), "launch", "loggers", f"{label}_logger.launch.py"]
-            )
-        ),
-        launch_arguments={
-            "n_runs": n_runs,
-            "smooth": smooth,
-            "console": console,
-            "csv": csv,
-            "wandb": wandb,
-            "wandb_group": wandb_group,
-            "joint_states_topic_name": joint_states_topic_name,
-            "joint_trajectory_topic_name": joint_trajectory_topic_name,
-            "pose_error_topic_name": pose_error_topic_name,
-            "setpoint_error_topic_name": setpoint_error_topic_name,
-            "restart_topic_name": restart_topic_name,
-        }.items(),
+    # Load configuration from toml
+    pkg_share = get_package_share_directory("logging_pkg")
+    config_path = os.path.join(pkg_share, "config", "eyedtc_logger.toml")
+    config = toml.load(config_path)
+
+    # Initialize nodes to start
+    eyedtc_logger_node = Node(
+        package="logging_pkg",
+        executable="ros_logger.py",
+        output="screen",
+        parameters=[
+            {
+                "n_runs": n_runs,
+                "smooth": smooth,
+                "log.console": console,
+                "log.csv": csv,
+                "log.wandb": wandb,
+                "csv.dir": csv_dir,
+                "wandb.config.group": wandb_group,
+                "wandb.config.dir": wandb_dir,
+                **config["logger"],
+            }
+        ],
+        remappings=[
+            ("/joint_states", joint_states_topic_name),
+            ("/joint_trajectory", joint_trajectory_topic_name),
+            ("/pose_error", pose_error_topic_name),
+            ("/setpoint_error", setpoint_error_topic_name),
+            ("/ros_logger/restart", restart_topic_name),
+        ],
     )
+
+    nodes_to_start = [eyedtc_logger_node]
+    return LaunchDescription(declared_arguments + nodes_to_start)
