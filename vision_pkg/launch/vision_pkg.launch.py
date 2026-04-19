@@ -78,13 +78,44 @@ def declare_arguments() -> list[DeclareLaunchArgument]:
         )
     )
 
+    # Eye detector arguments
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "marker_frame",
+            default_value="tag36h11:0",
+            description="Name of the reference marker frame for eye detector. Default value is tag36h11:0.",
+        )
+    )
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "eye_gt_frame",
+            default_value="eye_left",
+            description="Name of the ground truth target eye frame. Default value is eye_left.",
+        )
+    )
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "ref_pose",
+            default_value="[0.075, 0.025, 0.15, 1.0, 0.0, 0.0, 0.0]",
+            description="Estimate of the eye pose wrt to the reference marker."
+            " Default value is [0.075, 0.025, 0.15, 1.0, 0.0, 0.0, 0.0]",
+        )
+    )
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "dr_backend",
+            default_value="cuda",
+            description="Kaolin differentiable rendering backend. Default value is cuda.",
+            choices=["cuda", "nvdiffrast"],
+        )
+    )
+
     # General arguments
     declared_arguments.append(
         DeclareLaunchArgument(
             "detector",
             default_value="apriltag",
-            description="Name of detector node to launch. Default value is apriltag.",
-            choices=["apriltag", "charuco", ""],
+            description="Comma separated string of detector nodes to launch. Default value is apriltag.",
         )
     )
     declared_arguments.append(
@@ -101,19 +132,36 @@ def declare_arguments() -> list[DeclareLaunchArgument]:
             description="Camera info (sensor_msgs/CameraInfo) topic name to use for detector.",
         )
     )
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "pose_topic_name",
+            default_value="/eye_detector/pose_pred",
+            description="Eye pose predictions (geometry_msgs/PoseStamped) topic name."
+            " Default is /eye_detector/pose_pred.",
+        )
+    )
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "restart_topic_name",
+            default_value="/eye_detector/restart",
+            description="Restart (std_msgs/Empty) topic name. Default is /eye_detector/restart.",
+        )
+    )
     return declared_arguments
 
 
 def launch_setup(context: LaunchContext) -> list[IncludeLaunchDescription]:
     detector = LaunchConfiguration("detector").perform(context)
-    # Launch chosen detector
-    match detector:
-        case "apriltag":
-            return [_include_apriltag_detector()]
-        case "charuco":
-            return [_include_charuco_detector()]
-        case _:
-            return []
+    detector = detector.replace(" ", "").split(",")
+    launch = []
+    # Launch chosen detectors
+    if "apriltag" in detector:
+        launch.append(_include_apriltag_detector())
+    if "charuco" in detector:
+        launch.append(_include_charuco_detector())
+    if "eye" in detector:
+        launch.append(_include_eye_detector())
+    return launch
 
 
 def generate_launch_description() -> LaunchDescription:
@@ -167,8 +215,8 @@ def _include_charuco_detector() -> IncludeLaunchDescription:
     board_sq_len = LaunchConfiguration("board_sq_len")
     board_mk_len = LaunchConfiguration("board_mk_len")
 
-    camera_info_topic_name = LaunchConfiguration("camera_info_topic_name")
     image_topic_name = LaunchConfiguration("image_topic_name")
+    camera_info_topic_name = LaunchConfiguration("camera_info_topic_name")
 
     return IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
@@ -190,5 +238,35 @@ def _include_charuco_detector() -> IncludeLaunchDescription:
             "board_mk_len": board_mk_len,
             "image_topic_name": image_topic_name,
             "camera_info_topic_name": camera_info_topic_name,
+        }.items(),
+    )
+
+
+def _include_eye_detector() -> IncludeLaunchDescription:
+    marker_frame = LaunchConfiguration("marker_frame")
+    eye_gt_frame = LaunchConfiguration("eye_gt_frame")
+    ref_pose = LaunchConfiguration("ref_pose")
+    dr_backend = LaunchConfiguration("dr_backend")
+
+    image_topic_name = LaunchConfiguration("image_topic_name")
+    camera_info_topic_name = LaunchConfiguration("camera_info_topic_name")
+    pose_topic_name = LaunchConfiguration("pose_topic_name")
+    restart_topic_name = LaunchConfiguration("restart_topic_name")
+
+    return IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(
+            PathJoinSubstitution(
+                [FindPackageShare("vision_pkg"), "launch", "detectors", "eye_detector.launch.py"]
+            )
+        ),
+        launch_arguments={
+            "marker_frame": marker_frame,
+            "eye_gt_frame": eye_gt_frame,
+            "ref_pose": ref_pose,
+            "dr_backend": dr_backend,
+            "image_topic_name": image_topic_name,
+            "camera_info_topic_name": camera_info_topic_name,
+            "pose_topic_name": pose_topic_name,
+            "restart_topic_name": restart_topic_name,
         }.items(),
     )

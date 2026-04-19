@@ -38,7 +38,7 @@ def declare_arguments() -> list[DeclareLaunchArgument]:
     )
     declared_arguments.append(
         DeclareLaunchArgument(
-            "backend",
+            "dr_backend",
             default_value="cuda",
             description="Kaolin differentiable rendering backend. Default value is cuda.",
             choices=["cuda", "nvdiffrast"],
@@ -83,7 +83,7 @@ def launch_setup(context: LaunchContext) -> list[Node]:
     marker_frame = LaunchConfiguration("marker_frame")
     eye_gt_frame = LaunchConfiguration("eye_gt_frame")
     ref_pose = LaunchConfiguration("ref_pose")
-    backend = LaunchConfiguration("backend")
+    backend = LaunchConfiguration("dr_backend")
     mesh_path = PathJoinSubstitution(
         [FindPackageShare("vision_pkg"), "../../../../logs/eye/eye.obj"]
     )
