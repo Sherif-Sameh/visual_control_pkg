@@ -1,0 +1,70 @@
+### Eye Detector ROS Sweep Configuration ###
+
+# Launch script parameters  
+[launch]
+
+# General parameters
+timer_period = 0.1
+n_runs_per_set = 1
+target_nodes = ["eye_detector"]
+
+# Objective function parameters
+"obj.flags" = [
+    "jnt_vel",
+    "pos",
+    "rot",
+    "pose",
+]
+"obj.weights" = [
+    0.0,
+    0.0,
+    0.0,
+    1.0,
+]
+
+# WandB logger parameters
+"wandb.n_log" = 1
+"wandb.n_flush" = 40
+"wandb.config.entity" = "u1999168-girona"
+"wandb.config.project" = "visual_control|eyedtc_sweeps"
+"wandb.config.params" = [
+    "eye_detector-ref.dist",
+    "eye_detector-ref.pose",
+    "eye_detector-sam.variant",
+    "eye_detector-sam.prompt.n_pos",
+    "eye_detector-dr.mesh.scale",
+    "eye_detector-dr.mesh.elev_lim",
+    "eye_detector-dr.mesh.azim_lim",
+    "eye_detector-dr.model.n_rep",
+    "eye_detector-dr.model.pos",
+    "eye_detector-dr.model.tan",
+    "eye_detector-dr.shader.knum",
+    "eye_detector-dr.raster.size",
+    "eye_detector-dr.raster.backend",
+    "eye_detector-dr.optim.loss.weights",
+    "eye_detector-dr.optim.n_iter",
+]
+
+
+# Sweep hyperparameters
+[sweep]
+program = "scripts/sweepers/ros_sweeper.py"
+method = "bayes"
+
+[sweep.metric]
+name = "objective"
+goal = "minimize"
+
+[sweep.parameters]
+"eye_detector-dr.model.scale" = { min = 0.025, max = 0.5 }
+"eye_detector-dr.shader.sigma" = { distribution = "log_uniform_values", min = 1e-6, max = 1e-4 }
+"eye_detector-dr.shader.boxlen" = { distribution = "log_uniform_values", min = 5e-3, max = 5e-2 }
+"eye_detector-dr.optim.loss.tan_norm" = { distribution = "log_uniform_values", min = 5e-4, max = 1e-3 }
+"eye_detector-dr.optim.lr" = { distribution = "log_uniform_values", min = 5e-3, max = 0.1 }
+"eye_detector-dr.optim.sched.eta_min" = { distribution = "log_uniform_values", min = 1e-6, max = 1e-4 }
+[sweep.parameters."eye_detector-dr.optim.loss"]
+values = [
+    ["mse_loss", "mse_loss"],
+    ["l1_loss", "l1_loss"],
+    ["dice_loss", "mncc_loss"],
+]
