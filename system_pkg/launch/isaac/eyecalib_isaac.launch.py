@@ -76,6 +76,14 @@ def declare_arguments() -> list[DeclareLaunchArgument]:
             choices=["simple", "mipmap", "hashenc"],
         )
     )
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "dr_backend",
+            default_value="cuda",
+            description="Kaolin differentiable rendering backend. Default value is cuda.",
+            choices=["cuda", "nvdiffrast"],
+        )
+    )
 
     # State estimation package arguments
     declared_arguments.append(
@@ -272,6 +280,7 @@ def _launch_control_pkg() -> IncludeLaunchDescription:
 def _launch_calibration_pkg() -> IncludeLaunchDescription:
     calibration = LaunchConfiguration("calibration")
     model = LaunchConfiguration("model")
+    dr_backend = LaunchConfiguration("dr_backend")
 
     return IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
@@ -286,6 +295,7 @@ def _launch_calibration_pkg() -> IncludeLaunchDescription:
             "marker_id": MARKER_ID,
             "ref_pose": REF_POSE,
             "model": model,
+            "dr_backend": dr_backend,
             "calibration": calibration,
             "image_topic_name": IMAGE_TOPIC_NAME,
             "camera_info_topic_name": CAMERA_INFO_TOPIC_NAME,

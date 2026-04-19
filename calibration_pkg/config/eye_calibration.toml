@@ -35,7 +35,6 @@
 
 # Rasterization parameters
 "dr.raster.size" = 256
-"dr.raster.backend" = "cuda"
 
 # Optimizer parameters
 "dr.optim.loss" = ["l1_loss", "l1_loss"]
@@ -51,18 +50,39 @@
 "dr.optim.n_iter.full" = 300
 
 
-# Model-type-specific overrides
-[overrides-simple]
+# Model-type and backend specific overrides
+[overrides-simple-cuda]
 "dr.model.res" = 256
 "dr.optim.loss.symmetry" = 0.1
 "dr.optim.lr" = 5e-2
 
-[overrides-mipmap]
+
+[overrides-simple-nvdiffrast]
+"dr.model.res" = 256
+"dr.optim.loss.symmetry" = 0.1
+"dr.optim.lr" = 5e-2
+
+
+[overrides-mipmap-cuda]
 "dr.model.res" = 512
 "dr.optim.loss.symmetry" = 1e-1
 "dr.optim.lr" = 2.5e-2
 
-[overrides-hashenc]
+
+[overrides-mipmap-nvdiffrast]
+"dr.model.res" = 512
+"dr.optim.loss.symmetry" = 1e-1
+"dr.optim.lr" = 2.5e-2
+
+
+[overrides-hashenc-cuda]
+"dr.model.res" = 512
+"dr.model.n_level" = 16
+"dr.optim.loss.symmetry" = 5e-2
+"dr.optim.lr" = 1e-2
+
+
+[overrides-hashenc-nvdiffrast]
 "dr.model.res" = 512
 "dr.model.n_level" = 16
 "dr.optim.loss.symmetry" = 5e-2

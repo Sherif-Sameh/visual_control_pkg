@@ -106,6 +106,14 @@ def declare_arguments() -> list[DeclareLaunchArgument]:
             choices=["simple", "mipmap", "hashenc"],
         )
     )
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "dr_backend",
+            default_value="cuda",
+            description="Kaolin differentiable rendering backend. Default value is cuda.",
+            choices=["cuda", "nvdiffrast"],
+        )
+    )
 
     # General arguments
     declared_arguments.append(
@@ -281,6 +289,7 @@ def _include_eye_calibration() -> IncludeLaunchDescription:
     marker_id = LaunchConfiguration("marker_id")
     ref_pose = LaunchConfiguration("ref_pose")
     model = LaunchConfiguration("model")
+    dr_backend = LaunchConfiguration("dr_backend")
 
     image_topic_name = LaunchConfiguration("image_topic_name")
     camera_info_topic_name = LaunchConfiguration("camera_info_topic_name")
@@ -299,6 +308,7 @@ def _include_eye_calibration() -> IncludeLaunchDescription:
             "marker_id": marker_id,
             "ref_pose": ref_pose,
             "model": model,
+            "dr_backend": dr_backend,
             "image_topic_name": image_topic_name,
             "camera_info_topic_name": camera_info_topic_name,
             "restart_topic_name": restart_topic_name,

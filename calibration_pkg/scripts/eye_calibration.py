@@ -291,9 +291,6 @@ class EyeCalibration(Node):
             ] and (param.type_ != ParamType.DOUBLE or param.value < 0):
                 failed(f"{param.name} must be double >= 0.")
                 break
-            if param.name == "dr.raster.backend" and param.type_ != ParamType.STRING:
-                failed("dr.raster.backend must be a string.")
-                break
             if param.name == "dr.optim.loss" and param.type_ != ParamType.STRING_ARRAY:
                 failed("dr.optim.loss must be string array.")
                 break

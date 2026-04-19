@@ -59,6 +59,14 @@ def declare_arguments() -> list[DeclareLaunchArgument]:
             choices=["simple", "mipmap", "hashenc"],
         )
     )
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "dr_backend",
+            default_value="cuda",
+            description="Kaolin differentiable rendering backend. Default value is cuda.",
+            choices=["cuda", "nvdiffrast"],
+        )
+    )
 
     # General arguments
     declared_arguments.append(
@@ -93,6 +101,7 @@ def launch_setup(context: LaunchContext) -> list[Node]:
     marker_id = LaunchConfiguration("marker_id")
     ref_pose = LaunchConfiguration("ref_pose")
     model = LaunchConfiguration("model")
+    backend = LaunchConfiguration("dr_backend")
     output_path = PathJoinSubstitution(
         [FindPackageShare("calibration_pkg"), "../../../../logs/output"]
     )
@@ -108,7 +117,7 @@ def launch_setup(context: LaunchContext) -> list[Node]:
     pkg_share = get_package_share_directory("calibration_pkg")
     config_path = os.path.join(pkg_share, "config", "eye_calibration.toml")
     config = toml.load(config_path)
-    params = _load_params_with_overrides(config, model.perform(context))
+    params = _load_params_with_overrides(config, model.perform(context), backend.perform(context))
 
     # Initialize eye calibration node
     return [
@@ -126,6 +135,7 @@ def launch_setup(context: LaunchContext) -> list[Node]:
                     "ref.pose": ref_pose,
                     "dr.mesh.path": mesh_path,
                     "dr.model.type": model,
+                    "dr.raster.backend": backend,
                     **params,
                 }
             ],
@@ -153,7 +163,7 @@ def generate_launch_description() -> LaunchDescription:
 ##
 
 
-def _load_params_with_overrides(config: dict[str, Any], model: str) -> dict[str, Any]:
-    overrides = config[f"overrides-{model}"]
+def _load_params_with_overrides(config: dict[str, Any], model: str, backend: str) -> dict[str, Any]:
+    overrides = config[f"overrides-{model}-{backend}"]
     params = config["calibration"] | overrides
     return params
