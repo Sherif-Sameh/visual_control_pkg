@@ -1,0 +1,58 @@
+### Eye Detector Configuration ###
+
+[detector]
+
+# Reference pose parameters
+"ref.dist" = 0.5
+
+# SAM2 parameters
+"sam.variant" = "sam2.1-hiera-small"
+"sam.prompt.n_pos" = 3
+
+# Mesh parameters
+"dr.mesh.scale" = 1.0
+"dr.mesh.elev_lim" = [-30.0, 25.0]
+"dr.mesh.azim_lim" = [-90.0, 90.0]
+
+# Model parameters
+"dr.model.n_rep" = 4
+"dr.model.pos" = [0.005, 0.005, 0.05]
+"dr.model.tan" = [0.05, 0.05]
+"dr.model.scale" = 0.05
+
+# Shader parameters
+"dr.shader.sigma" = 3e-5
+"dr.shader.boxlen" = 1e-2
+"dr.shader.knum" = 10
+
+# Rasterization parameters
+"dr.raster.size" = 256
+
+# Optimizer parameters
+"dr.optim.loss" = ["l1_loss", "l1_loss"]
+"dr.optim.loss.weights" = [0.5, 0.5]
+"dr.optim.loss.tan_norm" = 5e-4
+"dr.optim.lr" = 2e-2
+"dr.optim.sched.eta_min" = 3e-4
+"dr.optim.n_iter" = 20
+
+
+# Backend-type-specific overrides
+[overrides-cuda]
+"dr.model.scale" = 0.05
+"dr.shader.sigma" = 3e-5
+"dr.shader.boxlen" = 1e-2
+"dr.optim.loss" = ["l1_loss", "l1_loss"]
+"dr.optim.loss.tan_norm" = 5e-4
+"dr.optim.lr" = 5e-2
+"dr.optim.sched.eta_min" = 3e-4
+
+
+[overrides-nvdiffrast]
+"dr.model.scale" = 0.05
+"dr.shader.sigma" = 3e-5
+"dr.shader.boxlen" = 1e-2
+"dr.optim.loss" = ["l1_loss", "l1_loss"]
+"dr.optim.loss.tan_norm" = 5e-4
+"dr.optim.lr" = 5e-2
+"dr.optim.sched.eta_min" = 3e-4

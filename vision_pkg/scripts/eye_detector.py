@@ -22,7 +22,7 @@ from std_msgs.msg import Empty, Header
 from tf2_ros import Buffer, TransformBroadcaster, TransformListener
 from torch import LongTensor, Tensor
 from torch.optim.lr_scheduler import CosineAnnealingLR
-from torchvision.io import decode_image
+from torchvision.io import read_image
 
 import vc_core.dr.common as common
 import vc_core.dr.kaolin as vc_kal
@@ -69,7 +69,7 @@ class EyeDetector(Node):
         self.declare_parameter("dr.optim.n_iter", rclpy.Parameter.Type.INTEGER)
 
         # Initialize non-ROS class attributes
-        ref_pose = self.get_parameter("ref.pose")
+        ref_pose = self.get_parameter("ref.pose").value
         if not torch.cuda.is_available():
             self.get_logger().warn("CUDA is not available. Kaolin cannot run on CPU.")
             rclpy.try_shutdown()
@@ -370,7 +370,7 @@ class EyeDetector(Node):
         # update UVs and texture to Kaolin conventions
         mesh.mesh.face_uvs = 1 - mesh.mesh.face_uvs
         if len(mesh_params["texture"]) > 0:
-            texture = decode_image(mesh_params["texture"])
+            texture = read_image(mesh_params["texture"])
             self.get_logger().info(f"Mesh using texture from {mesh_params['texture']}.")
         else:
             texture = mesh.mesh.materials[0][0]["map_Kd"].permute(2, 0, 1).contiguous()
