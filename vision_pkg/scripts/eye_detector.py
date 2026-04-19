@@ -94,6 +94,9 @@ class EyeDetector(Node):
         self._sub_cam_info = self.create_subscription(
             CameraInfo, "/camera_info", self.callback_cam_info, 0
         )
+        self._sub_pose = self.create_subscription(
+            PoseStamped, "/eye_detector/pose_pred", self.callback_pose, 0
+        )
         self._sub_rst = self.create_subscription(
             Empty, "/eye_detector/restart", self.callback_rst, 0
         )
@@ -225,7 +228,6 @@ class EyeDetector(Node):
         self.publish_perr(transform_gt)
         self.publish_seg(img, mask)
         self._center = self._centroid(mask) + self._center - self._size / 2
-        self._optim.resample_model_params(self._pose[0], self._pose[1][:, -1])
 
     def callback_cam_info(self, msg: CameraInfo) -> None:
         self._cam_header = msg.header
@@ -241,6 +243,16 @@ class EyeDetector(Node):
             )
             self._cameras = Camera.cat([camera] * self._n_rep).to(self._device)
             self._sam = self._init_seg(msg.height)
+
+    def callback_pose(self, msg: PoseStamped) -> None:
+        if self._pose is None:
+            return
+        pos, ori = msg.pose.position, msg.pose.orientation
+        tvec = torch.tensor([pos.x, pos.y, pos.z], dtype=torch.float32, device=self._device)
+        rot = R.from_quat([ori.x, ori.y, ori.z, ori.w])
+        rmat = torch.tensor(rot.as_matrix(), dtype=torch.float32, device=self._device)
+        self._pose = (tvec, rmat)
+        self._optim.resample_model_params(tvec, rmat[:, -1])
 
     def callback_rst(self, msg: Empty) -> None:
         self._reset()
