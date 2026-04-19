@@ -50,10 +50,34 @@ rclcpp_components_register_node(
     EXECUTABLE apriltag_estimator
 )
 
+add_library(pose_estimator_component SHARED src/pose_estimator.cpp)
+ament_target_dependencies(pose_estimator_component 
+  rclcpp
+  rcl_interfaces
+  rclcpp_components
+  geometry_msgs
+  sensor_msgs
+  tf2_eigen
+  tf2_ros
+)
+rclcpp_components_register_node(
+    pose_estimator_component
+    PLUGIN "PoseEstimator"
+    EXECUTABLE pose_estimator
+)
+
 # Install C++ composable nodes
 ament_export_targets(export_apriltag_estimator_component)
 install(TARGETS apriltag_estimator_component
         EXPORT export_apriltag_estimator_component
+        ARCHIVE DESTINATION lib
+        LIBRARY DESTINATION lib
+        RUNTIME DESTINATION bin
+)
+
+ament_export_targets(export_pose_estimator_component)
+install(TARGETS pose_estimator_component
+        EXPORT export_pose_estimator_component
         ARCHIVE DESTINATION lib
         LIBRARY DESTINATION lib
         RUNTIME DESTINATION bin
