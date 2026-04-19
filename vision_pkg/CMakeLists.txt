@@ -19,6 +19,7 @@ endif()
 find_package(ament_cmake REQUIRED)
 find_package(ament_cmake_python REQUIRED)
 find_package(rclcpp REQUIRED)
+find_package(rclpy REQUIRED)
 find_package(rcl_interfaces REQUIRED)
 find_package(rclcpp_components REQUIRED)
 find_package(geometry_msgs REQUIRED)
@@ -65,6 +66,12 @@ install(TARGETS charuco_detector_component
         ARCHIVE DESTINATION lib
         LIBRARY DESTINATION lib
         RUNTIME DESTINATION bin
+)
+
+# Install Python executables
+install(PROGRAMS
+  scripts/eye_detector.py
+  DESTINATION lib/${PROJECT_NAME}
 )
 
 # Install launch and config directories

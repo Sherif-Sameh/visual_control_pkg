@@ -132,7 +132,7 @@ class EyePoseModel(nn.Module):
 
         Args:
             pos: Mean position to sample around. Shape is (3,).
-            z_dir: Z-axis direction to sample around. Shape is (2,)
+            z_dir: Z-axis direction to sample around. Shape is (3,)
             pos_sigma: Standard deviation for position noise. Shape is (3,).
             z_tan_range: Range for sampling tangent space. Shape is (2,).
             n_samples: Number of samples for each sampled vector.
