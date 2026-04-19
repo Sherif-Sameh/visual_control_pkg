@@ -48,6 +48,7 @@ target_nodes = ["eye_calibration"]
     "eye_calibration-dr.model.mlp_n_layer",
     "eye_calibration-dr.shader.knum",
     "eye_calibration-dr.raster.size",
+    "eye_calibration-dr.raster.backend",
     "eye_calibration-dr.optim.loss.weights",
     "eye_calibration-dr.optim.sched.T_0",
     "eye_calibration-dr.optim.sched.T_mult",
