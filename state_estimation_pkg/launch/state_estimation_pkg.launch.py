@@ -17,13 +17,21 @@ def declare_arguments() -> list[DeclareLaunchArgument]:
         )
     )
 
+    # Pose estimator arguments
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "pose_frame",
+            default_value="pose",
+            description="Name of the estimated pose frame. Default value is pose.",
+        )
+    )
+
     # General arguments
     declared_arguments.append(
         DeclareLaunchArgument(
             "estimator",
             default_value="apriltag",
-            description="Name of estimator node to launch. Default value is apriltag.",
-            choices=["apriltag", "charuco", ""],
+            description="Comma separated string of estimator nodes to launch. Default value is apriltag.",
         )
     )
     declared_arguments.append(
@@ -48,19 +56,29 @@ def declare_arguments() -> list[DeclareLaunchArgument]:
             " topic name. Default is /detections.",
         )
     )
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "pose_topic_name",
+            default_value="/pose",
+            description="Pose raw measurements (geometry_msgs/PoseStamped) topic name."
+            " Default is /pose.",
+        )
+    )
     return declared_arguments
 
 
 def launch_setup(context: LaunchContext) -> list[IncludeLaunchDescription]:
     estimator = LaunchConfiguration("estimator").perform(context)
+    estimator = estimator.replace(" ", "").split(",")
+    launch = []
     # Launch chosen estimator
-    match estimator:
-        case "apriltag":
-            return [_include_apriltag_estimator()]
-        case "charuco":
-            return [_include_charuco_estimator()]
-        case _:
-            return []
+    if "apriltag" in estimator:
+        launch.append(_include_apriltag_estimator())
+    if "charuco" in estimator:
+        launch.append(_include_charuco_estimator())
+    if "pose" in estimator:
+        launch.append(_include_pose_estimator())
+    return launch
 
 
 def generate_launch_description() -> LaunchDescription:
@@ -127,5 +145,30 @@ def _include_charuco_estimator() -> IncludeLaunchDescription:
             "camera_info_topic_name": camera_info_topic_name,
             "camera_twist_topic_name": camera_twist_topic_name,
             "detections_topic_name": detections_topic_name,
+        }.items(),
+    )
+
+
+def _include_pose_estimator() -> IncludeLaunchDescription:
+    pose_frame = LaunchConfiguration("pose_frame")
+
+    camera_twist_topic_name = LaunchConfiguration("camera_twist_topic_name")
+    pose_topic_name = LaunchConfiguration("pose_topic_name")
+
+    return IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(
+            PathJoinSubstitution(
+                [
+                    FindPackageShare("state_estimation_pkg"),
+                    "launch",
+                    "estimators",
+                    "pose_estimator.launch.py",
+                ]
+            )
+        ),
+        launch_arguments={
+            "pose_frame": pose_frame,
+            "camera_twist_topic_name": camera_twist_topic_name,
+            "pose_topic_name": pose_topic_name,
         }.items(),
     )

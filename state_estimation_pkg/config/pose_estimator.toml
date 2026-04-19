@@ -1,0 +1,34 @@
+### Pose Estimator Configuration ###
+
+[estimator]
+
+# Pose parameters
+"pose.P_tthr" = 0.1
+"pose.P_rthr" = 0.1
+"pose.ema_alpha" = 0.02
+
+# EKF parameters
+"ekf.P0_diag" = [
+    6.250e-4,  # 0.025m**2
+    6.250e-4,  # 0.025m**2
+    2.500e-3,  # 0.05m**2
+    2.250e-2,  # 0.15rad**2
+    2.250e-2,  # 0.15rad**2
+    6.400e-3,  # 0.08rad**2
+]
+"ekf.Q_diag" = [
+    5.538e-4,
+    5.538e-4,
+    2.377e-4,
+    3.071e-6,
+    3.071e-6,
+    1.474e-4,
+]
+"ekf.R_diag" = [
+    6.250e-4,  # 0.025m**2
+    6.250e-4,  # 0.025m**2
+    2.500e-3,  # 0.05m**2
+    2.250e-2,  # 0.15rad**2
+    2.250e-2,  # 0.15rad**2
+    6.400e-3,  # 0.08rad**2
+]
