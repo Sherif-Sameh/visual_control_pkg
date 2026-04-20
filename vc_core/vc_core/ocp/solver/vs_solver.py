@@ -18,12 +18,6 @@ if TYPE_CHECKING:
 class VsOcpSolverCfg:
     """Configuration for the task-space visual servoing Acados OCP solver."""
 
-    alpha: float = 1.0
-    """Coefficient of quat norm restorative term in equation for `qdot`. Default value is 1.0."""
-
-    fp: np.ndarray = field(default_factory=lambda: np.zeros(3))
-    """Visual feature coordinates in the marker's refernce frame. Default value is zeros(3)."""
-
     @dataclass
     class CostCfg:
         """Quadratic cost function configuration."""
@@ -39,6 +33,12 @@ class VsOcpSolverCfg:
 
     cost_cfg: CostCfg
     """Quadratic cost function configuration."""
+
+    alpha: float = 1.0
+    """Coefficient of quat norm restorative term in equation for `qdot`. Default value is 1.0."""
+
+    fp: np.ndarray = field(default_factory=lambda: np.zeros(3))
+    """Visual feature coordinates in the marker's refernce frame. Default value is zeros(3)."""
 
     @dataclass
     class ContraintCfg:
