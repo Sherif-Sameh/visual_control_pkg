@@ -30,6 +30,18 @@ def quat_mult(q1: ca.SX, q2: ca.SX) -> ca.DM:
     )
 
 
+def quat_diff(q: ca.SX, q_ref: ca.SX) -> ca.DM:
+    """Compute the minimal difference representation between two unit quaternions `q` and `q_ref`.
+
+    Assumes scalar-first (i.e. [w, x, y, z]) convention.
+
+    Extracts vector part of difference quaternion only.
+    """
+    q_err = quat_mult(quat_inv(q_ref), q)
+    q_err = ca.if_else(q_err[0] < 0, -q_err, q_err)
+    return q_err[1:4]
+
+
 def quat_dot(q: ca.SX, w: ca.SX) -> ca.DM:
     """Compute the quaternion time-derivative for unit quaternion `q` and tangent velocity vector `w`.
 
