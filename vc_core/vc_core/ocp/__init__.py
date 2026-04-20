@@ -1,3 +1,3 @@
-from . import model
+from . import model, solver
 
-__all__ = ["model"]
+__all__ = ["model", "solver"]
