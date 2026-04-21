@@ -14,7 +14,7 @@ def test_quat_inv() -> None:
 
     # compute inverse with CasADi function
     q_dm = ca.DM(q)
-    q_inv_casadi = dm_to_np(quat_inv(q_dm))
+    q_inv_casadi = sx_to_np(quat_inv(q_dm))
 
     # compute inverse with SciPy
     r = R.from_quat(q, scalar_first=True)
@@ -34,7 +34,7 @@ def test_quat_mult() -> None:
     # compute quaternion product with CasADi function
     q1_dm = ca.DM(q1)
     q2_dm = ca.DM(q2)
-    q_mult_casadi = dm_to_np(quat_mult(q1_dm, q2_dm))
+    q_mult_casadi = sx_to_np(quat_mult(q1_dm, q2_dm))
 
     # compute quaternion product with SciPy
     r1 = R.from_quat(q1, scalar_first=True)
@@ -55,7 +55,7 @@ def test_quat_apply() -> None:
     # compute quaternion-vector product with CasADi function
     q_dm = ca.DM(q)
     v_dm = ca.DM(v)
-    v_rot_casadi = dm_to_np(quat_apply(q_dm, v_dm))
+    v_rot_casadi = sx_to_np(quat_apply(q_dm, v_dm))
 
     # compute quaternion-vector product with SciPy
     r = R.from_quat(q, scalar_first=True)
@@ -74,7 +74,7 @@ def test_quat_diff() -> None:
     # compute quaternion difference with CasADi function
     q_dm = ca.DM(q)
     q_ref_dm = ca.DM(q_ref)
-    diff_casadi = dm_to_np(quat_diff(q_dm, q_ref_dm))
+    diff_casadi = sx_to_np(quat_diff(q_dm, q_ref_dm))
 
     # compute quaternion difference with SciPy
     r = R.from_quat(q, scalar_first=True)
@@ -98,7 +98,7 @@ def test_quat_dot():
     # compute new q from q_dot using CasADi function
     q_dm = ca.DM(q)
     w_dm = ca.DM(w)
-    q_dot_casadi = dm_to_np(quat_dot(q_dm, w_dm))
+    q_dot_casadi = sx_to_np(quat_dot(q_dm, w_dm))
     q_new_casadi = q + 0.01 * q_dot_casadi
     q_new_casadi /= np.linalg.norm(q_new_casadi)
     if q_new_casadi[0] < 0:
@@ -116,5 +116,5 @@ def test_quat_dot():
     assert np.allclose(q_new_casadi, q_new_scipy, atol=1e-8)
 
 
-def dm_to_np(x: ca.DM) -> NDArray:
-    return np.array(x.full()).squeeze()
+def sx_to_np(x: ca.SX) -> NDArray:
+    return np.array(ca.DM(x).full()).squeeze()

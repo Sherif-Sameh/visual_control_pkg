@@ -5,7 +5,7 @@ Geometry helper functions using CasADi.
 import casadi as ca
 
 
-def quat_inv(q: ca.SX) -> ca.DM:
+def quat_inv(q: ca.SX) -> ca.SX:
     """Compute the inverse of a unit quaternion `q`.
 
     Assumes scalar-first (i.e. [w, x, y, z]) convention.
@@ -14,7 +14,7 @@ def quat_inv(q: ca.SX) -> ca.DM:
     return ca.vertcat(w, -x, -y, -z)
 
 
-def quat_mult(q1: ca.SX, q2: ca.SX) -> ca.DM:
+def quat_mult(q1: ca.SX, q2: ca.SX) -> ca.SX:
     """Compute the Hamilton product of two quaternions `q1` and `q2`.
 
     Assumes scalar-first (i.e. [w, x, y, z]) convention.
@@ -30,7 +30,7 @@ def quat_mult(q1: ca.SX, q2: ca.SX) -> ca.DM:
     )
 
 
-def quat_diff(q: ca.SX, q_ref: ca.SX) -> ca.DM:
+def quat_diff(q: ca.SX, q_ref: ca.SX) -> ca.SX:
     """Compute the minimal difference representation between two unit quaternions `q` and `q_ref`.
 
     Assumes scalar-first (i.e. [w, x, y, z]) convention.
@@ -42,20 +42,20 @@ def quat_diff(q: ca.SX, q_ref: ca.SX) -> ca.DM:
     return q_err[1:4]
 
 
-def quat_dot(q: ca.SX, w: ca.SX) -> ca.DM:
+def quat_dot(q: ca.SX, w: ca.SX) -> ca.SX:
     """Compute the quaternion time-derivative for unit quaternion `q` and tangent velocity vector `w`.
 
     Assumes scalar-first (i.e. [w, x, y, z]) convention.
     """
-    return 0.5 * quat_mult(q, ca.vertcat(0, w))
+    return 0.5 * quat_mult(q, ca.vertcat(ca.SX.zeros(1), w))
 
 
-def quat_apply(q: ca.SX, p: ca.SX) -> ca.DM:
+def quat_apply(q: ca.SX, p: ca.SX) -> ca.SX:
     """Rotate a 3D vector `p` by a unit quaternion `q`.
 
     Assumes scalar-first (i.e. [w, x, y, z]) convention.
     """
-    p_quat = ca.vertcat(0, p)
+    p_quat = ca.vertcat(ca.SX.zeros(1), p)
     q_inv = quat_inv(q)
     p_rot = quat_mult(quat_mult(q, p_quat), q_inv)
     return p_rot[1:4]
