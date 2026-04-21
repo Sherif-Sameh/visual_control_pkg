@@ -62,14 +62,6 @@ def declare_arguments() -> list[DeclareLaunchArgument]:
     )
     declared_arguments.append(
         DeclareLaunchArgument(
-            "pose_topic_name",
-            default_value="/eye_detector/pose_pred",
-            description="Pose predictions (geometry_msgs/PoseStamped) topic name."
-            " Default is /eye_detector/pose_pred.",
-        )
-    )
-    declared_arguments.append(
-        DeclareLaunchArgument(
             "restart_topic_name",
             default_value="/eye_detector/restart",
             description="Restart (std_msgs/Empty) topic name. Default is /eye_detector/restart.",
@@ -93,7 +85,6 @@ def launch_setup(context: LaunchContext) -> list[Node]:
 
     image_topic_name = LaunchConfiguration("image_topic_name")
     camera_info_topic_name = LaunchConfiguration("camera_info_topic_name")
-    pose_topic_name = LaunchConfiguration("pose_topic_name")
     restart_topic_name = LaunchConfiguration("restart_topic_name")
 
     # Load parameters with applied overrides from toml
@@ -122,7 +113,6 @@ def launch_setup(context: LaunchContext) -> list[Node]:
             remappings=[
                 ("/image", image_topic_name),
                 ("/camera_info", camera_info_topic_name),
-                ("/eye_detector/pose_pred", pose_topic_name),
                 ("/eye_detector/restart", restart_topic_name),
             ],
         )
