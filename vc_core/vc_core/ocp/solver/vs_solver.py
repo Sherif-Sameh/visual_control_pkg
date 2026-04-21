@@ -28,7 +28,7 @@ class VsOcpSolverCfg:
         """Cost matrix for the model inputs (`u_dot`). Shape is (6, 6)."""
 
         Q_z: np.ndarray
-        """Cost matrix for the model feature errors (`s`, `s_dot`). Shape is (4, 4)."""
+        """Cost matrix for the model feature errors (`s_dot`). Shape is (2, 2)."""
 
     cost_cfg: CostCfg
     """Quadratic cost function configuration."""
@@ -64,6 +64,12 @@ class VsOcpSolverCfg:
         """Indices of model input elements bound by entries in `lbu` and `ubu`. Default is empty array
         (i.e. no bound).
         """
+
+        lh: np.ndarray = field(default_factory=lambda: np.array([]))
+        """Model nonlinear visibility constraint lower bound. Default is empty array (i.e. no bound)."""
+
+        uh: np.ndarray = field(default_factory=lambda: np.array([]))
+        """Model nonlinear visibility constraint upper bound. Default is empty array (i.e. no bound)."""
 
     contraint_cfg: ContraintCfg = ContraintCfg()
     """Model state and input contraint configuration. Default values derived from `ContraintCfg`."""
@@ -128,7 +134,7 @@ class VsOcpSolver:
             cfg.cost_cfg.Q_x, cfg.cost_cfg.R_u, cfg.cost_cfg.Q_z
         )
         self._ocp.cost.W_e = cfg.cost_cfg.Q_x
-        self._ocp.cost.yref = np.zeros(self.NX - 1 + self.NU + self.NZ)
+        self._ocp.cost.yref = np.zeros(self.NX - 1 + self.NU + self.NZ // 2)
         self._ocp.cost.yref_e = np.zeros(self.NX - 1)
 
         # setup constraints
@@ -139,6 +145,8 @@ class VsOcpSolver:
         self._ocp.constraints.lbu = cfg.contraint_cfg.lbu
         self._ocp.constraints.ubu = cfg.contraint_cfg.ubu
         self._ocp.constraints.idxbu = cfg.contraint_cfg.idxbu
+        self._ocp.constraints.lh = cfg.contraint_cfg.lh
+        self._ocp.constraints.uh = cfg.contraint_cfg.uh
 
         # setup solver
         self._ocp.solver_options.N_horizon = cfg.solver_cfg.n_horizon
@@ -243,7 +251,7 @@ class VsOcpSolver:
         assert cfg.fp.shape == (3,)
         assert cfg.cost_cfg.Q_x.shape == (cls.NX - 1, cls.NX - 1)
         assert cfg.cost_cfg.R_u.shape == (cls.NU, cls.NU)
-        assert cfg.cost_cfg.Q_z.shape == (cls.NZ, cls.NZ)
+        assert cfg.cost_cfg.Q_z.shape == (cls.NZ // 2, cls.NZ // 2)
         if cfg.contraint_cfg.lbx.size > 0:
             assert cfg.contraint_cfg.lbx.size == cfg.contraint_cfg.idxbx.size
         if cfg.contraint_cfg.ubx.size > 0:
@@ -252,3 +260,7 @@ class VsOcpSolver:
             assert cfg.contraint_cfg.lbu.size == cfg.contraint_cfg.idxbu.size
         if cfg.contraint_cfg.ubu.size > 0:
             assert cfg.contraint_cfg.ubu.size == cfg.contraint_cfg.idxbu.size
+        if cfg.contraint_cfg.lh.size > 0:
+            assert cfg.contraint_cfg.lh.shape == (cls.NZ // 2,)
+        if cfg.contraint_cfg.uh.size > 0:
+            assert cfg.contraint_cfg.uh.shape == (cls.NZ // 2,)

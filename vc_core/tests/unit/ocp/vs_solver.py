@@ -55,12 +55,10 @@ def test_vs_ocp_solver(capsys: pytest.CaptureFixture) -> None:
 def setup_ocp_solver() -> VsOcpSolver:
     cfg = VsOcpSolverCfg(
         cost_cfg=VsOcpSolverCfg.CostCfg(
-            Q_x=np.diag([350] * 3 + [50] * 3 + [10] * 6),
-            R_u=np.diag([1] * 6),
-            Q_z=np.diag([1] * 2 + [0.1] * 2),
+            Q_x=np.diag([350] * 3 + [50] * 3 + [10] * 6), R_u=np.diag([1] * 6), Q_z=np.diag([1] * 2)
         ),
         alpha=0.001,
-        fp=np.array([0.0, 0.0, 0.0]),
+        fp=np.array([0.05, 0.05, 0.0]),
         contraint_cfg=VsOcpSolverCfg.ContraintCfg(
             lbx=np.array([-0.5] * 3 + [-0.5] * 3),
             ubx=np.array([0.5] * 3 + [0.5] * 3),
@@ -68,8 +66,10 @@ def setup_ocp_solver() -> VsOcpSolver:
             lbu=np.array([-1.0] * 3 + [-1.0] * 3),
             ubu=np.array([1.0] * 3 + [1.0] * 3),
             idxbu=np.arange(6),
+            lh=np.array([-0.5, -0.35]),
+            uh=np.array([0.5, 0.35]),
         ),
-        solver_cfg=VsOcpSolverCfg.SolverCfg(n_horizon=40, time_step=0.1, nlp_tol=1e-5, qp_tol=1e-5),
+        solver_cfg=VsOcpSolverCfg.SolverCfg(n_horizon=40, time_step=0.1),
     )
     return VsOcpSolver(cfg)
 
