@@ -3,7 +3,6 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
-import casadi as ca
 import numpy as np
 import scipy.linalg
 from acados_template import AcadosOcp, AcadosOcpSolver
@@ -80,6 +79,9 @@ class VsOcpSolverCfg:
         nlp_solver_max_iter: int = 100
         """NLP solver maximum number of iterations. Default value is 100."""
 
+        nlp_tol: float = 1e-5
+        """NLP solver tolerance. Default value is 1e-5."""
+
         integrator_type: str = "ERK"
         """Integrator type. Default value is ERK (Explicit Runge Kutta)."""
 
@@ -116,7 +118,8 @@ class VsOcpSolver:
         self._check_dims(cfg)
         # setup ocp and model
         self._ocp = AcadosOcp()
-        self._ocp.model = export_vs_ode_model(ca.DM(cfg.fp), alpha=cfg.alpha)
+        self._ocp.model = export_vs_ode_model(cfg.fp, alpha=cfg.alpha)
+        self._ocp.parameter_values = np.zeros(7)
 
         # setup cost
         self._ocp.cost.cost_type = "NONLINEAR_LS"
@@ -129,6 +132,7 @@ class VsOcpSolver:
         self._ocp.cost.yref_e = np.zeros(self.NX - 1)
 
         # setup constraints
+        self._ocp.constraints.x0 = np.zeros(self.NX)
         self._ocp.constraints.lbx = cfg.contraint_cfg.lbx
         self._ocp.constraints.ubx = cfg.contraint_cfg.ubx
         self._ocp.constraints.idxbx = cfg.contraint_cfg.idxbx
@@ -140,6 +144,7 @@ class VsOcpSolver:
         self._ocp.solver_options.N_horizon = cfg.solver_cfg.n_horizon
         self._ocp.solver_options.tf = cfg.solver_cfg.n_horizon * cfg.solver_cfg.time_step
         self._ocp.solver_options.nlp_solver_max_iter = cfg.solver_cfg.nlp_solver_max_iter
+        self._ocp.solver_options.tol = cfg.solver_cfg.nlp_tol
         self._ocp.solver_options.integrator_type = cfg.solver_cfg.integrator_type
         self._ocp.solver_options.levenberg_marquardt = cfg.solver_cfg.levenberg_marquardt
         self._ocp.solver_options.qp_solver = cfg.solver_cfg.qp_solver
@@ -147,10 +152,25 @@ class VsOcpSolver:
         self._ocp.solver_options.qp_tol = cfg.solver_cfg.qp_tol
         self._ocp.solver_options.hessian_approx = "GAUSS_NEWTON"
 
-        self._ocp.code_export_directory = "c_generated_code_ocp"
-        AcadosOcpSolver.generate(self._ocp, json_file="acados_ocp.json")
-        AcadosOcpSolver.build(self._ocp.code_export_directory, with_cython=True)
-        self._ocp_solver: AcadosOcpSolver = AcadosOcpSolver.create_cython_solver("acados_ocp.json")
+        json_file = "acados_ocp_" + self._ocp.model.name + ".json"
+        self._ocp.code_gen_opts.code_export_directory = "c_generated_code_ocp"
+        self._ocp.code_gen_opts.json_file = json_file
+        self._ocp_solver = AcadosOcpSolver(self._ocp, json_file=json_file)
+
+    @property
+    def solver(self) -> AcadosOcpSolver:
+        """Get underlying OCP solver."""
+        return self._ocp_solver
+
+    def reset(self, x0: NDArray) -> None:
+        """Reset the solver's state sequence to `x0` and input sequence to zero.
+
+        Args:
+            x0: Initial state. Shape is (`NX`,).
+        """
+        n_horizon = self._ocp.solver_options.N_horizon
+        self._ocp_solver.set_flat("x", np.tile(x0, n_horizon + 1))
+        self._ocp_solver.set_flat("u", np.zeros(self.NU * n_horizon))
 
     def solve(
         self, x0: NDArray, ref: NDArray, print_stats_on_failure: bool = False
@@ -169,9 +189,10 @@ class VsOcpSolver:
         """
         n_horizon = self._ocp.solver_options.N_horizon
         # set initial state and reference
+        self._ocp_solver.set(0, "x", x0)
         self._ocp_solver.set(0, "lbx", x0)
         self._ocp_solver.set(0, "ubx", x0)
-        self._ocp_solver.set_flat("p", ref.repeat(n_horizon))
+        self._ocp_solver.set_flat("p", np.tile(ref, n_horizon + 1))
         # solve NLP
         status = self._ocp_solver.solve()
         if status != 0 and print_stats_on_failure:
