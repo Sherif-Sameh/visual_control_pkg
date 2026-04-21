@@ -7,7 +7,7 @@ import casadi as ca
 from .geometry import quat_apply, quat_inv
 
 
-def project(cp: ca.SX, cq: ca.SX, fp: ca.DM) -> tuple[ca.DM, ca.DM]:
+def project(cp: ca.SX, cq: ca.SX, fp: ca.SX) -> tuple[ca.SX, ca.SX]:
     """Apply perspective camera projection to input feature world points `fp`.
 
     Assumes scalar-first (i.e. [w, x, y, z]) convention.
@@ -18,15 +18,15 @@ def project(cp: ca.SX, cq: ca.SX, fp: ca.DM) -> tuple[ca.DM, ca.DM]:
         fp: Position of the features in the world frame.
 
     Returns:
-        Tuple of two data matrices. The first consists of the position of the features in the image
-        plane. That is applying perspective division to the X and Y feature coordinates after
-        transforming `fp` to the camera frame. The second is the depth Z in the camera frame.
+        Tuple of two symbolic expressions. The first consists of the position of the features in
+        the image plane. That is applying perspective division to the X and Y feature coordinates
+        after transforming `fp` to the camera frame. The second is the depth Z in the camera frame.
     """
     cfp = quat_apply(quat_inv(cq), fp - cp)
     return ca.vertcat(cfp[0] / cfp[2], cfp[1] / cfp[2]), cfp[2]
 
 
-def feature_dot(u: ca.SX, s: ca.DM, Z: ca.DM) -> ca.DM:
+def feature_dot(u: ca.SX, s: ca.SX, Z: ca.SX) -> ca.SX:
     """Compute the feature velocities in the image plane from camera twist `u`.
 
     Refer to `vc_core.ocp.model.features.project` for computing `s` and `Z`.

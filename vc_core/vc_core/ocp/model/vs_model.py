@@ -1,11 +1,18 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 import casadi as ca
 from acados_template import AcadosModel
 
 from .features import feature_dot, project
 from .geometry import quat_apply, quat_diff, quat_dot
 
+if TYPE_CHECKING:
+    from numpy.typing import NDArray
 
-def export_vs_ode_model(fp: ca.DM, alpha: float = 1.0) -> AcadosModel:
+
+def export_vs_ode_model(fp: NDArray, alpha: float = 0.001) -> AcadosModel:
     """Defines an instance of `acados_template.AcadosModel` for task-space visual servoing.
 
     The model's state consists of the following three groups of terms:
@@ -28,7 +35,7 @@ def export_vs_ode_model(fp: ca.DM, alpha: float = 1.0) -> AcadosModel:
         fp: Feature coordinates wrt to the reference frame of the visual marker of interest.
         alpha: Coefficient of quat norm restorative term in equation for `qdot`. This prevents the
             quaternion's magnitude from drifting away from 1 during integration over the full
-            prediction horizon. Default value is 1.0.
+            prediction horizon. Default value is 0.001.
 
     Returns:
         Acados model derived from the above formulation.
@@ -40,6 +47,7 @@ def export_vs_ode_model(fp: ca.DM, alpha: float = 1.0) -> AcadosModel:
     x = ca.vertcat(p, q, u)
 
     # setup visual features
+    fp = ca.SX([fp[0], fp[1], fp[2]])
     s, depth = project(p, q, fp)
     s_dot = feature_dot(u, s, depth)
     z = ca.vertcat(s, s_dot)
@@ -53,13 +61,13 @@ def export_vs_ode_model(fp: ca.DM, alpha: float = 1.0) -> AcadosModel:
     ref = ca.vertcat(p_ref, q_ref)
 
     # setup xdot
+    xdot = ca.SX.sym("xdot", x.size()[0])
+
+    # setup dynamics
     v, w = u[0:3], u[3:6]
     p_dot = quat_apply(q, v)
     q_dot = quat_dot(q, w) + alpha * (1.0 - ca.dot(q, q)) * q
-    xdot = ca.vertcat(p_dot, q_dot, u_dot)
-
-    # setup dynamics
-    f_expl = xdot
+    f_expl = ca.vertcat(p_dot, q_dot, u_dot)
     f_impl = xdot - f_expl
 
     # setup costs
