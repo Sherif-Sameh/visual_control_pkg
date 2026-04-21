@@ -59,6 +59,7 @@ ament_target_dependencies(pose_estimator_component
   sensor_msgs
   tf2_eigen
   tf2_ros
+  isaac_ros_apriltag
 )
 rclcpp_components_register_node(
     pose_estimator_component

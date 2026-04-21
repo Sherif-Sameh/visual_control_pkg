@@ -9,6 +9,7 @@
 #include "geometry_msgs/msg/pose_stamped.hpp"
 #include "geometry_msgs/msg/transform_stamped.hpp"
 #include "geometry_msgs/msg/twist_stamped.hpp"
+#include "isaac_ros_apriltag_interfaces/msg/april_tag_detection_array.hpp"
 #include "rcl_interfaces/msg/set_parameters_result.hpp"
 #include "rclcpp/rclcpp.hpp"
 #include "rclcpp_components/register_node_macro.hpp"
@@ -20,6 +21,8 @@
 #include "vc_core/filters/ekf.hpp"
 #include "vc_core/utils.hpp"
 
+using isaac_ros_apriltag_interfaces::msg::AprilTagDetection;
+using isaac_ros_apriltag_interfaces::msg::AprilTagDetectionArray;
 using std::placeholders::_1;
 
 class PoseEstimator : public rclcpp::Node
@@ -34,10 +37,10 @@ public:
     PoseEstimator(const rclcpp::NodeOptions &options);
 
 private:
-    void publish_pose(const std_msgs::msg::Header &header, const bool pred);
-    void make_pose_tf(const std_msgs::msg::Header &header, const bool pred);
+    void publish_pose(const std_msgs::msg::Header &header);
+    void make_pose_tf(const std_msgs::msg::Header &header);
     void callback_cam_twist(const geometry_msgs::msg::TwistStamped::SharedPtr msg);
-    void callback_pose(const geometry_msgs::msg::PoseStamped::SharedPtr msg);
+    void callback_pose(const AprilTagDetectionArray::SharedPtr msg);
     rcl_interfaces::msg::SetParametersResult
     callback_params(const std::vector<rclcpp::Parameter> &parameters);
 
@@ -45,6 +48,7 @@ private:
 
 private:
     // General Attributes
+    bool m_pub_pred;
     std::string m_pose_frame;
     std::pair<double, double> m_pose_P_thr;
     utils::structs::PeriodEMACalculator<double> m_twist_cb_pc;
@@ -55,10 +59,9 @@ private:
     static constexpr se::ActionSE3Features<double> action_fn = se::ActionSE3Features<double>();
 
     // ROS Attributes
-    rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr m_pub_pose{nullptr};
-    rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr m_pub_pose_pred{nullptr};
+    rclcpp::Publisher<AprilTagDetectionArray>::SharedPtr m_pub_pose{nullptr};
     rclcpp::Subscription<geometry_msgs::msg::TwistStamped>::SharedPtr m_sub_cam_twist{nullptr};
-    rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr m_sub_pose{nullptr};
+    rclcpp::Subscription<AprilTagDetectionArray>::SharedPtr m_sub_pose{nullptr};
     std::unique_ptr<tf2_ros::TransformBroadcaster> m_tf_broadcaster{nullptr};
     rclcpp::node_interfaces::OnSetParametersCallbackHandle::SharedPtr m_cbh_param{nullptr};
 };

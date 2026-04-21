@@ -3,6 +3,7 @@
 PoseEstimator::PoseEstimator(const rclcpp::NodeOptions &options) : Node("pose_estimator", options)
 {
     // Declare ROS parameters
+    this->declare_parameter("pub_pred", rclcpp::PARAMETER_BOOL);
     this->declare_parameter("pose.frame", rclcpp::PARAMETER_STRING);
     this->declare_parameter("pose.P_tthr", rclcpp::PARAMETER_DOUBLE);
     this->declare_parameter("pose.P_rthr", rclcpp::PARAMETER_DOUBLE);
@@ -12,6 +13,7 @@ PoseEstimator::PoseEstimator(const rclcpp::NodeOptions &options) : Node("pose_es
     this->declare_parameter("ekf.R_diag", rclcpp::PARAMETER_DOUBLE_ARRAY);
 
     // Initialize non-ROS class attributes
+    m_pub_pred = this->get_parameter("pub_pred").as_bool();
     m_pose_frame = this->get_parameter("pose.frame").as_string();
     m_pose_P_thr.first = this->get_parameter("pose.P_tthr").as_double();
     m_pose_P_thr.second = this->get_parameter("pose.P_rthr").as_double();
@@ -19,20 +21,18 @@ PoseEstimator::PoseEstimator(const rclcpp::NodeOptions &options) : Node("pose_es
     init_ekf();
 
     // Initialize ROS attributes
-    m_pub_pose = this->create_publisher<geometry_msgs::msg::PoseStamped>(
+    m_pub_pose = this->create_publisher<AprilTagDetectionArray>(
         "/pose_estimator/" + m_pose_frame + "_filtered", 0);
-    m_pub_pose_pred = this->create_publisher<geometry_msgs::msg::PoseStamped>(
-        "/pose_estimator/" + m_pose_frame + "_prediction", 0);
     m_sub_cam_twist = this->create_subscription<geometry_msgs::msg::TwistStamped>(
         "/camera_twist", 0, std::bind(&PoseEstimator::callback_cam_twist, this, _1));
-    m_sub_pose = this->create_subscription<geometry_msgs::msg::PoseStamped>(
+    m_sub_pose = this->create_subscription<AprilTagDetectionArray>(
         "/pose", 0, std::bind(&PoseEstimator::callback_pose, this, _1));
     m_tf_broadcaster = std::make_unique<tf2_ros::TransformBroadcaster>(*this);
     m_cbh_param =
         this->add_on_set_parameters_callback(std::bind(&PoseEstimator::callback_params, this, _1));
 }
 
-void PoseEstimator::publish_pose(const std_msgs::msg::Header &header, const bool pred)
+void PoseEstimator::publish_pose(const std_msgs::msg::Header &header)
 {
     State x;
     Covariance P;
@@ -43,16 +43,15 @@ void PoseEstimator::publish_pose(const std_msgs::msg::Header &header, const bool
         return;
     }
 
-    geometry_msgs::msg::PoseStamped msg;
+    AprilTagDetectionArray msg;
     msg.header = header;
-    msg.pose = tf2::toMsg(x.isometry());
-    if (pred)
-        m_pub_pose_pred->publish(msg);
-    else
-        m_pub_pose->publish(msg);
+    AprilTagDetection dtn;
+    dtn.pose.pose.pose = tf2::toMsg(x.isometry());
+    msg.detections.push_back(dtn);
+    m_pub_pose->publish(msg);
 }
 
-void PoseEstimator::make_pose_tf(const std_msgs::msg::Header &header, const bool pred)
+void PoseEstimator::make_pose_tf(const std_msgs::msg::Header &header)
 {
     State x;
     Covariance P;
@@ -65,7 +64,7 @@ void PoseEstimator::make_pose_tf(const std_msgs::msg::Header &header, const bool
 
     geometry_msgs::msg::TransformStamped transform = tf2::eigenToTransform(x.isometry());
     transform.header = header;
-    transform.child_frame_id = m_pose_frame + (pred ? "p" : "f");
+    transform.child_frame_id = m_pose_frame + "f";
     m_tf_broadcaster->sendTransform(transform);
 }
 
@@ -84,14 +83,17 @@ void PoseEstimator::callback_cam_twist(const geometry_msgs::msg::TwistStamped::S
     m_ekf.predict(cam_twist * (*dt), action_fn);
 
     // Publish pose and transform
-    publish_pose(msg->header, true);
-    make_pose_tf(msg->header, true);
+    if (m_pub_pred)
+    {
+        publish_pose(msg->header);
+        make_pose_tf(msg->header);
+    }
 }
 
-void PoseEstimator::callback_pose(const geometry_msgs::msg::PoseStamped::SharedPtr msg)
+void PoseEstimator::callback_pose(const AprilTagDetectionArray::SharedPtr msg)
 {
     // Update pose through EKF update step
-    Measurement y = utils::geometry::to_mnf_se3<double, true>(msg->pose);
+    Measurement y = utils::geometry::to_mnf_se3<double, true>(msg->detections[0].pose.pose.pose);
     if (m_ekf_init)
     {
         m_ekf.update(y);
@@ -103,8 +105,8 @@ void PoseEstimator::callback_pose(const geometry_msgs::msg::PoseStamped::SharedP
     }
 
     // Publish pose and transform
-    publish_pose(msg->header, false);
-    make_pose_tf(msg->header, false);
+    publish_pose(msg->header);
+    make_pose_tf(msg->header);
 }
 
 rcl_interfaces::msg::SetParametersResult

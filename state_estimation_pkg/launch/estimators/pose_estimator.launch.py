@@ -33,7 +33,7 @@ def declare_arguments() -> list[DeclareLaunchArgument]:
         DeclareLaunchArgument(
             "pose_topic_name",
             default_value="/pose",
-            description="Pose raw measurements (geometry_msgs/PoseStamped) topic name."
+            description="Pose raw measurements (isaac_ros_apriltag_interfaces/AprilTagDetectionArray) topic name."
             " Default is /pose.",
         )
     )

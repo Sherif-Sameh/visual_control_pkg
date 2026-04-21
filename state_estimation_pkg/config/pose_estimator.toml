@@ -2,6 +2,9 @@
 
 [estimator]
 
+# General parameters
+pub_pred = false
+
 # Pose parameters
 "pose.P_tthr" = 0.1
 "pose.P_rthr" = 0.1
