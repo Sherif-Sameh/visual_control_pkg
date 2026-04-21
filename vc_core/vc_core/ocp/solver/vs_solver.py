@@ -40,8 +40,8 @@ class VsOcpSolverCfg:
     """Visual feature coordinates in the marker's refernce frame. Default value is zeros(3)."""
 
     @dataclass
-    class ContraintCfg:
-        """Model state and input contraint configuration."""
+    class ConstraintCfg:
+        """Model state and input constraint configuration."""
 
         lbx: np.ndarray = field(default_factory=lambda: np.array([]))
         """Model state lower bound. Default is empty array (i.e. no bound)."""
@@ -71,8 +71,8 @@ class VsOcpSolverCfg:
         uh: np.ndarray = field(default_factory=lambda: np.array([]))
         """Model nonlinear visibility constraint upper bound. Default is empty array (i.e. no bound)."""
 
-    contraint_cfg: ContraintCfg = ContraintCfg()
-    """Model state and input contraint configuration. Default values derived from `ContraintCfg`."""
+    constraint_cfg: ConstraintCfg = ConstraintCfg()
+    """Model state and input constraint configuration. Default values derived from `ConstraintCfg`."""
 
     @dataclass
     class SolverCfg:
@@ -139,14 +139,14 @@ class VsOcpSolver:
 
         # setup constraints
         self._ocp.constraints.x0 = np.zeros(self.NX)
-        self._ocp.constraints.lbx = cfg.contraint_cfg.lbx
-        self._ocp.constraints.ubx = cfg.contraint_cfg.ubx
-        self._ocp.constraints.idxbx = cfg.contraint_cfg.idxbx
-        self._ocp.constraints.lbu = cfg.contraint_cfg.lbu
-        self._ocp.constraints.ubu = cfg.contraint_cfg.ubu
-        self._ocp.constraints.idxbu = cfg.contraint_cfg.idxbu
-        self._ocp.constraints.lh = cfg.contraint_cfg.lh
-        self._ocp.constraints.uh = cfg.contraint_cfg.uh
+        self._ocp.constraints.lbx = cfg.constraint_cfg.lbx
+        self._ocp.constraints.ubx = cfg.constraint_cfg.ubx
+        self._ocp.constraints.idxbx = cfg.constraint_cfg.idxbx
+        self._ocp.constraints.lbu = cfg.constraint_cfg.lbu
+        self._ocp.constraints.ubu = cfg.constraint_cfg.ubu
+        self._ocp.constraints.idxbu = cfg.constraint_cfg.idxbu
+        self._ocp.constraints.lh = cfg.constraint_cfg.lh
+        self._ocp.constraints.uh = cfg.constraint_cfg.uh
 
         # setup solver
         self._ocp.solver_options.N_horizon = cfg.solver_cfg.n_horizon
@@ -247,20 +247,20 @@ class VsOcpSolver:
 
     @classmethod
     def _check_dims(cls, cfg: VsOcpSolverCfg) -> None:
-        """Check the dimensions of cost matrices and contraint bounds if given."""
+        """Check the dimensions of cost matrices and constraint bounds if given."""
         assert cfg.fp.shape == (3,)
         assert cfg.cost_cfg.Q_x.shape == (cls.NX - 1, cls.NX - 1)
         assert cfg.cost_cfg.R_u.shape == (cls.NU, cls.NU)
         assert cfg.cost_cfg.Q_z.shape == (cls.NZ // 2, cls.NZ // 2)
-        if cfg.contraint_cfg.lbx.size > 0:
-            assert cfg.contraint_cfg.lbx.size == cfg.contraint_cfg.idxbx.size
-        if cfg.contraint_cfg.ubx.size > 0:
-            assert cfg.contraint_cfg.ubx.size == cfg.contraint_cfg.idxbx.size
-        if cfg.contraint_cfg.lbu.size > 0:
-            assert cfg.contraint_cfg.lbu.size == cfg.contraint_cfg.idxbu.size
-        if cfg.contraint_cfg.ubu.size > 0:
-            assert cfg.contraint_cfg.ubu.size == cfg.contraint_cfg.idxbu.size
-        if cfg.contraint_cfg.lh.size > 0:
-            assert cfg.contraint_cfg.lh.shape == (cls.NZ // 2,)
-        if cfg.contraint_cfg.uh.size > 0:
-            assert cfg.contraint_cfg.uh.shape == (cls.NZ // 2,)
+        if cfg.constraint_cfg.lbx.size > 0:
+            assert cfg.constraint_cfg.lbx.size == cfg.constraint_cfg.idxbx.size
+        if cfg.constraint_cfg.ubx.size > 0:
+            assert cfg.constraint_cfg.ubx.size == cfg.constraint_cfg.idxbx.size
+        if cfg.constraint_cfg.lbu.size > 0:
+            assert cfg.constraint_cfg.lbu.size == cfg.constraint_cfg.idxbu.size
+        if cfg.constraint_cfg.ubu.size > 0:
+            assert cfg.constraint_cfg.ubu.size == cfg.constraint_cfg.idxbu.size
+        if cfg.constraint_cfg.lh.size > 0:
+            assert cfg.constraint_cfg.lh.shape == (cls.NZ // 2,)
+        if cfg.constraint_cfg.uh.size > 0:
+            assert cfg.constraint_cfg.uh.shape == (cls.NZ // 2,)

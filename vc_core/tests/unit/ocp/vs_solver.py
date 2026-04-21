@@ -59,7 +59,7 @@ def setup_ocp_solver() -> VsOcpSolver:
         ),
         alpha=0.001,
         fp=np.array([0.05, 0.05, 0.0]),
-        contraint_cfg=VsOcpSolverCfg.ContraintCfg(
+        constraint_cfg=VsOcpSolverCfg.ConstraintCfg(
             lbx=np.array([-0.5] * 3 + [-0.5] * 3),
             ubx=np.array([0.5] * 3 + [0.5] * 3),
             idxbx=np.arange(7, 13),

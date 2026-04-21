@@ -34,7 +34,7 @@ def export_vs_ode_model(fp: NDArray, alpha: float = 0.001) -> AcadosModel:
     The model's stage cost in made up of the three groups of terms corresponding to state `x`,
     input `u_dot` and visual feature velocities `s_dot`.
 
-    The model's constraints are made up the traditional state `x` and input `u_dot` box contraints
+    The model's constraints are made up the traditional state `x` and input `u_dot` box constraints
     along with nonlinear visual feature `s` visibility constraints.
 
     Args:
