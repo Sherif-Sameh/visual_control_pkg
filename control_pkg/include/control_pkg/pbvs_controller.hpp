@@ -6,7 +6,6 @@
 #include <functional>
 #include <memory>
 #include <string>
-#include <unordered_map>
 #include <vector>
 
 #include <visp3/vs/vpServo.h>
@@ -22,7 +21,6 @@
 #include "trajectory_msgs/msg/joint_trajectory.hpp"
 #include "trajectory_msgs/msg/multi_dof_joint_trajectory.hpp"
 
-#include "vc_core/filters/lowPassFilter.hpp"
 #include "vc_core/robot/vpRobotRos.hpp"
 #include "vc_core/utils.hpp"
 
@@ -52,23 +50,24 @@ private:
 
     void init_robot();
     void init_controller();
-    void update_features(const std::vector<AprilTagDetection> &detections,
-                         std::vector<int> &valid_ids, std::vector<int> &invalid_ids);
-    bool has_converged(const std::vector<int> &valid_ids);
+    bool update_features(const std::vector<AprilTagDetection> &detections);
+    std::vector<trajectory_msgs::msg::MultiDOFJointTrajectoryPoint>::const_iterator
+    find_traj_point(const rclcpp::Duration &elapsed);
+    bool has_converged();
 
 private:
     // General Attributes
+    int m_tag_id;
     double m_timeout;
     std::string m_base_frame;
     std::string m_ee_frame;
     std::string m_cam_frame;
-    std::vector<int> m_tag_ids;
     std::vector<std::string> m_joint_names;
 
     // Controller Attributes
-    rclcpp::Time m_ctrl_ts;
-    std::unordered_map<int, utils::structs::vpPoseFeature> m_pf;
-    std::unordered_map<int, se::LowPassFilter<manif::SE3d>> m_cdMo_lpf;
+    rclcpp::Time m_ctrl_ts, m_traj_ts;
+    utils::structs::vpPoseFeature m_pf;
+    MultiDOFJointTrajectory::SharedPtr m_traj_msg{nullptr};
     utils::structs::PoseTolerance<double> m_conv_eps;
     vpColVector m_lambda, m_v_cam_ff;
     vpRobotRos m_robot;

@@ -49,9 +49,9 @@ def declare_arguments() -> list[DeclareLaunchArgument]:
     )
     declared_arguments.append(
         DeclareLaunchArgument(
-            "tag_ids",
-            default_value="[0]",
-            description="Tag IDS to use for tracking. Default value is [0].",
+            "tag_id",
+            default_value="0",
+            description="Tag ID to use for tracking. Default value is 0.",
         )
     )
 
@@ -177,7 +177,7 @@ def _include_pbvs_controller() -> IncludeLaunchDescription:
     base_frame = LaunchConfiguration("base_frame")
     ee_frame = LaunchConfiguration("ee_frame")
     cam_frame = LaunchConfiguration("cam_frame")
-    tag_ids = LaunchConfiguration("tag_ids")
+    tag_id = LaunchConfiguration("tag_id")
 
     joint_trajectory_topic_name = LaunchConfiguration("joint_trajectory_topic_name")
     joint_states_topic_name = LaunchConfiguration("joint_states_topic_name")
@@ -201,7 +201,7 @@ def _include_pbvs_controller() -> IncludeLaunchDescription:
             "base_frame": base_frame,
             "ee_frame": ee_frame,
             "cam_frame": cam_frame,
-            "tag_ids": tag_ids,
+            "tag_id": tag_id,
             "joint_trajectory_topic_name": joint_trajectory_topic_name,
             "joint_states_topic_name": joint_states_topic_name,
             "detections_topic_name": detections_topic_name,
