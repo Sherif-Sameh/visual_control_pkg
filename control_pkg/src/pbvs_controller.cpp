@@ -30,7 +30,7 @@ PbvsController::PbvsController()
     m_base_frame = this->get_parameter("frame.base_frame").as_string();
     m_ee_frame = this->get_parameter("frame.ee_frame").as_string();
     m_cam_frame = this->get_parameter("frame.cam_frame").as_string();
-    m_tag_id = static_cast<int>(this->get_parameter("tag.tag_ids").as_int());
+    m_tag_id = static_cast<int>(this->get_parameter("tag.tag_id").as_int());
     m_ctrl_ts = this->get_clock()->now();
     m_pf.m_t.buildFrom(vpHomogeneousMatrix());  // set error to zero
     m_pf.m_tu.buildFrom(vpHomogeneousMatrix()); // set error to zero
@@ -283,11 +283,11 @@ bool PbvsController::update_features(const std::vector<AprilTagDetection> &detec
     rclcpp::Duration elapsed = this->get_clock()->now() - m_traj_ts;
     auto pt_it = find_traj_point(elapsed);
     if (pt_it == m_traj_msg->points.cbegin()) return false;
+    auto pt_prev_it = std::prev(pt_it);
     manif::SE3d oMcd;
     vpColVector v_cam;
     if (pt_it != m_traj_msg->points.cend())
     {
-        auto pt_prev_it = std::prev(pt_it);
         double pt_sec = rclcpp::Duration((*pt_it).time_from_start).seconds();
         double pt_prev_sec = rclcpp::Duration((*pt_prev_it).time_from_start).seconds();
         double lambda = (elapsed.seconds() - pt_prev_sec) / (pt_sec - pt_prev_sec);
@@ -302,8 +302,8 @@ bool PbvsController::update_features(const std::vector<AprilTagDetection> &detec
     }
     else
     {
-        oMcd = utils::geometry::to_mnf_se3<double, true>((*pt_it).transforms[0]);
-        v_cam = utils::mappings::to_vp_vpcolvector((*pt_it).velocities[0]);
+        oMcd = utils::geometry::to_mnf_se3<double, true>((*pt_prev_it).transforms[0]);
+        v_cam = utils::mappings::to_vp_vpcolvector((*pt_prev_it).velocities[0]);
     }
 
     // Update features and feed-forward velocity signal

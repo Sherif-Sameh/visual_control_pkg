@@ -17,17 +17,19 @@ USE_ISAAC_CELL = "true"
 
 BASE_FRAME = "base_link"
 EE_FRAME = "tool0"
+TCP_FRAME = "tcp"
 CAM_FRAME = "camera_color_optical_frame"
 
+POSE_MK_TGT = "[0.113, -0.071, -0.232, 1.0, 0.0, 0.0, 0.0]"
 POSE_GT_TCP = "[0.0, 0.011, 0.099, 0.988, 0.152, 0.0, 0.0]"
 IMG_CENTER = "[300, 320]"
 
 TAG_FAMILY = "tag36h11"
-TAG_IDS = "[0, 1]"
+TAG_ID = "1"
 TAG_SIZE = "0.048"
 
 CAMERA_INFO_TOPIC_NAME = "/isaaclab/camera/camera_info"
-DESIRED_TRAJECTORY_TOPIC_NAME = "/isaaclab/command"
+STATE_REFERENCE_TOPIC_NAME = "/isaaclab/command"
 DETECTIONS_FILTERED_TOPIC_NAME = "/apriltag_estimator/detections_filtered"
 DETECTIONS_TOPIC_NAME = "/apriltag_detector/detections"
 IMAGE_TOPIC_NAME = "/isaaclab/camera/image_raw"
@@ -265,13 +267,15 @@ def _launch_control_pkg() -> IncludeLaunchDescription:
             "ee_frame": EE_FRAME,
             "cam_frame": CAM_FRAME,
             "tag_size": TAG_SIZE,
-            "tag_ids": TAG_IDS,
+            "tag_id": TAG_ID,
+            "tcp_frame": TCP_FRAME,
+            "pose_mk_tgt": POSE_MK_TGT,
             "controller": controller,
+            "state_reference_topic_name": STATE_REFERENCE_TOPIC_NAME,
             "joint_trajectory_topic_name": JOINT_TRAJECTORY_TOPIC_NAME,
             "joint_states_topic_name": JOINT_STATES_TOPIC_NAME,
             "camera_info_topic_name": CAMERA_INFO_TOPIC_NAME,
             "detections_topic_name": DETECTIONS_FILTERED_TOPIC_NAME,
-            "desired_trajectory_topic_name": DESIRED_TRAJECTORY_TOPIC_NAME,
         }.items(),
     )
 

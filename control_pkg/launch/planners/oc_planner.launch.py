@@ -29,6 +29,13 @@ def declare_arguments() -> list[DeclareLaunchArgument]:
     )
     declared_arguments.append(
         DeclareLaunchArgument(
+            "tag_id",
+            default_value="0",
+            description="Tag ID to use for tracking. Default value is 0.",
+        )
+    )
+    declared_arguments.append(
+        DeclareLaunchArgument(
             "pose_mk_tgt",
             default_value="[0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0]",
             description="Pose of target wrt the reference marker."
@@ -61,13 +68,6 @@ def declare_arguments() -> list[DeclareLaunchArgument]:
             " topic name. Default is /detections.",
         )
     )
-    declared_arguments.append(
-        DeclareLaunchArgument(
-            "restart_topic_name",
-            default_value="/oc_planner/restart",
-            description="Restart (std_msgs/Empty) topic name. Default is /oc_planner/restart.",
-        )
-    )
     return declared_arguments
 
 
@@ -78,12 +78,12 @@ def generate_launch_description() -> LaunchDescription:
     # Initialize Arguments
     cam_frame = LaunchConfiguration("cam_frame")
     tcp_frame = LaunchConfiguration("tcp_frame")
+    tag_id = LaunchConfiguration("tag_id")
     pose_mk_tgt = LaunchConfiguration("pose_mk_tgt")
 
     state_reference_topic_name = LaunchConfiguration("state_reference_topic_name")
     camera_twist_topic_name = LaunchConfiguration("camera_twist_topic_name")
     detections_topic_name = LaunchConfiguration("detections_topic_name")
-    restart_topic_name = LaunchConfiguration("restart_topic_name")
 
     # Load configuration from toml
     pkg_share = get_package_share_directory("control_pkg")
@@ -100,6 +100,7 @@ def generate_launch_description() -> LaunchDescription:
                 "frame.cam": cam_frame,
                 "frame.tcp": tcp_frame,
                 "pose.mk_tgt": pose_mk_tgt,
+                "tag.tag_id": tag_id,
                 **config["planner"],
             }
         ],
@@ -107,7 +108,6 @@ def generate_launch_description() -> LaunchDescription:
             ("/state_reference", state_reference_topic_name),
             ("/camera_twist", camera_twist_topic_name),
             ("/detections", detections_topic_name),
-            ("/oc_planner/restart", restart_topic_name),
         ],
     )
 
