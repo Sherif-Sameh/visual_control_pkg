@@ -64,6 +64,23 @@ def declare_arguments() -> list[DeclareLaunchArgument]:
         )
     )
 
+    # OC planner unique arguments
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "tcp_frame",
+            default_value="tcp",
+            description="Name of the tcp frame of the robot. Default value is tcp.",
+        )
+    )
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "pose_mk_tgt",
+            default_value="[0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0]",
+            description="Pose of target wrt the reference marker."
+            " Default value is [0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0].",
+        )
+    )
+
     # General arguments
     declared_arguments.append(
         DeclareLaunchArgument(
@@ -71,6 +88,14 @@ def declare_arguments() -> list[DeclareLaunchArgument]:
             default_value="pbvs",
             description="Controller to use for tracking. Default is pbvs",
             choices=["pbvs", "ibvs", "pose"],
+        )
+    )
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "pose_reference_topic_name",
+            default_value="/pose_reference",
+            description="Reference pose (geometry_msgs/PoseStamped) topic name."
+            " Default is /pose_reference",
         )
     )
     declared_arguments.append(
@@ -106,10 +131,9 @@ def declare_arguments() -> list[DeclareLaunchArgument]:
     )
     declared_arguments.append(
         DeclareLaunchArgument(
-            "desired_trajectory_topic_name",
-            default_value="/desired_trajectory",
-            description="Desired trajectory (trajectory_msgs/MultiDOFJointTrajectory) topic name."
-            " Default is /desired_trajectory.",
+            "restart_topic_name",
+            default_value="/oc_planner/restart",
+            description="Restart (std_msgs/Empty) topic name. Default is /oc_planner/restart.",
         )
     )
     return declared_arguments
@@ -119,13 +143,18 @@ def launch_setup(context: LaunchContext) -> list[IncludeLaunchDescription]:
     controller = LaunchConfiguration("controller").perform(context)
     assert controller in ["pbvs", "ibvs", "pose"]
     # Launch chosen controller
+    nodes = []
     match controller:
         case "pbvs":
-            return [_include_pbvs_controller()]
+            nodes.append(_include_pbvs_controller())
         case "ibvs":
-            return [_include_ibvs_controller()]
+            nodes.append(_include_ibvs_controller())
         case "pose":
-            return [_include_pose_controller()]
+            nodes.append(_include_pose_controller())
+    # Launch OC planner if needed
+    if controller in ["pbvs", "ibvs"]:
+        nodes.append(_include_oc_planner(controller))
+    return nodes
 
 
 def generate_launch_description() -> LaunchDescription:
@@ -153,7 +182,7 @@ def _include_pbvs_controller() -> IncludeLaunchDescription:
     joint_trajectory_topic_name = LaunchConfiguration("joint_trajectory_topic_name")
     joint_states_topic_name = LaunchConfiguration("joint_states_topic_name")
     detections_topic_name = LaunchConfiguration("detections_topic_name")
-    desired_trajectory_topic_name = LaunchConfiguration("desired_trajectory_topic_name")
+    desired_trajectory_topic_name = "/oc_planner/trajectory"
 
     return IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
@@ -194,7 +223,7 @@ def _include_ibvs_controller() -> IncludeLaunchDescription:
     joint_states_topic_name = LaunchConfiguration("joint_states_topic_name")
     camera_info_topic_name = LaunchConfiguration("camera_info_topic_name")
     detections_topic_name = LaunchConfiguration("detections_topic_name")
-    desired_trajectory_topic_name = LaunchConfiguration("desired_trajectory_topic_name")
+    desired_trajectory_topic_name = "/oc_planner/trajectory"
 
     return IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
@@ -232,7 +261,7 @@ def _include_pose_controller() -> IncludeLaunchDescription:
 
     joint_trajectory_topic_name = LaunchConfiguration("joint_trajectory_topic_name")
     joint_states_topic_name = LaunchConfiguration("joint_states_topic_name")
-    desired_trajectory_topic_name = LaunchConfiguration("desired_trajectory_topic_name")
+    pose_reference_topic_name = LaunchConfiguration("pose_reference_topic_name")
 
     return IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
@@ -252,6 +281,36 @@ def _include_pose_controller() -> IncludeLaunchDescription:
             "ee_frame": ee_frame,
             "joint_trajectory_topic_name": joint_trajectory_topic_name,
             "joint_states_topic_name": joint_states_topic_name,
-            "desired_trajectory_topic_name": desired_trajectory_topic_name,
+            "pose_reference_topic_name": pose_reference_topic_name,
+        }.items(),
+    )
+
+
+def _include_oc_planner(controller: str) -> IncludeLaunchDescription:
+    cam_frame = LaunchConfiguration("cam_frame")
+    tcp_frame = LaunchConfiguration("tcp_frame")
+    pose_mk_tgt = LaunchConfiguration("pose_mk_tgt")
+
+    pose_reference_topic_name = LaunchConfiguration("pose_reference_topic_name")
+    camera_info_topic_name = LaunchConfiguration("camera_info_topic_name")
+    camera_twist_topic_name = f"{controller}_controller/camera_twist"
+    detections_topic_name = LaunchConfiguration("detections_topic_name")
+    restart_topic_name = LaunchConfiguration("restart_topic_name")
+
+    return IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(
+            PathJoinSubstitution(
+                [FindPackageShare("control_pkg"), "launch", "planners", "oc_planner.launch.py"]
+            )
+        ),
+        launch_arguments={
+            "cam_frame": cam_frame,
+            "tcp_frame": tcp_frame,
+            "pose_mk_gt": pose_mk_tgt,
+            "pose_reference_topic_name": pose_reference_topic_name,
+            "camera_info_topic_name": camera_info_topic_name,
+            "camera_twist_topic_name": camera_twist_topic_name,
+            "detections_topic_name": detections_topic_name,
+            "restart_topic_name": restart_topic_name,
         }.items(),
     )

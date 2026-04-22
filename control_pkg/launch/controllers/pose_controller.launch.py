@@ -79,6 +79,14 @@ def declare_arguments() -> list[DeclareLaunchArgument]:
     # General arguments
     declared_arguments.append(
         DeclareLaunchArgument(
+            "pose_reference_topic_name",
+            default_value="/goal_pose",
+            description="Reference pose (geometry_msgs/PoseStamped) topic name."
+            " Default is /goal_pose",
+        )
+    )
+    declared_arguments.append(
+        DeclareLaunchArgument(
             "joint_trajectory_topic_name",
             default_value="/joint_trajectory_controller/joint_trajectory",
             description="Joint trajectory (trajectory_msgs/JointTrajectory) topic name."
@@ -91,14 +99,6 @@ def declare_arguments() -> list[DeclareLaunchArgument]:
             default_value="/joint_states",
             description="Joint states (sensor_msgs/JointState) topic name."
             " Default is /joint_states.",
-        )
-    )
-    declared_arguments.append(
-        DeclareLaunchArgument(
-            "desired_trajectory_topic_name",
-            default_value="/goal_pose",
-            description="Desired pose (geometry_msgs/PoseStamped) topic name."
-            " Default is /goal_pose.",
         )
     )
     return declared_arguments
@@ -116,9 +116,9 @@ def generate_launch_description() -> LaunchDescription:
     base_frame = LaunchConfiguration("base_frame")
     ee_frame = LaunchConfiguration("ee_frame")
 
+    pose_reference_topic_name = LaunchConfiguration("pose_reference_topic_name")
     joint_trajectory_topic_name = LaunchConfiguration("joint_trajectory_topic_name")
     joint_states_topic_name = LaunchConfiguration("joint_states_topic_name")
-    desired_trajectory_topic_name = LaunchConfiguration("desired_trajectory_topic_name")
 
     # Initialize robot_description parameter
     robot_description_content = Command(
@@ -164,9 +164,9 @@ def generate_launch_description() -> LaunchDescription:
             }
         ],
         remappings=[
+            ("/goal_pose", pose_reference_topic_name),
             ("/joint_trajectory_controller/joint_trajectory", joint_trajectory_topic_name),
             ("/joint_states", joint_states_topic_name),
-            ("/goal_pose", desired_trajectory_topic_name),
         ],
     )
 
