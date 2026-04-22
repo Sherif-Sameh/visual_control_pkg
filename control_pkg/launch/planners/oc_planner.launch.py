@@ -39,17 +39,10 @@ def declare_arguments() -> list[DeclareLaunchArgument]:
     # General arguments
     declared_arguments.append(
         DeclareLaunchArgument(
-            "pose_reference_topic_name",
-            default_value="/pose_reference",
-            description="Reference pose (geometry_msgs/PoseStamped) topic name."
-            " Default is /pose_reference",
-        )
-    )
-    declared_arguments.append(
-        DeclareLaunchArgument(
-            "camera_info_topic_name",
-            default_value="/camera_info",
-            description="Camera info (sensor_msgs/CameraInfo) topic name. Default is /camera_info.",
+            "state_reference_topic_name",
+            default_value="/state_reference",
+            description="Reference state (trajectory_msgs/MultiDOFJointTrajectory) topic name."
+            " Default is /state_reference",
         )
     )
     declared_arguments.append(
@@ -87,8 +80,7 @@ def generate_launch_description() -> LaunchDescription:
     tcp_frame = LaunchConfiguration("tcp_frame")
     pose_mk_tgt = LaunchConfiguration("pose_mk_tgt")
 
-    pose_reference_topic_name = LaunchConfiguration("pose_reference_topic_name")
-    camera_info_topic_name = LaunchConfiguration("camera_info_topic_name")
+    state_reference_topic_name = LaunchConfiguration("state_reference_topic_name")
     camera_twist_topic_name = LaunchConfiguration("camera_twist_topic_name")
     detections_topic_name = LaunchConfiguration("detections_topic_name")
     restart_topic_name = LaunchConfiguration("restart_topic_name")
@@ -112,8 +104,7 @@ def generate_launch_description() -> LaunchDescription:
             }
         ],
         remappings=[
-            ("/pose_reference", pose_reference_topic_name),
-            ("/camera_info", camera_info_topic_name),
+            ("/state_reference", state_reference_topic_name),
             ("/camera_twist", camera_twist_topic_name),
             ("/detections", detections_topic_name),
             ("/oc_planner/restart", restart_topic_name),

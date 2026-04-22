@@ -4,6 +4,7 @@
 
 # General parameters
 n_update = 20
+"twist.tol" = 0.025
 
 # Dynamic model parameters
 "model.alpha" = 1e-3
@@ -44,8 +45,8 @@ n_update = 20
 "constraint.lbu" = [-1.0, -1.0, -1.0, -1.0, -1.0, -1.0]
 "constraint.ubu" = [1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
 "constraint.idxbu" = [0, 1, 2, 3, 4, 5]
-"constraint.lh" = [-300.0, -220.0]
-"constraint.uh" = [300.0, 220.0]
+"constraint.lh" = [-0.41, -0.3]
+"constraint.uh" = [0.41, 0.3]
 
 # Solver parameters
 "solver.n_horizon" = 60

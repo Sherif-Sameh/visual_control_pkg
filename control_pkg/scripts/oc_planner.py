@@ -6,17 +6,17 @@ ROS node for optimal control-based trajectory planning using Acados
 
 import numpy as np
 import rclpy
-from geometry_msgs.msg import PoseStamped, Transform, Twist, TwistStamped
+from geometry_msgs.msg import Transform, Twist, TwistStamped
 from isaac_ros_apriltag_interfaces.msg import AprilTagDetectionArray
 from numpy.typing import NDArray
 from rclpy.duration import Duration
 from rclpy.node import Node
 from scipy.spatial.transform import Rotation as R
-from sensor_msgs.msg import CameraInfo
 from std_msgs.msg import Empty, Float64
 from tf2_ros import Buffer, TransformListener
 from trajectory_msgs.msg import MultiDOFJointTrajectory, MultiDOFJointTrajectoryPoint
 
+import vc_core.utils.geometry.pose as pose_utils
 from vc_core.ocp.solver import VsOcpSolver, VsOcpSolverCfg
 from vc_core.utils.ros.tf2 import lookup_transform
 
@@ -32,6 +32,7 @@ class OcPlanner(Node):
         self.declare_parameter("frame.cam", rclpy.Parameter.Type.STRING)
         self.declare_parameter("frame.tcp", rclpy.Parameter.Type.STRING)
         self.declare_parameter("pose.mk_tgt", rclpy.Parameter.Type.DOUBLE_ARRAY)
+        self.declare_parameter("twist.tol", rclpy.Parameter.Type.DOUBLE)
         self.declare_parameter("model.alpha", rclpy.Parameter.Type.DOUBLE)
         self.declare_parameter("model.fp", rclpy.Parameter.Type.DOUBLE_ARRAY)
         self.declare_parameter("cost.Q_x_diag", rclpy.Parameter.Type.DOUBLE_ARRAY)
@@ -55,23 +56,24 @@ class OcPlanner(Node):
         # Initialize non-ROS class attributes
         pose_mk_tgt = self.get_parameter("pose.mk_tgt").value
         self._n_update = self.get_parameter("n_update").value
-        self._time_step = self.get_parameter("solver.time_step").value
-        self._traj_stamp = self.get_clock().now()
         self._pose_mk_tgt = (
             np.array(pose_mk_tgt[:3]),
             R.from_quat(pose_mk_tgt[3:], scalar_first=True),
         )
+        self._twist_tol = self.get_parameter("twist.tol").value
+        self._con_lbx = np.array(self.get_parameter("constraint.lbx").value)
+        self._con_ubx = np.array(self.get_parameter("constraint.ubx").value)
+        self._time_step = self.get_parameter("solver.time_step").value
+        self._traj_stamp = self.get_clock().now()
         self._pose_tcp_cam = None
+        self._ocp_solver = self._init_ocp_solver()
         self._reset()
 
         # Initialize ROS attributes
         self._pub_traj = self.create_publisher(MultiDOFJointTrajectory, "/oc_planner/trajectory", 0)
         self._pub_exec_time = self.create_publisher(Float64, "/oc_planner/execution_time", 0)
-        self._sub_pref = self.create_subscription(
-            PoseStamped, "/pose_reference", self.callback_pref, 0
-        )
-        self._sub_cam_info = self.create_subscription(
-            CameraInfo, "/camera_info", self.callback_cam_info, 0
+        self._sub_sref = self.create_subscription(
+            MultiDOFJointTrajectory, "/state_reference", self.callback_sref, 0
         )
         self._sub_cam_twist = self.create_subscription(
             TwistStamped, "/camera_twist", self.callback_cam_twist, 0
@@ -120,16 +122,15 @@ class OcPlanner(Node):
         msg = Float64(data=time)
         self._pub_exec_time.publish(msg)
 
-    def callback_pref(self, msg: PoseStamped) -> None:
-        pos, ori = msg.pose.position, msg.pose.orientation
-        tvec = np.array([pos.x, pos.y, pos.z])
-        rot = R.from_quat([ori.x, ori.y, ori.z, ori.w])
-        self._pose_tgt_tcpd = (tvec, rot)
-
-    def callback_cam_info(self, msg: CameraInfo) -> None:
-        if self._ocp_solver is None:
-            fxy = np.array([msg.k[0], msg.k[4]], dtype=np.float64)
-            self._ocp_solver = self._init_ocp_solver(fxy)
+    def callback_sref(self, msg: MultiDOFJointTrajectory) -> None:
+        t: Transform = msg.points[0].transforms[0]
+        tw: Twist = msg.points[0].velocities[0]
+        self._pose_tgt_tcpd = pose_utils.from_transform_gm(t)
+        self._twist_ref[:3] = tw.linear.x, tw.linear.y, tw.linear.z
+        self._twist_ref[3:] = tw.angular.x, tw.angular.y, tw.angular.z
+        if np.allclose(self._twist_ref, np.zeros(6), atol=1e-3):
+            # reset twist constraints
+            self._ocp_solver.set_constraints(["lbx", "ubx"], [self._con_lbx, self._con_ubx])
 
     def callback_cam_twist(self, msg: TwistStamped) -> None:
         self._twist[:3] = msg.twist.linear.x, msg.twist.linear.y, msg.twist.linear.z
@@ -140,40 +141,37 @@ class OcPlanner(Node):
         if self._pose_tcp_cam is None:
             self._pose_tcp_cam = self._lookup_transform()
         no_ref = self._pose_tgt_tcpd is None and self._pose_mk_camd is None
-        if no_ref or self._ocp_solver is None or self._pose_tcp_cam is None:
+        if no_ref or self._pose_tcp_cam is None:
             return
         elapsed = self._get_elapsed()
         if self._pose_tgt_tcpd is None and elapsed < self._n_update * self._time_step:
             return
         # compute camera pose wrt marker
         pose = msg.detections[0].pose.pose.pose
-        pos, ori = pose.position, pose.orientation
-        rot_mk_cam = R.from_quat([ori.x, ori.y, ori.z, ori.w]).inv()
-        tvec_mk_cam = -rot_mk_cam.apply([pos.x, pos.y, pos.z])
-        pose_mk_cam = np.concatenate([tvec_mk_cam, rot_mk_cam.as_quat(scalar_first=True)])
+        pose = pose_utils.pose_inv(pose_utils.from_pose_gm(pose))
+        pose_mk_cam = np.concatenate([pose[0], pose[1].as_quat(scalar_first=True)])
         # update reference if a new reference is available
         if self._pose_tgt_tcpd is not None:
-            pose_tgt_camd = self._pose_mult(self._pose_tgt_tcpd, self._pose_tcp_cam)
-            self._pose_mk_camd = self._pose_mult(self._pose_mk_tgt, pose_tgt_camd)
+            pose_tgt_camd = pose_utils.pose_mult(self._pose_tgt_tcpd, self._pose_tcp_cam)
+            self._pose_mk_camd = pose_utils.pose_mult(self._pose_mk_tgt, pose_tgt_camd)
         # get and publish new trajectory
         pose, twist = self._solve_for_trajectory(pose_mk_cam, elapsed)
-        self._pose_tgt_tcpd = None
         self.publish_traj(msg.detections[0].id, pose, twist)
         self.publish_exec_time(self._ocp_solver.get_stats("time_tot"))
+        self._pose_tgt_tcpd = None
+        self._twist_ref = np.zeros(6)
         self._traj_stamp = self.get_clock().now()
 
     def callback_rst(self, msg: Empty) -> None:
         self._reset()
 
-    def _init_ocp_solver(self, fxy: NDArray) -> VsOcpSolver:
+    def _init_ocp_solver(self) -> VsOcpSolver:
         """Initialize the VS OCP solver."""
         model_params = {k: v.value for k, v in self.get_parameters_by_prefix("model").items()}
         cost_params = {k: v.value for k, v in self.get_parameters_by_prefix("cost").items()}
         constraint_params = {
             k: np.array(v.value) for k, v in self.get_parameters_by_prefix("constraint").items()
         }
-        constraint_params["lh"] /= fxy
-        constraint_params["uh"] /= fxy
         solver_params = {k: v.value for k, v in self.get_parameters_by_prefix("solver").items()}
 
         ocp_cfg = VsOcpSolverCfg(
@@ -196,17 +194,7 @@ class OcPlanner(Node):
         t = lookup_transform(tcp_frame, cam_frame, self._tf_buffer)
         if t is None:
             return None
-        pos, ori = t.transform.translation, t.transform.rotation
-        tvec = np.array([pos.x, pos.y, pos.z])
-        rot = R.from_quat([ori.x, ori.y, ori.z, ori.w])
-        return tvec, rot
-
-    @staticmethod
-    def _pose_mult(pose01: tuple[NDArray, R], pose12: tuple[NDArray, R]) -> tuple[NDArray, R]:
-        """Combine poses of frame 1 wrt 0 and 2 wrt 1 into 2 wrt 0."""
-        tvec02 = pose01[0] + pose01[1].apply(pose12[0])
-        rot02 = pose01[1] * pose12[1]
-        return tvec02, rot02
+        return pose_utils.from_transform_gm(t)
 
     def _get_elapsed(self) -> float:
         """Get the elapsed time in seconds since the last trajectory."""
@@ -233,6 +221,14 @@ class OcPlanner(Node):
             self._ocp_solver.reset(x0)
         else:
             self._ocp_solver.warmup(n_shift=int(elaps / self._time_step))
+        # tighten twist constraints if twist reference is given
+        if not np.allclose(self._twist_ref, np.zeros(6), atol=1e-3):
+            twist_ref = np.abs(
+                pose_utils.pose_adj(pose_utils.pose_inv(self._pose_tcp_cam)) @ self._twist_ref
+            )
+            con_lbx = np.maximum(self._con_lbx, -twist_ref - self._twist_tol)
+            con_ubx = np.minimum(self._con_ubx, twist_ref + self._twist_tol)
+            self._ocp_solver.set_constraints(["lbx", "ubx"], [con_lbx, con_ubx])
         # solve for trajectory
         pose, twist = self._ocp_solver.solve(x0, ref)
         return pose, twist
@@ -242,7 +238,7 @@ class OcPlanner(Node):
         self._pose_tgt_tcpd = None
         self._pose_mk_camd = None
         self._twist = np.zeros(6)
-        self._ocp_solver = None
+        self._twist_ref = np.zeros(6)
 
 
 def main(args=None):

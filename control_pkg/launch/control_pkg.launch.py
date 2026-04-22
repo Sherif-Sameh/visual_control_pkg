@@ -92,10 +92,10 @@ def declare_arguments() -> list[DeclareLaunchArgument]:
     )
     declared_arguments.append(
         DeclareLaunchArgument(
-            "pose_reference_topic_name",
-            default_value="/pose_reference",
-            description="Reference pose (geometry_msgs/PoseStamped) topic name."
-            " Default is /pose_reference",
+            "state_reference_topic_name",
+            default_value="/state_reference",
+            description="Reference state (trajectory_msgs/MultiDOFJointTrajectory) topic name."
+            " Default is /state_reference",
         )
     )
     declared_arguments.append(
@@ -261,7 +261,6 @@ def _include_pose_controller() -> IncludeLaunchDescription:
 
     joint_trajectory_topic_name = LaunchConfiguration("joint_trajectory_topic_name")
     joint_states_topic_name = LaunchConfiguration("joint_states_topic_name")
-    pose_reference_topic_name = LaunchConfiguration("pose_reference_topic_name")
 
     return IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
@@ -281,7 +280,6 @@ def _include_pose_controller() -> IncludeLaunchDescription:
             "ee_frame": ee_frame,
             "joint_trajectory_topic_name": joint_trajectory_topic_name,
             "joint_states_topic_name": joint_states_topic_name,
-            "pose_reference_topic_name": pose_reference_topic_name,
         }.items(),
     )
 
@@ -291,7 +289,7 @@ def _include_oc_planner(controller: str) -> IncludeLaunchDescription:
     tcp_frame = LaunchConfiguration("tcp_frame")
     pose_mk_tgt = LaunchConfiguration("pose_mk_tgt")
 
-    pose_reference_topic_name = LaunchConfiguration("pose_reference_topic_name")
+    state_reference_topic_name = LaunchConfiguration("state_reference_topic_name")
     camera_info_topic_name = LaunchConfiguration("camera_info_topic_name")
     camera_twist_topic_name = f"{controller}_controller/camera_twist"
     detections_topic_name = LaunchConfiguration("detections_topic_name")
@@ -307,7 +305,7 @@ def _include_oc_planner(controller: str) -> IncludeLaunchDescription:
             "cam_frame": cam_frame,
             "tcp_frame": tcp_frame,
             "pose_mk_gt": pose_mk_tgt,
-            "pose_reference_topic_name": pose_reference_topic_name,
+            "state_reference_topic_name": state_reference_topic_name,
             "camera_info_topic_name": camera_info_topic_name,
             "camera_twist_topic_name": camera_twist_topic_name,
             "detections_topic_name": detections_topic_name,
