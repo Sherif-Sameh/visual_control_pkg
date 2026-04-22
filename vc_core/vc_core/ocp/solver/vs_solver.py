@@ -180,6 +180,18 @@ class VsOcpSolver:
         self._ocp_solver.set_flat("x", np.tile(x0, n_horizon + 1))
         self._ocp_solver.set_flat("u", np.zeros(self.NU * n_horizon))
 
+    def set_constraints(self, fields: list[str], values: list[NDArray]) -> None:
+        """Set the values of the solver's constraints for all intermediate stages.
+
+        Args:
+            fields: List of constraint attributes to set (e.g. lbx, ubx, etc.).
+            values: Corresponding values of `fields`.
+        """
+        n_horizon = self._ocp.solver_options.N_horizon
+        for i in range(1, n_horizon):
+            for f, v in zip(fields, values):
+                self._ocp_solver.constraints_set(i, f, v)
+
     def solve(
         self, x0: NDArray, ref: NDArray, print_stats_on_failure: bool = False
     ) -> tuple[NDArray, NDArray]:
