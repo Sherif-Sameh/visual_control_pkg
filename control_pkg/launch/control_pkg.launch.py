@@ -217,7 +217,7 @@ def _include_ibvs_controller() -> IncludeLaunchDescription:
     ee_frame = LaunchConfiguration("ee_frame")
     cam_frame = LaunchConfiguration("cam_frame")
     tag_size = LaunchConfiguration("tag_size")
-    tag_ids = LaunchConfiguration("tag_ids")
+    tag_id = LaunchConfiguration("tag_id")
 
     joint_trajectory_topic_name = LaunchConfiguration("joint_trajectory_topic_name")
     joint_states_topic_name = LaunchConfiguration("joint_states_topic_name")
@@ -243,7 +243,7 @@ def _include_ibvs_controller() -> IncludeLaunchDescription:
             "ee_frame": ee_frame,
             "cam_frame": cam_frame,
             "tag_size": tag_size,
-            "tag_ids": tag_ids,
+            "tag_id": tag_id,
             "joint_trajectory_topic_name": joint_trajectory_topic_name,
             "joint_states_topic_name": joint_states_topic_name,
             "camera_info_topic_name": camera_info_topic_name,

@@ -10,7 +10,7 @@ IbvsController::IbvsController() : Node("ibvs_controller")
     this->declare_parameter("frame.ee_frame", rclcpp::PARAMETER_STRING);
     this->declare_parameter("frame.cam_frame", rclcpp::PARAMETER_STRING);
     this->declare_parameter("tag.tag_size", rclcpp::PARAMETER_DOUBLE);
-    this->declare_parameter("tag.tag_ids", rclcpp::PARAMETER_INTEGER_ARRAY);
+    this->declare_parameter("tag.tag_id", rclcpp::PARAMETER_INTEGER);
     this->declare_parameter("ik.eps", rclcpp::PARAMETER_DOUBLE);
     this->declare_parameter("ik.lambda", rclcpp::PARAMETER_DOUBLE);
     this->declare_parameter("ik.max_iters", rclcpp::PARAMETER_INTEGER);
@@ -29,18 +29,12 @@ IbvsController::IbvsController() : Node("ibvs_controller")
     m_ee_frame = this->get_parameter("frame.ee_frame").as_string();
     m_cam_frame = this->get_parameter("frame.cam_frame").as_string();
     double tag_size = this->get_parameter("tag.tag_size").as_double();
-    std::vector<int64_t> tag_ids = this->get_parameter("tag.tag_ids").as_integer_array();
-    std::transform(tag_ids.begin(), tag_ids.end(), std::back_inserter(m_tag_ids),
-                   [](int64_t id) { return static_cast<int>(id); });
+    m_tag_id = static_cast<int>(this->get_parameter("tag.tag_ids").as_int());
     m_ctrl_ts = this->get_clock()->now();
     m_points[0].setWorldCoordinates(-tag_size / 2, -tag_size / 2, 0);
     m_points[1].setWorldCoordinates(tag_size / 2, -tag_size / 2, 0);
     m_points[2].setWorldCoordinates(tag_size / 2, tag_size / 2, 0);
     m_points[3].setWorldCoordinates(-tag_size / 2, tag_size / 2, 0);
-    for (const int id : m_tag_ids)
-    {
-        m_p.insert({id, std::array<vpFeaturePoint, 4>()});
-    }
     init_robot();
     init_controller();
 
@@ -153,21 +147,11 @@ void IbvsController::callback_cam_info(const sensor_msgs::msg::CameraInfo::Share
 
 void IbvsController::callback_tag(const AprilTagDetectionArray::SharedPtr msg)
 {
-    if (m_pd.size() == 0) return;          // no desired features
+    if (!m_traj_msg) return;               // no desired features
     if (!m_cam_params.has_value()) return; // camera not initialized
 
-    std::vector<int> valid_ids, invalid_ids;
-    update_features(msg->detections, valid_ids, invalid_ids);
-    if (valid_ids.size() == 0) return; // no valid tags
-    if (invalid_ids.size() > 0)
-    {
-        // Replace invalid tags with valid duplicates if available
-        for (const int id : invalid_ids)
-        {
-            m_p[id] = m_p[valid_ids[0]];
-            m_pd[id] = m_pd[valid_ids[0]];
-        }
-    }
+    bool valid_id = update_features(msg->detections);
+    if (!valid_id) return; // no valid tag
 
     // Get end-effector pose relative to robot base from TF Tree
     vpHomogeneousMatrix fMe;
@@ -177,7 +161,7 @@ void IbvsController::callback_tag(const AprilTagDetectionArray::SharedPtr msg)
 
     // Compute camera velocity and convert to joint velocities
     vpColVector v_c = m_v_cam_ff;
-    if (!has_converged(valid_ids))
+    if (!has_converged())
     {
         v_c += m_lambda.hadamard(m_controller.computeControlLaw());
     }
@@ -190,43 +174,9 @@ void IbvsController::callback_tag(const AprilTagDetectionArray::SharedPtr msg)
 
 void IbvsController::callback_traj_des(const MultiDOFJointTrajectory::SharedPtr msg)
 {
-    std::vector<int> tag_ids(msg->joint_names.size());
-    std::transform(msg->joint_names.cbegin(), msg->joint_names.cend(), tag_ids.begin(),
-                   [](const std::string &s_id) { return std::stoi(s_id); });
-    bool has_valid_ids = false;
-    for (std::size_t i = 0; i < tag_ids.size(); i++)
-    {
-        int id = tag_ids[i];
-        auto it = std::find(m_tag_ids.cbegin(), m_tag_ids.cend(), id);
-        if (it == m_tag_ids.cend()) continue;
-
-        has_valid_ids = true;
-        auto cdMo_id =
-            utils::geometry::to_mnf_se3<double, true>(msg->points[0].transforms[i]).inverse();
-        if (m_pd.find(id) == m_pd.end()) // initialize new tag
-        {
-            m_pd.insert({id, std::array<vpFeaturePoint, 4>()});
-            for (std::size_t i = 0; i < 4; i++)
-            {
-                m_controller.addFeature(m_p[id][i], m_pd[id][i]);
-            }
-            double lpf_coeff = this->get_parameter("ctrl.lpf_coeff").as_double();
-            m_cdMo_lpf.insert({id, se::LowPassFilter<manif::SE3d>(lpf_coeff, cdMo_id)});
-        }
-        else
-        {
-            m_cdMo_lpf[id].update(cdMo_id);
-        }
-        auto cdMo_id_f = utils::geometry::to_vp_hmatrix(m_cdMo_lpf[id].getState());
-        for (std::size_t i = 0; i < 4; i++) // update desired feature points
-        {
-            m_points[i].track(cdMo_id_f);
-            vpFeatureBuilder::create(m_pd[id][i], m_points[i]);
-        }
-    }
-    m_v_cam_ff = 0.0;
-    geometry_msgs::msg::Twist v_cam_ff = msg->points[0].velocities[0];
-    m_v_cam_ff = has_valid_ids ? utils::mappings::to_vp_vpcolvector(v_cam_ff) : m_v_cam_ff;
+    // store for interpolation during detection callbacks
+    m_traj_ts = this->get_clock()->now();
+    m_traj_msg = msg;
 }
 
 rcl_interfaces::msg::SetParametersResult
@@ -318,49 +268,87 @@ void IbvsController::init_controller()
     m_controller.setLambda(1.0);
     m_controller.setServo(vpServo::EYEINHAND_CAMERA);
     m_controller.setInteractionMatrixType(vpServo::CURRENT);
-}
-
-void IbvsController::update_features(const std::vector<AprilTagDetection> &detections,
-                                     std::vector<int> &valid_ids, std::vector<int> &invalid_ids)
-{
-    for (const auto &tag : m_pd)
+    for (std::size_t i = 0; i < m_p.size(); i++)
     {
-        const int id = tag.first;
-        auto it = std::find_if(detections.cbegin(), detections.cend(),
-                               [id](const AprilTagDetection &dtn) { return dtn.id == id; });
-        if (it != detections.cend())
-        {
-            valid_ids.push_back(id);
-            vpHomogeneousMatrix cMo = utils::geometry::to_vp_hmatrix((*it).pose.pose.pose);
-            for (std::size_t i = 0; i < 4; i++)
-            {
-                vpImagePoint corner((*it).corners[i].y, (*it).corners[i].x);
-                vpFeatureBuilder::create(m_p[id][i], *m_cam_params, corner);
-                vpColVector cP;
-                m_points[i].changeFrame(cMo, cP);
-                m_p[id][i].set_Z(cP[2]);
-            }
-        }
-        else
-        {
-            invalid_ids.push_back(id);
-        }
+        m_controller.addFeature(m_p[i], m_pd[i]);
     }
 }
 
-bool IbvsController::has_converged(const std::vector<int> &valid_ids)
+bool IbvsController::update_features(const std::vector<AprilTagDetection> &detections)
 {
-    auto has_feature_converged = [this](const int id)
+    // Check detections for tag id
+    auto it = std::find_if(detections.cbegin(), detections.cend(),
+                           [this](const AprilTagDetection &dtn) { return dtn.id == m_tag_id; });
+    if (it == detections.cend()) return false;
+
+    // Interpolate trajectory to get reference
+    rclcpp::Duration elapsed = this->get_clock()->now() - m_traj_ts;
+    auto pt_it = find_traj_point(elapsed);
+    if (pt_it == m_traj_msg->points.cbegin()) return false;
+    manif::SE3d oMcd;
+    vpColVector v_cam;
+    if (pt_it != m_traj_msg->points.cend())
     {
-        bool all = true;
-        for (std::size_t i = 0; i < m_p[id].size(); i++)
+        auto pt_prev_it = std::prev(pt_it);
+        double pt_sec = rclcpp::Duration((*pt_it).time_from_start).seconds();
+        double pt_prev_sec = rclcpp::Duration((*pt_prev_it).time_from_start).seconds();
+        double lambda = (elapsed.seconds() - pt_prev_sec) / (pt_sec - pt_prev_sec);
+        // Interpolate pose
+        manif::SE3d oMcd_1 = utils::geometry::to_mnf_se3<double, true>((*pt_prev_it).transforms[0]);
+        manif::SE3d oMcd_2 = utils::geometry::to_mnf_se3<double, true>((*pt_it).transforms[0]);
+        oMcd = oMcd_1.plus(lambda * oMcd_2.minus(oMcd_1));
+        // Interpolate twist
+        vpColVector v_cam_1 = utils::mappings::to_vp_vpcolvector((*pt_prev_it).velocities[0]);
+        vpColVector v_cam_2 = utils::mappings::to_vp_vpcolvector((*pt_it).velocities[0]);
+        v_cam = v_cam_1 + lambda * (v_cam_2 - v_cam_1);
+    }
+    else
+    {
+        oMcd = utils::geometry::to_mnf_se3<double, true>((*pt_it).transforms[0]);
+        v_cam = utils::mappings::to_vp_vpcolvector((*pt_it).velocities[0]);
+    }
+
+    // Update features and feed-forward velocity signal
+    vpHomogeneousMatrix cdMo = utils::geometry::to_vp_hmatrix(oMcd.inverse());
+    vpHomogeneousMatrix cMo = utils::geometry::to_vp_hmatrix((*it).pose.pose.pose);
+    for (std::size_t i = 0; i < m_pd.size(); i++)
+    {
+        // Desired features
+        m_points[i].track(cdMo);
+        vpFeatureBuilder::create(m_pd[i], m_points[i]);
+
+        // Current features
+        vpImagePoint corner((*it).corners[i].y, (*it).corners[i].x);
+        vpFeatureBuilder::create(m_p[i], *m_cam_params, corner);
+        vpColVector cP;
+        m_points[i].changeFrame(cMo, cP);
+        m_p[i].set_Z(cP[2]);
+    }
+    m_v_cam_ff = v_cam;
+    return true;
+}
+
+std::vector<trajectory_msgs::msg::MultiDOFJointTrajectoryPoint>::const_iterator
+IbvsController::find_traj_point(const rclcpp::Duration &elapsed)
+{
+    auto it = std::lower_bound(
+        m_traj_msg->points.cbegin(), m_traj_msg->points.cend(), elapsed.nanoseconds(),
+        [](const trajectory_msgs::msg::MultiDOFJointTrajectoryPoint &pt, const int64_t &value_ns)
         {
-            all = all && m_p[id][i].error(m_pd[id][i]).sumSquare() < m_conv_eps;
-        }
-        return all;
-    };
-    return std::all_of(valid_ids.cbegin(), valid_ids.cend(), [&has_feature_converged](const int id)
-                       { return has_feature_converged(id); });
+            int64_t pt_ns = rclcpp::Duration(pt.time_from_start).nanoseconds();
+            return pt_ns < value_ns;
+        });
+    return it;
+}
+
+bool IbvsController::has_converged()
+{
+    bool all = true;
+    for (std::size_t i = 0; i < m_p.size(); i++)
+    {
+        all = all && (m_p[i].error(m_pd[i]).sumSquare() < m_conv_eps);
+    }
+    return all;
 }
 
 int main(int argc, char *argv[])
