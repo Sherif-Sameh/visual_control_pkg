@@ -18,6 +18,7 @@ endif()
 # Find dependencies
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
+find_package(rclpy REQUIRED)
 find_package(rcl_interfaces REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
@@ -74,6 +75,12 @@ install(TARGETS
   pbvs_controller
   ibvs_controller
   pose_controller
+  DESTINATION lib/${PROJECT_NAME}
+)
+
+# Install Python executables
+install(PROGRAMS
+  scripts/oc_planner.py
   DESTINATION lib/${PROJECT_NAME}
 )
 
