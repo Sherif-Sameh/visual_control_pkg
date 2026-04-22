@@ -39,10 +39,10 @@ class OcPlanner(Node):
         self.declare_parameter("cost.Q_z_diag", rclpy.Parameter.Type.DOUBLE_ARRAY)
         self.declare_parameter("constraint.lbx", rclpy.Parameter.Type.DOUBLE_ARRAY)
         self.declare_parameter("constraint.ubx", rclpy.Parameter.Type.DOUBLE_ARRAY)
-        self.declare_parameter("constraint.idxbx", rclpy.Parameter.Type.DOUBLE_ARRAY)
+        self.declare_parameter("constraint.idxbx", rclpy.Parameter.Type.INTEGER_ARRAY)
         self.declare_parameter("constraint.lbu", rclpy.Parameter.Type.DOUBLE_ARRAY)
         self.declare_parameter("constraint.ubu", rclpy.Parameter.Type.DOUBLE_ARRAY)
-        self.declare_parameter("constraint.idxbu", rclpy.Parameter.Type.DOUBLE_ARRAY)
+        self.declare_parameter("constraint.idxbu", rclpy.Parameter.Type.INTEGER_ARRAY)
         self.declare_parameter("constraint.lh", rclpy.Parameter.Type.DOUBLE_ARRAY)
         self.declare_parameter("constraint.uh", rclpy.Parameter.Type.DOUBLE_ARRAY)
         self.declare_parameter("solver.n_horizon", rclpy.Parameter.Type.INTEGER)
@@ -89,7 +89,7 @@ class OcPlanner(Node):
         msg.header.stamp = self.get_clock().now().to_msg()
         msg.joint_names.append(str(id))
 
-        traj_len = min(2 * self._n_update, pose.shape[0])
+        traj_len = min(int(1.5 * self._n_update), pose.shape[0])
         for i in range(traj_len):
             t = Transform()
             t.translation.x = float(pose[i, 0])

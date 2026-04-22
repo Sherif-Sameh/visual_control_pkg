@@ -1,0 +1,124 @@
+import os
+
+import toml
+from ament_index_python.packages import get_package_share_directory
+from launch import LaunchDescription
+from launch.actions import DeclareLaunchArgument
+from launch.substitutions import LaunchConfiguration
+from launch_ros.actions import Node
+
+
+def declare_arguments() -> list[DeclareLaunchArgument]:
+    declared_arguments = []
+
+    # OC planner arguments
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "cam_frame",
+            default_value="camera_color_optical_frame",
+            description="Name of the camera frame of the RGB images."
+            " Default value is camera_color_optical_frame.",
+        )
+    )
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "tcp_frame",
+            default_value="tcp",
+            description="Name of the tcp frame of the robot. Default value is tcp.",
+        )
+    )
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "pose_mk_tgt",
+            default_value="[0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0]",
+            description="Pose of target wrt the reference marker."
+            " Default value is [0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0].",
+        )
+    )
+
+    # General arguments
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "pose_reference_topic_name",
+            default_value="/pose_reference",
+            description="Reference pose (geometry_msgs/PoseStamped) topic name."
+            " Default is /pose_reference",
+        )
+    )
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "camera_info_topic_name",
+            default_value="/camera_info",
+            description="Camera info (sensor_msgs/CameraInfo) topic name. Default is /camera_info.",
+        )
+    )
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "camera_twist_topic_name",
+            default_value="/camera_twist",
+            description="Camera twist (geometry_msgs/TwistStamped) topic name."
+            " Default is /camera_twist.",
+        )
+    )
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "detections_topic_name",
+            default_value="/detections",
+            description="AprilTag detections (isaac_ros_apriltag_interfaces/AprilTagDetectionArray)"
+            " topic name. Default is /detections.",
+        )
+    )
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "restart_topic_name",
+            default_value="/oc_planner/restart",
+            description="Restart (std_msgs/Empty) topic name. Default is /oc_planner/restart.",
+        )
+    )
+    return declared_arguments
+
+
+def generate_launch_description() -> LaunchDescription:
+    # Declare arguments
+    declared_arguments = declare_arguments()
+
+    # Initialize Arguments
+    cam_frame = LaunchConfiguration("cam_frame")
+    tcp_frame = LaunchConfiguration("tcp_frame")
+    pose_mk_tgt = LaunchConfiguration("pose_mk_tgt")
+
+    pose_reference_topic_name = LaunchConfiguration("pose_reference_topic_name")
+    camera_info_topic_name = LaunchConfiguration("camera_info_topic_name")
+    camera_twist_topic_name = LaunchConfiguration("camera_twist_topic_name")
+    detections_topic_name = LaunchConfiguration("detections_topic_name")
+    restart_topic_name = LaunchConfiguration("restart_topic_name")
+
+    # Load configuration from toml
+    pkg_share = get_package_share_directory("control_pkg")
+    config_path = os.path.join(pkg_share, "config", "oc_planner.toml")
+    config = toml.load(config_path)
+
+    # Initialize nodes to start
+    oc_planner_node = Node(
+        package="control_pkg",
+        executable="oc_planner.py",
+        output="screen",
+        parameters=[
+            {
+                "frame.cam": cam_frame,
+                "frame.tcp": tcp_frame,
+                "pose.mk_tgt": pose_mk_tgt,
+                **config["planner"],
+            }
+        ],
+        remappings=[
+            ("/pose_reference", pose_reference_topic_name),
+            ("/camera_info", camera_info_topic_name),
+            ("/camera_twist", camera_twist_topic_name),
+            ("/detections", detections_topic_name),
+            ("/oc_planner/restart", restart_topic_name),
+        ],
+    )
+
+    nodes_to_start = [oc_planner_node]
+    return LaunchDescription(declared_arguments + nodes_to_start)
