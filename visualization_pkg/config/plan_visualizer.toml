@@ -1,0 +1,8 @@
+### Plan Visualizer Configuration ###
+
+[visualizer]
+
+# Trajectory parameters
+"traj.width" = 0.01
+"traj.alpha" = 0.5
+"traj.color" = [0.1, 0.1, 1.0]

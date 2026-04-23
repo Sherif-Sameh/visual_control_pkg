@@ -12,7 +12,7 @@ from numpy.typing import NDArray
 from rclpy.duration import Duration
 from rclpy.node import Node
 from scipy.spatial.transform import Rotation as R
-from std_msgs.msg import Float64
+from std_msgs.msg import Float64, Header
 from tf2_ros import Buffer, TransformListener
 from trajectory_msgs.msg import MultiDOFJointTrajectory, MultiDOFJointTrajectoryPoint
 
@@ -89,10 +89,10 @@ class OcPlanner(Node):
         self._tf_buffer = Buffer()
         self._tf_listener = TransformListener(self._tf_buffer, self)
 
-    def publish_traj(self, pose: NDArray, twist: NDArray) -> None:
+    def publish_traj(self, header: Header, pose: NDArray, twist: NDArray) -> None:
         """Publish the planned trajectory."""
         msg = MultiDOFJointTrajectory()
-        msg.header.stamp = self.get_clock().now().to_msg()
+        msg.header.stamp = header.stamp
 
         traj_len = min(int(1.5 * self._n_update), pose.shape[0])
         for i in range(traj_len):
@@ -161,7 +161,7 @@ class OcPlanner(Node):
             self._pose_mk_camd = pose_utils.pose_mult(self._pose_mk_tgt, pose_tgt_camd)
         # get and publish new trajectory
         pose, twist = self._solve_for_trajectory(pose_mk_cam, elapsed)
-        self.publish_traj(pose, twist)
+        self.publish_traj(msg.header, pose, twist)
         self.publish_exec_time(self._ocp_solver.get_stats("time_tot"))
         self._pose_tgt_tcpd = None
         self._twist_ref = np.zeros(6)

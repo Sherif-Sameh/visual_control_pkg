@@ -64,13 +64,30 @@ def declare_arguments() -> list[DeclareLaunchArgument]:
         )
     )
 
+    # Plan visualizer arguments
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "ref_frame",
+            default_value="reference",
+            description="Names of reference frame for the planned trajectory. Default is reference.",
+        )
+    )
+
     # General arguments
     declared_arguments.append(
         DeclareLaunchArgument(
             "visualizers",
-            default_value="r,t",
+            default_value="r,t,p",
             description="Comma separated string of visualizers to enable. Use empty string to"
-            " disable all. Default is 'r,t'.",
+            " disable all. Default is 'r,t,p'.",
+        )
+    )
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "planned_trajectory_topic_name",
+            default_value="/planned_trajectory",
+            description="Planned trajectory (trajectory_msgs/MultiDOFJointTrajectory) topic name."
+            " Default is /planned_trajectory.",
         )
     )
     declared_arguments.append(
@@ -122,6 +139,8 @@ def launch_setup(context: LaunchContext) -> list[Node | IncludeLaunchDescription
         launch.append(_include_trajectory_visualizer())
     if "d" in visualizers:
         launch.append(_include_detection_visualizer())
+    if "p" in visualizers:
+        launch.append(_include_plan_visualizer())
     return launch
 
 
@@ -222,5 +241,27 @@ def _include_detection_visualizer() -> IncludeLaunchDescription:
         launch_arguments={
             "image_topic_name": image_topic_name,
             "detections_topic_name": detections_topic_name,
+        }.items(),
+    )
+
+
+def _include_plan_visualizer() -> IncludeLaunchDescription:
+    ref_frame = LaunchConfiguration("ref_frame")
+    planned_trajectory_topic_name = LaunchConfiguration("planned_trajectory_topic_name")
+
+    return IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(
+            PathJoinSubstitution(
+                [
+                    FindPackageShare("visualization_pkg"),
+                    "launch",
+                    "visualizers",
+                    "plan_visualizer.launch.py",
+                ]
+            )
+        ),
+        launch_arguments={
+            "ref": ref_frame,
+            "planned_trajectory_topic_name": planned_trajectory_topic_name,
         }.items(),
     )

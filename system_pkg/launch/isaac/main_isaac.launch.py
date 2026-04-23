@@ -19,6 +19,7 @@ BASE_FRAME = "base_link"
 EE_FRAME = "tool0"
 TCP_FRAME = "tcp"
 CAM_FRAME = "camera_color_optical_frame"
+REF_FRAME = "tag36h11:1f"
 
 POSE_MK_TGT = "[0.113, -0.071, -0.232, 1.0, 0.0, 0.0, 0.0]"
 POSE_GT_TCP = "[0.0, 0.011, 0.099, 0.988, 0.152, 0.0, 0.0]"
@@ -196,9 +197,9 @@ def declare_arguments() -> list[DeclareLaunchArgument]:
     declared_arguments.append(
         DeclareLaunchArgument(
             "visualizers",
-            default_value="r,t",
+            default_value="r,t,p",
             description="Comma separated string of visualizers to enable. Use empty string to"
-            " disable all. Default is 'r,t'.",
+            " disable all. Default is 'r,t,p'.",
         )
     )
     declared_arguments.append(
@@ -436,7 +437,9 @@ def _launch_visualization_pkg(context: LaunchContext) -> IncludeLaunchDescriptio
             "use_isaac_cell": USE_ISAAC_CELL,
             "target_frames": f"[{BASE_FRAME}]",
             "source_frames": f"[{EE_FRAME}]",
+            "ref_frame": REF_FRAME,
             "visualizers": visualizers,
+            "planned_trajectory_topic_name": "/oc_planner/trajectory",
             "joint_states_topic_name": "/joint_states",
             "image_topic_name": IMAGE_TOPIC_NAME,
             "detections_topic_name": DETECTIONS_TOPIC_NAME

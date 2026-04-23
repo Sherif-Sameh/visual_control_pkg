@@ -30,6 +30,7 @@ find_package(isaac_ros_apriltag)
 install(PROGRAMS
   scripts/detection_visualizer.py
   scripts/trajectory_visualizer.py
+  scripts/plan_visualizer.py
   DESTINATION lib/${PROJECT_NAME}
 )
 

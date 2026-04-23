@@ -214,16 +214,16 @@ Visualization Manager:
           Value: false
         camera_color_optical_frame:
           Value: false
-        camera_color_optical_frame:0:
-          Value: true
-        camera_color_optical_frame:1:
-          Value: true
         camera_color_optical_frame_gt:
           Value: true
         ee:
           Value: false
         examination_bed:
           Value: false
+        eye_left:
+          Value: true
+        eye_right:
+          Value: true
         flange:
           Value: false
         forearm_link:
@@ -244,14 +244,16 @@ Visualization Manager:
           Value: false
         shoulder_link:
           Value: false
+        tag36h11:0:
+          Value: true
         tag36h11:0f:
+          Value: true
+        tag36h11:1:
           Value: true
         tag36h11:1f:
           Value: true
         tcp:
           Value: false
-        tcp_e:
-          Value: true
         tool0:
           Value: true
         upper_arm_link:
@@ -291,12 +293,22 @@ Visualization Manager:
                           flange:
                             tool0:
                               camera_color_optical_frame:
-                                tcp_e:
+                                tag36h11:0:
+                                  {}
+                                tag36h11:0f:
+                                  {}
+                                tag36h11:1:
+                                  {}
+                                tag36h11:1f:
                                   {}
                               camera_color_optical_frame_gt:
                                 {}
                           ft_frame:
                             {}
+            eye_left:
+              {}
+            eye_right:
+              {}
             robot_stand:
               {}
           examination_bed:
@@ -317,7 +329,7 @@ Visualization Manager:
       Enabled: true
       Name: MarkerArray
       Namespaces:
-        {}
+        trajectory_visualizer: true
       Topic:
         Depth: 5
         Durability Policy: Volatile
@@ -338,6 +350,19 @@ Visualization Manager:
         History Policy: Keep Last
         Reliability Policy: Reliable
         Value: /tcp_calibration_p3d/segmentation
+      Value: true
+    - Class: rviz_default_plugins/Marker
+      Enabled: true
+      Name: Marker
+      Namespaces:
+        plan_visualizer: true
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        Filter size: 10
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /plan_visualizer/trajectory
       Value: true
   Enabled: true
   Global Options:
@@ -392,18 +417,18 @@ Visualization Manager:
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: -0.28665870428085327
-        Y: 0.4801635146141052
-        Z: 1.0177303552627563
+        X: -0.17749062180519104
+        Y: 0.4828467071056366
+        Z: 0.8954305052757263
       Focal Shape Fixed Size: false
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.21039895713329315
+      Pitch: 0.5703986883163452
       Target Frame: <Fixed Frame>
       Value: Orbit (rviz)
-      Yaw: 5.308577537536621
+      Yaw: 5.5385823249816895
     Saved: ~
 Window Geometry:
   Displays:
