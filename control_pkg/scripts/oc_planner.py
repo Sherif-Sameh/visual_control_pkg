@@ -11,6 +11,7 @@ from isaac_ros_apriltag_interfaces.msg import AprilTagDetectionArray
 from numpy.typing import NDArray
 from rclpy.duration import Duration
 from rclpy.node import Node
+from rclpy.qos import QoSProfile, ReliabilityPolicy
 from scipy.spatial.transform import Rotation as R
 from std_msgs.msg import Float64, Header
 from tf2_ros import Buffer, TransformListener
@@ -68,16 +69,23 @@ class OcPlanner(Node):
 
         # Initialize ROS attributes
         self._timer = self.create_timer(0.5, self.callback_timer)
-        self._pub_traj = self.create_publisher(MultiDOFJointTrajectory, "/oc_planner/trajectory", 0)
-        self._pub_exec_time = self.create_publisher(Float64, "/oc_planner/execution_time", 0)
+        self._pub_traj = self.create_publisher(
+            MultiDOFJointTrajectory,
+            "/oc_planner/trajectory",
+            QoSProfile(depth=1, reliability=ReliabilityPolicy.RELIABLE),
+        )
+        self._pub_exec_time = self.create_publisher(Float64, "/oc_planner/execution_time", 1)
         self._sub_pref = self.create_subscription(
-            PoseStamped, "/pose_reference", self.callback_pref, 1
+            PoseStamped,
+            "/pose_reference",
+            self.callback_pref,
+            QoSProfile(depth=1, reliability=ReliabilityPolicy.RELIABLE),
         )
         self._sub_cam_twist = self.create_subscription(
-            TwistStamped, "/camera_twist", self.callback_cam_twist, 0
+            TwistStamped, "/camera_twist", self.callback_cam_twist, 1
         )
         self._sub_dtn = self.create_subscription(
-            AprilTagDetectionArray, "/detections", self.callback_dtn, 0
+            AprilTagDetectionArray, "/detections", self.callback_dtn, 1
         )
         self._tf_buffer = Buffer()
         self._tf_listener = TransformListener(self._tf_buffer, self)

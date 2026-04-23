@@ -41,19 +41,20 @@ IbvsController::IbvsController() : Node("ibvs_controller")
     // Initialize ROS attributes
     m_timer = this->create_wall_timer(0.2s, std::bind(&IbvsController::callback_timer, this));
     m_pub_traj = this->create_publisher<trajectory_msgs::msg::JointTrajectory>(
-        "/joint_trajectory_controller/joint_trajectory", 0);
+        "/joint_trajectory_controller/joint_trajectory", 1);
     m_pub_perr =
         this->create_publisher<geometry_msgs::msg::PoseArray>("/ibvs_controller/pose_error", 10);
     m_pub_cam_twist = this->create_publisher<geometry_msgs::msg::TwistStamped>(
-        "/ibvs_controller/camera_twist", 0);
+        "/ibvs_controller/camera_twist", 1);
     m_sub_js = this->create_subscription<sensor_msgs::msg::JointState>(
-        "/joint_states", 0, std::bind(&IbvsController::callback_js, this, _1));
+        "/joint_states", 1, std::bind(&IbvsController::callback_js, this, _1));
     m_sub_cam_info = this->create_subscription<sensor_msgs::msg::CameraInfo>(
-        "/camera_info", 0, std::bind(&IbvsController::callback_cam_info, this, _1));
+        "/camera_info", 1, std::bind(&IbvsController::callback_cam_info, this, _1));
     m_sub_tag = this->create_subscription<AprilTagDetectionArray>(
-        "/detections", 0, std::bind(&IbvsController::callback_tag, this, _1));
+        "/detections", 1, std::bind(&IbvsController::callback_tag, this, _1));
     m_sub_traj_des = this->create_subscription<MultiDOFJointTrajectory>(
-        "/desired_trajectory", 0, std::bind(&IbvsController::callback_traj_des, this, _1));
+        "/desired_trajectory", rclcpp::QoS(rclcpp::KeepLast(1)).reliable(),
+        std::bind(&IbvsController::callback_traj_des, this, _1));
     m_tf_buffer = std::make_unique<tf2_ros::Buffer>(this->get_clock());
     m_tf_listener = std::make_shared<tf2_ros::TransformListener>(*m_tf_buffer);
     m_cbh_param =
