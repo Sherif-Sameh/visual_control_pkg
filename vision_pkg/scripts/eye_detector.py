@@ -88,15 +88,15 @@ class EyeDetector(Node):
 
         # Initialize ROS attributes
         self._timer = self.create_timer(0.1, self.callback_timer)
-        self._pub_pose = self.create_publisher(AprilTagDetectionArray, "/eye_detector/pose", 0)
+        self._pub_pose = self.create_publisher(AprilTagDetectionArray, "/eye_detector/pose", 1)
         self._pub_perr = self.create_publisher(PoseStamped, "/eye_detector/pose_error", 10)
-        self._pub_seg = self.create_publisher(Image, "/eye_detector/segmentation", 0)
-        self._sub_img = self.create_subscription(Image, "/image", self.callback_img, 0)
+        self._pub_seg = self.create_publisher(Image, "/eye_detector/segmentation", 1)
+        self._sub_img = self.create_subscription(Image, "/image", self.callback_img, 1)
         self._sub_cam_info = self.create_subscription(
-            CameraInfo, "/camera_info", self.callback_cam_info, 0
+            CameraInfo, "/camera_info", self.callback_cam_info, 1
         )
         self._sub_rst = self.create_subscription(
-            Empty, "/eye_detector/restart", self.callback_rst, 0
+            Empty, "/eye_detector/restart", self.callback_rst, 1
         )
         self._tf_buffer = Buffer()
         self._tf_listener = TransformListener(self._tf_buffer, self)

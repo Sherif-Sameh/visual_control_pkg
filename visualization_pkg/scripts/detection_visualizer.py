@@ -48,10 +48,10 @@ class DetectionVisualizer(Node):
         self._img = None
 
         # Initialize ROS attributes
-        self._pub_img = self.create_publisher(Image, "/detection_visualizer/image", 0)
-        self._sub_img = self.create_subscription(Image, "/image", self.callback_image, 0)
+        self._pub_img = self.create_publisher(Image, "/detection_visualizer/image", 1)
+        self._sub_img = self.create_subscription(Image, "/image", self.callback_image, 1)
         self._sub_dtn = self.create_subscription(
-            AprilTagDetectionArray, "/detections", self.callback_detection, 0
+            AprilTagDetectionArray, "/detections", self.callback_detection, 1
         )
 
     def callback_image(self, msg: Image) -> None:

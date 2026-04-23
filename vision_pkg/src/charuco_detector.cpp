@@ -36,12 +36,12 @@ CharucoDetector::CharucoDetector(const rclcpp::NodeOptions &options)
     init_detector_params();
 
     // Initialize ROS attributes
-    m_pub_dtn = this->create_publisher<AprilTagDetectionArray>("/charuco_detector/detections", 0);
-    m_pub_image = this->create_publisher<sensor_msgs::msg::Image>("/charuco_detector/image", 0);
+    m_pub_dtn = this->create_publisher<AprilTagDetectionArray>("/charuco_detector/detections", 1);
+    m_pub_image = this->create_publisher<sensor_msgs::msg::Image>("/charuco_detector/image", 1);
     m_sub_cam_info = this->create_subscription<sensor_msgs::msg::CameraInfo>(
-        "/camera_info", 0, std::bind(&CharucoDetector::callback_cam_info, this, _1));
+        "/camera_info", 1, std::bind(&CharucoDetector::callback_cam_info, this, _1));
     m_sub_image = this->create_subscription<sensor_msgs::msg::Image>(
-        "/image", 0, std::bind(&CharucoDetector::callback_image, this, _1));
+        "/image", 1, std::bind(&CharucoDetector::callback_image, this, _1));
     m_tf_broadcaster = std::make_unique<tf2_ros::TransformBroadcaster>(*this);
     m_cbh_param = this->add_on_set_parameters_callback(
         std::bind(&CharucoDetector::callback_params, this, _1));

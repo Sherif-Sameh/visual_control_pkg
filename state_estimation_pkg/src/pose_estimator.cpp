@@ -22,11 +22,11 @@ PoseEstimator::PoseEstimator(const rclcpp::NodeOptions &options) : Node("pose_es
 
     // Initialize ROS attributes
     m_pub_pose = this->create_publisher<AprilTagDetectionArray>(
-        "/pose_estimator/" + m_pose_frame + "_filtered", 0);
+        "/pose_estimator/" + m_pose_frame + "_filtered", 1);
     m_sub_cam_twist = this->create_subscription<geometry_msgs::msg::TwistStamped>(
-        "/camera_twist", 0, std::bind(&PoseEstimator::callback_cam_twist, this, _1));
+        "/camera_twist", 1, std::bind(&PoseEstimator::callback_cam_twist, this, _1));
     m_sub_pose = this->create_subscription<AprilTagDetectionArray>(
-        "/pose", 0, std::bind(&PoseEstimator::callback_pose, this, _1));
+        "/pose", 1, std::bind(&PoseEstimator::callback_pose, this, _1));
     m_tf_broadcaster = std::make_unique<tf2_ros::TransformBroadcaster>(*this);
     m_cbh_param =
         this->add_on_set_parameters_callback(std::bind(&PoseEstimator::callback_params, this, _1));

@@ -27,13 +27,13 @@ ApriltagEstimator::ApriltagEstimator(const rclcpp::NodeOptions &options)
 
     // Initialize ROS attributes
     m_pub_tag = this->create_publisher<AprilTagDetectionArray>(
-        "/apriltag_estimator/detections_filtered", 0);
+        "/apriltag_estimator/detections_filtered", 1);
     m_sub_cam_info = this->create_subscription<sensor_msgs::msg::CameraInfo>(
-        "/camera_info", 0, std::bind(&ApriltagEstimator::callback_cam_info, this, _1));
+        "/camera_info", 1, std::bind(&ApriltagEstimator::callback_cam_info, this, _1));
     m_sub_cam_twist = this->create_subscription<geometry_msgs::msg::TwistStamped>(
-        "/camera_twist", 0, std::bind(&ApriltagEstimator::callback_cam_twist, this, _1));
+        "/camera_twist", 1, std::bind(&ApriltagEstimator::callback_cam_twist, this, _1));
     m_sub_tag = this->create_subscription<AprilTagDetectionArray>(
-        "/detections", 0, std::bind(&ApriltagEstimator::callback_tag, this, _1));
+        "/detections", 1, std::bind(&ApriltagEstimator::callback_tag, this, _1));
     m_tf_broadcaster = std::make_unique<tf2_ros::TransformBroadcaster>(*this);
     m_cbh_param = this->add_on_set_parameters_callback(
         std::bind(&ApriltagEstimator::callback_params, this, _1));
