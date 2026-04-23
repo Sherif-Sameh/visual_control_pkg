@@ -30,7 +30,7 @@ TAG_ID = "1"
 TAG_SIZE = "0.048"
 
 CAMERA_INFO_TOPIC_NAME = "/isaaclab/camera/camera_info"
-STATE_REFERENCE_TOPIC_NAME = "/isaaclab/command"
+POSE_REFERENCE_TOPIC_NAME = "/isaaclab/command"
 DETECTIONS_FILTERED_TOPIC_NAME = "/apriltag_estimator/detections_filtered"
 DETECTIONS_TOPIC_NAME = "/apriltag_detector/detections"
 IMAGE_TOPIC_NAME = "/isaaclab/camera/image_raw"
@@ -272,7 +272,7 @@ def _launch_control_pkg() -> IncludeLaunchDescription:
             "tcp_frame": TCP_FRAME,
             "pose_mk_tgt": POSE_MK_TGT,
             "controller": controller,
-            "state_reference_topic_name": STATE_REFERENCE_TOPIC_NAME,
+            "pose_reference_topic_name": POSE_REFERENCE_TOPIC_NAME,
             "joint_trajectory_topic_name": JOINT_TRAJECTORY_TOPIC_NAME,
             "joint_states_topic_name": JOINT_STATES_TOPIC_NAME,
             "camera_info_topic_name": CAMERA_INFO_TOPIC_NAME,

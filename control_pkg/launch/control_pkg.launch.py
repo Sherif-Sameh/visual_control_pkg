@@ -92,10 +92,10 @@ def declare_arguments() -> list[DeclareLaunchArgument]:
     )
     declared_arguments.append(
         DeclareLaunchArgument(
-            "state_reference_topic_name",
-            default_value="/state_reference",
-            description="Reference state (trajectory_msgs/MultiDOFJointTrajectory) topic name."
-            " Default is /state_reference",
+            "pose_reference_topic_name",
+            default_value="/pose_reference",
+            description="Reference pose (geometry_msgs/PoseStamped) topic name."
+            " Default is /pose_reference",
         )
     )
     declared_arguments.append(
@@ -283,7 +283,7 @@ def _include_oc_planner(controller: str) -> IncludeLaunchDescription:
     tag_id = LaunchConfiguration("tag_id")
     pose_mk_tgt = LaunchConfiguration("pose_mk_tgt")
 
-    state_reference_topic_name = LaunchConfiguration("state_reference_topic_name")
+    pose_reference_topic_name = LaunchConfiguration("pose_reference_topic_name")
     camera_info_topic_name = LaunchConfiguration("camera_info_topic_name")
     camera_twist_topic_name = f"{controller}_controller/camera_twist"
     detections_topic_name = LaunchConfiguration("detections_topic_name")
@@ -299,7 +299,7 @@ def _include_oc_planner(controller: str) -> IncludeLaunchDescription:
             "tcp_frame": tcp_frame,
             "tag_id": tag_id,
             "pose_mk_gt": pose_mk_tgt,
-            "state_reference_topic_name": state_reference_topic_name,
+            "pose_reference_topic_name": pose_reference_topic_name,
             "camera_info_topic_name": camera_info_topic_name,
             "camera_twist_topic_name": camera_twist_topic_name,
             "detections_topic_name": detections_topic_name,

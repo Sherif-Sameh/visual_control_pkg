@@ -46,10 +46,10 @@ def declare_arguments() -> list[DeclareLaunchArgument]:
     # General arguments
     declared_arguments.append(
         DeclareLaunchArgument(
-            "state_reference_topic_name",
-            default_value="/state_reference",
-            description="Reference state (trajectory_msgs/MultiDOFJointTrajectory) topic name."
-            " Default is /state_reference",
+            "pose_reference_topic_name",
+            default_value="/pose_reference",
+            description="Reference pose (geometry_msgs/PoseStamped) topic name."
+            " Default is /pose_reference",
         )
     )
     declared_arguments.append(
@@ -81,7 +81,7 @@ def generate_launch_description() -> LaunchDescription:
     tag_id = LaunchConfiguration("tag_id")
     pose_mk_tgt = LaunchConfiguration("pose_mk_tgt")
 
-    state_reference_topic_name = LaunchConfiguration("state_reference_topic_name")
+    pose_reference_topic_name = LaunchConfiguration("pose_reference_topic_name")
     camera_twist_topic_name = LaunchConfiguration("camera_twist_topic_name")
     detections_topic_name = LaunchConfiguration("detections_topic_name")
 
@@ -105,7 +105,7 @@ def generate_launch_description() -> LaunchDescription:
             }
         ],
         remappings=[
-            ("/state_reference", state_reference_topic_name),
+            ("/pose_reference", pose_reference_topic_name),
             ("/camera_twist", camera_twist_topic_name),
             ("/detections", detections_topic_name),
         ],

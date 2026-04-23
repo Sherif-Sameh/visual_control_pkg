@@ -3,8 +3,8 @@
 [planner]
 
 # General parameters
-n_update = 20
-"twist.tol" = 0.025
+n_pub = 30
+n_update = 10
 
 # Dynamic model parameters
 "model.alpha" = 1e-3
@@ -12,41 +12,49 @@ n_update = 20
 
 # Cost function parameters
 "cost.Q_x_diag" = [
-    200.0, # px
-    200.0, # py
-    75.0, # pz
-    50.0, # rx
-    50.0, # ry
-    50.0, # rz
-    20.0, # vx
-    20.0, # vy
-    20.0, # vz
-    20.0, # wx
-    20.0, # wy
-    20.0, # wz
+    6.0, # px
+    6.0, # py
+    1.2, # pz
+    1.2, # rx
+    1.2, # ry
+    1.2, # rz
+    5.0, # vx
+    5.0, # vy
+    1.0, # vz
+    1.0, # wx
+    1.0, # wy
+    1.0, # wz
 ]
 "cost.R_u_diag" = [
-    1.0, # vdotx
-    1.0, # vdoty
+    5.0, # vdotx
+    5.0, # vdoty
     1.0, # vdotz
     1.0, # wdotx
     1.0, # wdoty
     1.0, # wdotz
 ]
 "cost.Q_z_diag" = [
-    20.0, # sdot_x
-    20.0, # sdot_y
+    0.0, # sdot_x
+    0.0, # sdot_y
+]
+"cost.Q_x_e_diag" = [
+    7.5, # px
+    7.5, # py
+    1.5, # pz
+    1.5, # rx
+    1.5, # ry
+    1.5, # rz
+    5.0, # vx
+    5.0, # vy
+    1.0, # vz
+    1.0, # wx
+    1.0, # wy
+    1.0, # wz
 ]
 
 # Constraint parameters
-"constraint.lbx" = [-0.05, -0.05, -0.05, -0.1, -0.1, -0.1]
-"constraint.ubx" = [0.05, 0.05, 0.05, 0.1, 0.1, 0.1]
-"constraint.idxbx" = [7, 8, 9, 10, 11, 12]
-"constraint.lbu" = [-0.05, -0.05, -0.05, -0.1, -0.1, -0.1]
-"constraint.ubu" = [0.05, 0.05, 0.05, 0.1, 0.1, 0.1]
-"constraint.idxbu" = [0, 1, 2, 3, 4, 5]
-"constraint.lh" = [-0.41, -0.3]
-"constraint.uh" = [0.41, 0.3]
+"constraint.lh" = [-1.0, -1.0, -1.0, -1.0, -0.41, -0.3]
+"constraint.uh" = [0.0025, 0.0025, 0.01, 0.01, 0.41, 0.3]
 
 # Solver parameters
 "solver.n_horizon" = 80
