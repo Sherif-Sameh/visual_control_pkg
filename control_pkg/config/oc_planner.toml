@@ -54,7 +54,7 @@ n_update = 60
 
 # Constraint parameters
 "constraint.lh" = [-1.0, -1.0, -1.0, -1.0, -0.41, -0.3]
-"constraint.uh" = [0.0025, 0.0025, 0.01, 0.01, 0.41, 0.3]
+"constraint.uh" = [0.0025, 0.0025, 0.0025, 0.01, 0.41, 0.3]
 
 # Solver parameters
 "solver.n_horizon" = 80

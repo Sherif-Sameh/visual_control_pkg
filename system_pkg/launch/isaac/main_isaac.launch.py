@@ -383,7 +383,7 @@ def _launch_logging_pkg(context: LaunchContext) -> IncludeLaunchDescription:
             "joint_states_topic_name": JOINT_STATES_TOPIC_NAME,
             "joint_trajectory_topic_name": JOINT_TRAJECTORY_TOPIC_NAME,
             "pose_error_topic_name": POSE_ERROR_TOPIC_NAME,
-            "setpoint_error_topic_name": f"{controller}_controller/pose_error",
+            "setpoint_error_topic_name": f"/{controller}_controller/pose_error",
             "restart_topic_name": RESTART_TOPIC_NAME,
         }.items(),
     )
@@ -436,7 +436,7 @@ def _launch_visualization_pkg(context: LaunchContext) -> IncludeLaunchDescriptio
             "execution_mode": EXECUTION_MODE,
             "use_isaac_cell": USE_ISAAC_CELL,
             "target_frames": f"[{BASE_FRAME}]",
-            "source_frames": f"[{EE_FRAME}]",
+            "source_frames": f"[{CAM_FRAME}]",
             "ref_frame": REF_FRAME,
             "visualizers": visualizers,
             "planned_trajectory_topic_name": "/oc_planner/trajectory",
