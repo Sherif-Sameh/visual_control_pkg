@@ -33,14 +33,14 @@ HandeyeCalibration::HandeyeCalibration() : Node("handeye_calibration")
     init_calibration_engine();
 
     // Initialize ROS attributes
-    m_pub_target =
-        this->create_publisher<MultiDOFJointTrajectory>("/handeye_calibration/command", 0);
+    m_pub_target = this->create_publisher<MultiDOFJointTrajectory>(
+        "/handeye_calibration/command", rclcpp::QoS(rclcpp::KeepLast(1)).reliable());
     m_pub_error = this->create_publisher<geometry_msgs::msg::PoseStamped>(
         "/handeye_calibration/pose_error", 10);
     m_sub_dtn = this->create_subscription<AprilTagDetectionArray>(
-        "/detections", 0, std::bind(&HandeyeCalibration::callback_dtn, this, _1));
+        "/detections", 1, std::bind(&HandeyeCalibration::callback_dtn, this, _1));
     m_sub_rst = this->create_subscription<std_msgs::msg::Empty>(
-        "/handeye_calibration/restart", 0, std::bind(&HandeyeCalibration::callback_rst, this, _1));
+        "/handeye_calibration/restart", 1, std::bind(&HandeyeCalibration::callback_rst, this, _1));
     m_tf_buffer = std::make_unique<tf2_ros::Buffer>(this->get_clock());
     m_tf_listener = std::make_shared<tf2_ros::TransformListener>(*m_tf_buffer);
     m_tf_broadcaster = std::make_unique<tf2_ros::TransformBroadcaster>(*this);

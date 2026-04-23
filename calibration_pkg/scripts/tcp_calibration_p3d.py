@@ -94,15 +94,15 @@ class TcpCalibrationP3d(Node):
         # Initialize ROS attributes
         self._timer = self.create_timer(0.25, self.callback_timer)
         self._pub_perr = self.create_publisher(PoseStamped, "/tcp_calibration_p3d/pose_error", 10)
-        self._pub_seg = self.create_publisher(Image, "/tcp_calibration_p3d/segmentation", 0)
-        self._sub_img = self.create_subscription(Image, "/image", self.callback_img, 0)
+        self._pub_seg = self.create_publisher(Image, "/tcp_calibration_p3d/segmentation", 1)
+        self._sub_img = self.create_subscription(Image, "/image", self.callback_img, 1)
         if has_depth:
-            self._sub_depth = self.create_subscription(Image, "/depth", self.callback_depth, 0)
+            self._sub_depth = self.create_subscription(Image, "/depth", self.callback_depth, 1)
         self._sub_cam_info = self.create_subscription(
-            CameraInfo, "/camera_info", self.callback_cam_info, 0
+            CameraInfo, "/camera_info", self.callback_cam_info, 1
         )
         self._sub_rst = self.create_subscription(
-            Empty, "/tcp_calibration_p3d/restart", self.callback_rst, 0
+            Empty, "/tcp_calibration_p3d/restart", self.callback_rst, 1
         )
         self._srv_trgr = self.create_service(
             SetBool, "/tcp_calibration_p3d/trigger", self.callback_trgr

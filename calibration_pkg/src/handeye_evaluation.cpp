@@ -31,12 +31,12 @@ HandeyeEvaluation::HandeyeEvaluation() : Node("handeye_evaluation")
     init_calibration_engine();
 
     // Initialize ROS attributes
-    m_pub_target =
-        this->create_publisher<geometry_msgs::msg::PoseStamped>("/handeye_evaluation/command", 0);
+    m_pub_target = this->create_publisher<geometry_msgs::msg::PoseStamped>(
+        "/handeye_evaluation/command", rclcpp::QoS(rclcpp::KeepLast(1)).reliable());
     m_pub_error = this->create_publisher<geometry_msgs::msg::PoseStamped>(
         "/handeye_evaluation/pose_error", 10);
     m_sub_dtn = this->create_subscription<AprilTagDetectionArray>(
-        "/detections", 0, std::bind(&HandeyeEvaluation::callback_dtn, this, _1));
+        "/detections", 1, std::bind(&HandeyeEvaluation::callback_dtn, this, _1));
     m_tf_buffer = std::make_unique<tf2_ros::Buffer>(this->get_clock());
     m_tf_listener = std::make_shared<tf2_ros::TransformListener>(*m_tf_buffer);
     m_tf_broadcaster = std::make_unique<tf2_ros::TransformBroadcaster>(*this);
