@@ -30,6 +30,9 @@ class VsOcpSolverCfg:
         Q_z: np.ndarray
         """Cost matrix for the model feature errors (`s_dot`). Shape is (2, 2)."""
 
+        Q_x_e: np.ndarray
+        """Cost matrix for the model terminal state errors (`p`, `q`, `u`). Shape is (12, 12)."""
+
     cost_cfg: CostCfg
     """Quadratic cost function configuration."""
 
@@ -133,7 +136,7 @@ class VsOcpSolver:
         self._ocp.cost.W = scipy.linalg.block_diag(
             cfg.cost_cfg.Q_x, cfg.cost_cfg.R_u, cfg.cost_cfg.Q_z
         )
-        self._ocp.cost.W_e = cfg.cost_cfg.Q_x
+        self._ocp.cost.W_e = cfg.cost_cfg.Q_x_e
         self._ocp.cost.yref = np.zeros(self.NX - 1 + self.NU + self.NZ // 2)
         self._ocp.cost.yref_e = np.zeros(self.NX - 1)
 
@@ -273,6 +276,6 @@ class VsOcpSolver:
         if cfg.constraint_cfg.ubu.size > 0:
             assert cfg.constraint_cfg.ubu.size == cfg.constraint_cfg.idxbu.size
         if cfg.constraint_cfg.lh.size > 0:
-            assert cfg.constraint_cfg.lh.shape == (cls.NZ // 2,)
+            assert cfg.constraint_cfg.lh.shape == (4 + cls.NZ // 2,)
         if cfg.constraint_cfg.uh.size > 0:
-            assert cfg.constraint_cfg.uh.shape == (cls.NZ // 2,)
+            assert cfg.constraint_cfg.uh.shape == (4 + cls.NZ // 2,)

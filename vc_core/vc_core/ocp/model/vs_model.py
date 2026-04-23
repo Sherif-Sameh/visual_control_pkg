@@ -35,7 +35,8 @@ def export_vs_ode_model(fp: NDArray, alpha: float = 0.001) -> AcadosModel:
     input `u_dot` and visual feature velocities `s_dot`.
 
     The model's constraints are made up the traditional state `x` and input `u_dot` box constraints
-    along with nonlinear visual feature `s` visibility constraints.
+    along with nonlinear ball constraints on `v`, `w`, `v_dot` and `w_dot` and visual feature `s`
+    visibility constraints.
 
     Args:
         fp: Feature coordinates wrt to the reference frame of the visual marker of interest.
@@ -82,7 +83,11 @@ def export_vs_ode_model(fp: NDArray, alpha: float = 0.001) -> AcadosModel:
     cost_y_e = ca.vertcat(p_err, q_err, u)
 
     # setup nonlinear constraints
-    con_h_expr = s
+    v_sqr = ca.dot(v, v)
+    w_sqr = ca.dot(w, w)
+    v_dot_sqr = ca.dot(u_dot[0:3], u_dot[0:3])
+    w_dot_sqr = ca.dot(u_dot[3:6], u_dot[3:6])
+    con_h_expr = ca.vertcat(v_sqr, w_sqr, v_dot_sqr, w_dot_sqr, s)
 
     # setup model
     model = AcadosModel()
