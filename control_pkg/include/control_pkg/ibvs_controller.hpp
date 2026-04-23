@@ -78,7 +78,8 @@ private:
     std::array<vpFeaturePoint, 4> m_p, m_pd;
     MultiDOFJointTrajectory::SharedPtr m_traj_msg{nullptr};
     std::optional<vpCameraParameters> m_cam_params;
-    vpColVector m_lambda, m_v_cam_ff;
+    utils::structs::EMA<vpColVector, double> m_v_cam_ff;
+    vpColVector m_lambda;
     vpRobotRos m_robot;
     vpServo m_controller;
 

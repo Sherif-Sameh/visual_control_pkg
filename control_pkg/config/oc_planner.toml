@@ -3,8 +3,8 @@
 [planner]
 
 # General parameters
-n_pub = 30
-n_update = 10
+n_pub = 80
+n_update = 60
 
 # Dynamic model parameters
 "model.alpha" = 1e-3

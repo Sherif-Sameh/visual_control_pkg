@@ -160,7 +160,7 @@ void IbvsController::callback_tag(const AprilTagDetectionArray::SharedPtr msg)
         return;
 
     // Compute camera velocity and convert to joint velocities
-    vpColVector v_c = m_v_cam_ff;
+    vpColVector v_c = m_v_cam_ff.m_current;
     if (!has_converged())
     {
         v_c += m_lambda.hadamard(m_controller.computeControlLaw());
@@ -263,8 +263,9 @@ void IbvsController::init_controller()
 {
     m_conv_eps = std::pow(this->get_parameter("ctrl.conv_ttol").as_double(), 2);
     m_lambda = this->get_parameter("ctrl.lambda").as_double_array();
-    m_v_cam_ff.resize(6);
-    m_v_cam_ff = 0.0;
+    m_v_cam_ff.m_alpha = this->get_parameter("ctrl.lpf_coeff").as_double();
+    m_v_cam_ff.m_current.resize(6);
+    m_v_cam_ff.m_current = 0.0;
     m_controller.setLambda(1.0);
     m_controller.setServo(vpServo::EYEINHAND_CAMERA);
     m_controller.setInteractionMatrixType(vpServo::CURRENT);
@@ -324,7 +325,7 @@ bool IbvsController::update_features(const std::vector<AprilTagDetection> &detec
         m_points[i].changeFrame(cMo, cP);
         m_p[i].set_Z(cP[2]);
     }
-    m_v_cam_ff = v_cam;
+    m_v_cam_ff.update(v_cam);
     return true;
 }
 

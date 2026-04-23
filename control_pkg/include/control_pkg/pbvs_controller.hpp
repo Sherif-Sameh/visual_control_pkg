@@ -69,7 +69,8 @@ private:
     utils::structs::vpPoseFeature m_pf;
     MultiDOFJointTrajectory::SharedPtr m_traj_msg{nullptr};
     utils::structs::PoseTolerance<double> m_conv_eps;
-    vpColVector m_lambda, m_v_cam_ff;
+    utils::structs::EMA<vpColVector, double> m_v_cam_ff;
+    vpColVector m_lambda;
     vpRobotRos m_robot;
     vpServo m_controller;
 
