@@ -19,7 +19,6 @@
 #include "tf2_ros/buffer.h"
 #include "tf2_ros/transform_broadcaster.hpp"
 #include "tf2_ros/transform_listener.h"
-#include "trajectory_msgs/msg/multi_dof_joint_trajectory.hpp"
 
 #include "vc_core/calibration/handeyeEngine.hpp"
 #include "vc_core/utils.hpp"
@@ -27,7 +26,6 @@
 using isaac_ros_apriltag_interfaces::msg::AprilTagDetection;
 using isaac_ros_apriltag_interfaces::msg::AprilTagDetectionArray;
 using std::placeholders::_1;
-using trajectory_msgs::msg::MultiDOFJointTrajectory;
 
 class HandeyeCalibration : public rclcpp::Node
 {
@@ -53,7 +51,7 @@ private:
     std::string m_cam_frame;
 
     // Calibration Attributes
-    bool m_done;
+    bool m_done, m_target_pub;
     std::string m_path;
     Eigen::Isometry3d m_target_cam;
     std::optional<Eigen::Isometry3d> m_pose_gt;
@@ -61,7 +59,7 @@ private:
     calib::HandeyeEngine<double> m_engine;
 
     // ROS Attributes
-    rclcpp::Publisher<MultiDOFJointTrajectory>::SharedPtr m_pub_target{nullptr};
+    rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr m_pub_target{nullptr};
     rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr m_pub_error{nullptr};
     rclcpp::Subscription<AprilTagDetectionArray>::SharedPtr m_sub_dtn{nullptr};
     rclcpp::Subscription<std_msgs::msg::Empty>::SharedPtr m_sub_rst{nullptr};

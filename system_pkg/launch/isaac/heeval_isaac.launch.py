@@ -20,10 +20,10 @@ BOARD_YS = "10"
 BOARD_SQ_LEN = "0.03"
 BOARD_MK_LEN = "0.024"
 BOARD_SIZE = "0.3"
-TAG_IDS = "[0]"
+TAG_ID = "0"
 
 CAMERA_INFO_TOPIC_NAME = "/isaaclab/camera/camera_info"
-DESIRED_TRAJECTORY_TOPIC_NAME = "/handeye_evaluation/command"
+POSE_REFERENCE_TOPIC_NAME = "/handeye_evaluation/command"
 DETECTIONS_TOPIC_NAME = "/charuco_detector/detections"
 IMAGE_TOPIC_NAME = "/isaaclab/camera/image_raw"
 JOINT_STATES_TOPIC_NAME = "/isaaclab/joint_states"
@@ -151,8 +151,8 @@ def declare_arguments() -> list[DeclareLaunchArgument]:
 
 def launch_setup(context) -> list[ComposableNodeContainer | IncludeLaunchDescription]:
     launch = []
-    launch.append(_launch_calibration_pkg())
     launch.append(_launch_control_pkg())
+    launch.append(_launch_calibration_pkg())
     launch.append(_launch_vision_pkg(context))
     launch.append(_launch_logging_pkg(context))
     launch.append(_launch_visualization_pkg(context))
@@ -173,22 +173,6 @@ def generate_launch_description() -> LaunchDescription:
 ##
 
 
-def _launch_calibration_pkg() -> IncludeLaunchDescription:
-    return IncludeLaunchDescription(
-        PythonLaunchDescriptionSource(
-            PathJoinSubstitution(
-                [FindPackageShare("calibration_pkg"), "launch", "calibration_pkg.launch.py"]
-            )
-        ),
-        launch_arguments={
-            "base_frame": BASE_FRAME,
-            "ee_frame": EE_FRAME,
-            "calibration": "handeye_evaluation",
-            "detections_topic_name": DETECTIONS_TOPIC_NAME,
-        }.items(),
-    )
-
-
 def _launch_control_pkg() -> IncludeLaunchDescription:
     controller = LaunchConfiguration("controller")
     verbose = LaunchConfiguration("verbose")
@@ -205,13 +189,29 @@ def _launch_control_pkg() -> IncludeLaunchDescription:
             "base_frame": BASE_FRAME,
             "ee_frame": EE_FRAME,
             "cam_frame": CAM_FRAME,
-            "tag_ids": TAG_IDS,
+            "tag_id": TAG_ID,
             "controller": controller,
+            "pose_reference_topic_name": POSE_REFERENCE_TOPIC_NAME,
             "joint_trajectory_topic_name": JOINT_TRAJECTORY_TOPIC_NAME,
             "joint_states_topic_name": JOINT_STATES_TOPIC_NAME,
             "camera_info_topic_name": CAMERA_INFO_TOPIC_NAME,
             "detections_topic_name": DETECTIONS_TOPIC_NAME,
-            "desired_trajectory_topic_name": DESIRED_TRAJECTORY_TOPIC_NAME,
+        }.items(),
+    )
+
+
+def _launch_calibration_pkg() -> IncludeLaunchDescription:
+    return IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(
+            PathJoinSubstitution(
+                [FindPackageShare("calibration_pkg"), "launch", "calibration_pkg.launch.py"]
+            )
+        ),
+        launch_arguments={
+            "base_frame": BASE_FRAME,
+            "ee_frame": EE_FRAME,
+            "calibration": "handeye_evaluation",
+            "detections_topic_name": DETECTIONS_TOPIC_NAME,
         }.items(),
     )
 
@@ -290,7 +290,7 @@ def _launch_visualization_pkg(context: LaunchContext) -> IncludeLaunchDescriptio
             "execution_mode": EXECUTION_MODE,
             "use_isaac_cell": USE_ISAAC_CELL,
             "target_frames": f"[{BASE_FRAME}]",
-            "source_frames": f"[{EE_FRAME}]",
+            "source_frames": f"[{CAM_FRAME}]",
             "visualizers": visualizers,
             "joint_states_topic_name": "/joint_states",
             "image_topic_name": IMAGE_TOPIC_NAME,

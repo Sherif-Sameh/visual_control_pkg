@@ -18,18 +18,22 @@ USE_ISAAC_CELL = "true"
 BASE_FRAME = "base_link"
 EE_FRAME = "tool0"
 CAM_FRAME = "camera_color_optical_frame"
+TCP_FRAME = CAM_FRAME
 MARKER_FRAME = "tag36h11:1f"
+REF_FRAME = MARKER_FRAME
 EYE_GT_FRAME = "eye_left"
 
-MARKER_ID = "1"
+PLANNER_MODE = "default"
+POSE_MK_TGT = "[0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0]"
 REF_POSE = "[0.12, -0.065, -0.2, 1.0, 0.0, 0.0, 0.0]"
 
 TAG_FAMILY = "tag36h11"
-TAG_IDS = "[0, 1]"
+TAG_ID = "1"
 TAG_SIZE = "0.048"
 
 CAMERA_INFO_TOPIC_NAME = "/isaaclab/camera/camera_info"
-DESIRED_TRAJECTORY_TOPIC_NAME = "/eye_calibration/command"
+POSE_REFERENCE_TOPIC_NAME = "/eye_calibration/command"
+PLANNED_TRAJECTORY_TOPIC_NAME = "/oc_planner/trajectory"
 DETECTIONS_FILTERED_TOPIC_NAME = "/apriltag_estimator/detections_filtered"
 DETECTIONS_TOPIC_NAME = "/apriltag_detector/detections"
 IMAGE_TOPIC_NAME = "/isaaclab/camera/image_raw"
@@ -203,9 +207,9 @@ def declare_arguments() -> list[DeclareLaunchArgument]:
     declared_arguments.append(
         DeclareLaunchArgument(
             "visualizers",
-            default_value="r,t",
+            default_value="r,t,p",
             description="Comma separated string of visualizers to enable. Use empty string to"
-            " disable all. Default is 'r,t'.",
+            " disable all. Default is 'r,t,p'.",
         )
     )
 
@@ -266,13 +270,16 @@ def _launch_control_pkg() -> IncludeLaunchDescription:
             "ee_frame": EE_FRAME,
             "cam_frame": CAM_FRAME,
             "tag_size": TAG_SIZE,
-            "tag_ids": TAG_IDS,
+            "tag_id": TAG_ID,
+            "planner_mode": PLANNER_MODE,
+            "tcp_frame": TCP_FRAME,
+            "pose_mk_tgt": POSE_MK_TGT,
             "controller": controller,
+            "pose_reference_topic_name": POSE_REFERENCE_TOPIC_NAME,
             "joint_trajectory_topic_name": JOINT_TRAJECTORY_TOPIC_NAME,
             "joint_states_topic_name": JOINT_STATES_TOPIC_NAME,
             "camera_info_topic_name": CAMERA_INFO_TOPIC_NAME,
             "detections_topic_name": DETECTIONS_FILTERED_TOPIC_NAME,
-            "desired_trajectory_topic_name": DESIRED_TRAJECTORY_TOPIC_NAME,
         }.items(),
     )
 
@@ -292,7 +299,7 @@ def _launch_calibration_pkg() -> IncludeLaunchDescription:
             "cam_frame": CAM_FRAME,
             "marker_frame": MARKER_FRAME,
             "eye_gt_frame": EYE_GT_FRAME,
-            "marker_id": MARKER_ID,
+            "marker_id": TAG_ID,
             "ref_pose": REF_POSE,
             "model": model,
             "dr_backend": dr_backend,
@@ -431,8 +438,10 @@ def _launch_visualization_pkg(context: LaunchContext) -> IncludeLaunchDescriptio
             "execution_mode": EXECUTION_MODE,
             "use_isaac_cell": USE_ISAAC_CELL,
             "target_frames": f"[{BASE_FRAME}]",
-            "source_frames": f"[{EE_FRAME}]",
+            "source_frames": f"[{CAM_FRAME}]",
+            "ref_frame": REF_FRAME,
             "visualizers": visualizers,
+            "planned_trajectory_topic_name": PLANNED_TRAJECTORY_TOPIC_NAME,
             "joint_states_topic_name": "/joint_states",
             "image_topic_name": IMAGE_TOPIC_NAME,
             "restart_topic_name": RESTART_TOPIC_NAME,

@@ -63,3 +63,11 @@ n_update = 60
 "solver.nlp_tol" = 1e-5
 "solver.qp_solver_iter_max" = 50
 "solver.qp_tol" = 1e-5
+
+
+# Overrides
+[overrides-fast]
+n_pub = 60
+n_update = 20
+"constraint.uh" = [0.01, 0.04, 0.01, 0.04, 0.41, 0.3]
+"solver.n_horizon" = 60

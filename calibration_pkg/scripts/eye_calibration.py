@@ -13,7 +13,7 @@ import numpy as np
 import rclpy
 import torch
 from cv_bridge import CvBridge
-from geometry_msgs.msg import PoseStamped, Transform, TransformStamped, Twist
+from geometry_msgs.msg import PoseStamped, TransformStamped
 from kaolin.render.camera import Camera
 from numpy.typing import NDArray
 from rcl_interfaces.msg import SetParametersResult
@@ -26,7 +26,6 @@ from tf2_ros import Buffer, TransformBroadcaster, TransformListener
 from torch import Tensor
 from torch.optim.lr_scheduler import CosineAnnealingLR, CosineAnnealingWarmRestarts
 from torchvision.utils import save_image
-from trajectory_msgs.msg import MultiDOFJointTrajectory, MultiDOFJointTrajectoryPoint
 
 import vc_core.dr.common as common
 import vc_core.dr.kaolin as vc_kal
@@ -107,7 +106,7 @@ class EyeCalibration(Node):
         # Initialize ROS attributes
         self._timer = self.create_timer(0.5, self.callback_timer)
         self._pub_target = self.create_publisher(
-            MultiDOFJointTrajectory,
+            PoseStamped,
             "/eye_calibration/command",
             QoSProfile(depth=1, reliability=ReliabilityPolicy.RELIABLE),
         )
@@ -126,31 +125,35 @@ class EyeCalibration(Node):
         self.add_on_set_parameters_callback(self.callback_params)
 
     def publish_target(self, header: Header) -> None:
-        """Publish the next marker wrt camera target pose and TF transform."""
+        """Publish the next marker wrt camera target pose."""
         tvec_mk_cam, quat_mk_cam = self._pose_target
-        transform = Transform()
-        transform.translation.x = float(tvec_mk_cam[0])
-        transform.translation.y = float(tvec_mk_cam[1])
-        transform.translation.z = float(tvec_mk_cam[2])
-        transform.rotation.x = float(quat_mk_cam[0])
-        transform.rotation.y = float(quat_mk_cam[1])
-        transform.rotation.z = float(quat_mk_cam[2])
-        transform.rotation.w = float(quat_mk_cam[3])
-
-        msg = MultiDOFJointTrajectory()
-        msg.header.frame_id = self._frames["marker"]
+        msg = PoseStamped()
         msg.header.stamp = header.stamp
-        msg.joint_names.append(str(self._ref_id))
-        msg.points.append(
-            MultiDOFJointTrajectoryPoint(transforms=[transform], velocities=[Twist()])
-        )
-        transform_stamped = TransformStamped(
-            header=msg.header,
-            child_frame_id=f"{self._frames['cam']}:{self._ref_id}",
-            transform=transform,
-        )
+        msg.header.frame_id = self._frames["marker"]
+        msg.pose.position.x = float(tvec_mk_cam[0])
+        msg.pose.position.y = float(tvec_mk_cam[1])
+        msg.pose.position.z = float(tvec_mk_cam[2])
+        msg.pose.orientation.x = float(quat_mk_cam[0])
+        msg.pose.orientation.y = float(quat_mk_cam[1])
+        msg.pose.orientation.z = float(quat_mk_cam[2])
+        msg.pose.orientation.w = float(quat_mk_cam[3])
         self._pub_target.publish(msg)
-        self._tf_broadcaster.sendTransform(transform_stamped)
+
+    def publish_tf(self, header: Header) -> None:
+        """Publish the next marker wrt camera target TF transform."""
+        tvec_mk_cam, quat_mk_cam = self._pose_target
+        transform = TransformStamped()
+        transform.header.stamp = header.stamp
+        transform.header.frame_id = self._frames["marker"]
+        transform.child_frame_id = f"{self._frames['cam']}:{self._ref_id}"
+        transform.transform.translation.x = float(tvec_mk_cam[0])
+        transform.transform.translation.y = float(tvec_mk_cam[1])
+        transform.transform.translation.z = float(tvec_mk_cam[2])
+        transform.transform.rotation.x = float(quat_mk_cam[0])
+        transform.transform.rotation.y = float(quat_mk_cam[1])
+        transform.transform.rotation.z = float(quat_mk_cam[2])
+        transform.transform.rotation.w = float(quat_mk_cam[3])
+        self._tf_broadcaster.sendTransform(transform)
 
     def publish_perr(self) -> None:
         """Publish the estimated eye wrt camera pose error."""
@@ -219,7 +222,8 @@ class EyeCalibration(Node):
             return  # optimization done
         if self._pose_target is None:
             self._pose_target = self._get_target_pose()
-        self.publish_target(msg.header)
+            self.publish_target(msg.header)
+        self.publish_tf(msg.header)
         if not self._pose_target_reached:
             return
         # store GT pose if available
@@ -253,6 +257,7 @@ class EyeCalibration(Node):
         else:  # update target
             self._pose_target = self._get_target_pose()
             self._pose_target_reached = False
+            self.publish_target(msg.header)
 
     def callback_cam_info(self, msg: CameraInfo) -> None:
         if self._cameras is None:

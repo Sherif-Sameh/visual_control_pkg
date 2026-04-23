@@ -1,9 +1,10 @@
 import os
+from typing import Any
 
 import toml
 from ament_index_python.packages import get_package_share_directory
-from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument
+from launch import LaunchContext, LaunchDescription
+from launch.actions import DeclareLaunchArgument, OpaqueFunction
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
 
@@ -12,6 +13,15 @@ def declare_arguments() -> list[DeclareLaunchArgument]:
     declared_arguments = []
 
     # OC planner arguments
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "mode",
+            default_value="default",
+            description="OC Planner mode. Determines velocity and acceleration limits. "
+            " Default valus is default.",
+            choices=["default", "fast"],
+        )
+    )
     declared_arguments.append(
         DeclareLaunchArgument(
             "cam_frame",
@@ -71,11 +81,9 @@ def declare_arguments() -> list[DeclareLaunchArgument]:
     return declared_arguments
 
 
-def generate_launch_description() -> LaunchDescription:
-    # Declare arguments
-    declared_arguments = declare_arguments()
-
+def launch_setup(context: LaunchContext) -> list[Node]:
     # Initialize Arguments
+    mode = LaunchConfiguration("mode")
     cam_frame = LaunchConfiguration("cam_frame")
     tcp_frame = LaunchConfiguration("tcp_frame")
     tag_id = LaunchConfiguration("tag_id")
@@ -85,31 +93,53 @@ def generate_launch_description() -> LaunchDescription:
     camera_twist_topic_name = LaunchConfiguration("camera_twist_topic_name")
     detections_topic_name = LaunchConfiguration("detections_topic_name")
 
-    # Load configuration from toml
+    # Load parameters with applied overrides from toml
     pkg_share = get_package_share_directory("control_pkg")
     config_path = os.path.join(pkg_share, "config", "oc_planner.toml")
     config = toml.load(config_path)
+    params = _load_params_with_overrides(config, mode.perform(context))
 
-    # Initialize nodes to start
-    oc_planner_node = Node(
-        package="control_pkg",
-        executable="oc_planner.py",
-        output="screen",
-        parameters=[
-            {
-                "frame.cam": cam_frame,
-                "frame.tcp": tcp_frame,
-                "pose.mk_tgt": pose_mk_tgt,
-                "tag.tag_id": tag_id,
-                **config["planner"],
-            }
-        ],
-        remappings=[
-            ("/pose_reference", pose_reference_topic_name),
-            ("/camera_twist", camera_twist_topic_name),
-            ("/detections", detections_topic_name),
-        ],
-    )
+    return [
+        Node(
+            package="control_pkg",
+            executable="oc_planner.py",
+            output="screen",
+            parameters=[
+                {
+                    "frame.cam": cam_frame,
+                    "frame.tcp": tcp_frame,
+                    "pose.mk_tgt": pose_mk_tgt,
+                    "tag.tag_id": tag_id,
+                    **params,
+                }
+            ],
+            remappings=[
+                ("/pose_reference", pose_reference_topic_name),
+                ("/camera_twist", camera_twist_topic_name),
+                ("/detections", detections_topic_name),
+            ],
+        )
+    ]
 
-    nodes_to_start = [oc_planner_node]
-    return LaunchDescription(declared_arguments + nodes_to_start)
+
+def generate_launch_description() -> LaunchDescription:
+    # Declare arguments
+    declared_arguments = declare_arguments()
+
+    # Add opaque functions
+    # node has to be init from opaque function to retrieve mode-specific overrides
+    opaque_functions = [OpaqueFunction(function=launch_setup)]
+    return LaunchDescription(declared_arguments + opaque_functions)
+
+
+##
+# Private functions
+##
+
+
+def _load_params_with_overrides(config: dict[str, Any], mode: str) -> dict[str, Any]:
+    if mode == "default":
+        return config["planner"]
+    overrides = config[f"overrides-{mode}"]
+    params = config["planner"] | overrides
+    return params

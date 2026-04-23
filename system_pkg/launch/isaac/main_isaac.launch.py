@@ -17,8 +17,8 @@ USE_ISAAC_CELL = "true"
 
 BASE_FRAME = "base_link"
 EE_FRAME = "tool0"
-TCP_FRAME = "tcp"
 CAM_FRAME = "camera_color_optical_frame"
+TCP_FRAME = "tcp"
 REF_FRAME = "tag36h11:1f"
 
 POSE_MK_TGT = "[0.113, -0.071, -0.232, 1.0, 0.0, 0.0, 0.0]"
@@ -31,6 +31,7 @@ TAG_SIZE = "0.048"
 
 CAMERA_INFO_TOPIC_NAME = "/isaaclab/camera/camera_info"
 POSE_REFERENCE_TOPIC_NAME = "/isaaclab/command"
+PLANNED_TRAJECTORY_TOPIC_NAME = "/oc_planner/trajectory"
 DETECTIONS_FILTERED_TOPIC_NAME = "/apriltag_estimator/detections_filtered"
 DETECTIONS_TOPIC_NAME = "/apriltag_detector/detections"
 IMAGE_TOPIC_NAME = "/isaaclab/camera/image_raw"
@@ -439,7 +440,7 @@ def _launch_visualization_pkg(context: LaunchContext) -> IncludeLaunchDescriptio
             "source_frames": f"[{CAM_FRAME}]",
             "ref_frame": REF_FRAME,
             "visualizers": visualizers,
-            "planned_trajectory_topic_name": "/oc_planner/trajectory",
+            "planned_trajectory_topic_name": PLANNED_TRAJECTORY_TOPIC_NAME,
             "joint_states_topic_name": "/joint_states",
             "image_topic_name": IMAGE_TOPIC_NAME,
             "detections_topic_name": DETECTIONS_TOPIC_NAME

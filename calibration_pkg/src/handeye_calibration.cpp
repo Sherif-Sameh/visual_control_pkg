@@ -28,12 +28,13 @@ HandeyeCalibration::HandeyeCalibration() : Node("handeye_calibration")
         m_pose_gt = t * q;
     }
     m_done = false;
+    m_target_pub = false;
     m_conv_tol.m_ttol = this->get_parameter("calib.conv_ttol").as_double();
     m_conv_tol.m_rtol = this->get_parameter("calib.conv_rtol").as_double();
     init_calibration_engine();
 
     // Initialize ROS attributes
-    m_pub_target = this->create_publisher<MultiDOFJointTrajectory>(
+    m_pub_target = this->create_publisher<geometry_msgs::msg::PoseStamped>(
         "/handeye_calibration/command", rclcpp::QoS(rclcpp::KeepLast(1)).reliable());
     m_pub_error = this->create_publisher<geometry_msgs::msg::PoseStamped>(
         "/handeye_calibration/pose_error", 10);
@@ -50,14 +51,9 @@ HandeyeCalibration::HandeyeCalibration() : Node("handeye_calibration")
 
 void HandeyeCalibration::publish_target()
 {
-    MultiDOFJointTrajectory msg;
+    geometry_msgs::msg::PoseStamped msg;
     msg.header.stamp = this->get_clock()->now();
-    msg.joint_names.push_back("0");
-
-    trajectory_msgs::msg::MultiDOFJointTrajectoryPoint cmd;
-    cmd.transforms.push_back(tf2::eigenToTransform(m_target_cam).transform);
-    cmd.velocities.push_back(geometry_msgs::msg::Twist());
-    msg.points.push_back(cmd);
+    msg.pose = tf2::toMsg(m_target_cam);
     m_pub_target->publish(msg);
 }
 
@@ -101,6 +97,7 @@ void HandeyeCalibration::callback_dtn(const AprilTagDetectionArray::SharedPtr ms
 
         // Update setpoint or solve for params if done
         bool updated = m_engine.getNextCameraPose(m_target_cam);
+        m_target_pub = !updated;
         if (!updated) // all poses collected
         {
             m_done = true;
@@ -114,7 +111,11 @@ void HandeyeCalibration::callback_dtn(const AprilTagDetectionArray::SharedPtr ms
     }
 
     // Publish latest target
-    publish_target();
+    if (!m_target_pub)
+    {
+        m_target_pub = true;
+        publish_target();
+    }
     publish_target_tf(msg->header);
 }
 
@@ -122,6 +123,7 @@ void HandeyeCalibration::callback_rst(const std_msgs::msg::Empty::SharedPtr msg)
 {
     (void)msg;
     m_done = false;
+    m_target_pub = false;
     init_calibration_engine(); // reset calibration engine
 }
 

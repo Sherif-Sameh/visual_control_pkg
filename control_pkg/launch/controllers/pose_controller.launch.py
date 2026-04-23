@@ -79,6 +79,14 @@ def declare_arguments() -> list[DeclareLaunchArgument]:
     # General arguments
     declared_arguments.append(
         DeclareLaunchArgument(
+            "pose_reference_topic_name",
+            default_value="/pose_reference",
+            description="Reference pose (geometry_msgs/PoseStamped) topic name."
+            " Default is /pose_reference",
+        )
+    )
+    declared_arguments.append(
+        DeclareLaunchArgument(
             "joint_trajectory_topic_name",
             default_value="/joint_trajectory_controller/joint_trajectory",
             description="Joint trajectory (trajectory_msgs/JointTrajectory) topic name."
@@ -108,6 +116,7 @@ def generate_launch_description() -> LaunchDescription:
     base_frame = LaunchConfiguration("base_frame")
     ee_frame = LaunchConfiguration("ee_frame")
 
+    pose_reference_topic_name = LaunchConfiguration("pose_reference_topic_name")
     joint_trajectory_topic_name = LaunchConfiguration("joint_trajectory_topic_name")
     joint_states_topic_name = LaunchConfiguration("joint_states_topic_name")
 
@@ -155,6 +164,7 @@ def generate_launch_description() -> LaunchDescription:
             }
         ],
         remappings=[
+            ("/goal_pose", pose_reference_topic_name),
             ("/joint_trajectory_controller/joint_trajectory", joint_trajectory_topic_name),
             ("/joint_states", joint_states_topic_name),
         ],

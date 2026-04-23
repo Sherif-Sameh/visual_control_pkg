@@ -332,7 +332,7 @@ Visualization Manager:
       Enabled: true
       Name: MarkerArray
       Namespaces:
-        {}
+        trajectory_visualizer: true
       Topic:
         Depth: 5
         Durability Policy: Volatile
@@ -353,6 +353,19 @@ Visualization Manager:
         History Policy: Keep Last
         Reliability Policy: Reliable
         Value: /eye_calibration/segmentation
+      Value: true
+    - Class: rviz_default_plugins/Marker
+      Enabled: true
+      Name: Marker
+      Namespaces:
+        plan_visualizer: true
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        Filter size: 10
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /plan_visualizer/trajectory
       Value: true
   Enabled: true
   Global Options:
@@ -400,25 +413,25 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz_default_plugins/Orbit
-      Distance: 2.048275947570801
+      Distance: 1.5861848592758179
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: 0.4341663718223572
-        Y: 0.04153701663017273
-        Z: 1.0566476583480835
+        X: 0.6218079924583435
+        Y: 0.09391823410987854
+        Z: 0.9703515768051147
       Focal Shape Fixed Size: false
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.4303986132144928
+      Pitch: 0.4703986942768097
       Target Frame: <Fixed Frame>
       Value: Orbit (rviz)
-      Yaw: 5.728583812713623
+      Yaw: 6.153570652008057
     Saved: ~
 Window Geometry:
   Displays:

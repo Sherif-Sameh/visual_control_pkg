@@ -67,6 +67,15 @@ def declare_arguments() -> list[DeclareLaunchArgument]:
     # OC planner unique arguments
     declared_arguments.append(
         DeclareLaunchArgument(
+            "planner_mode",
+            default_value="default",
+            description="OC Planner mode. Determines velocity and acceleration limits. "
+            " Default valus is default.",
+            choices=["default", "fast"],
+        )
+    )
+    declared_arguments.append(
+        DeclareLaunchArgument(
             "tcp_frame",
             default_value="tcp",
             description="Name of the tcp frame of the robot. Default value is tcp.",
@@ -252,6 +261,7 @@ def _include_pose_controller() -> IncludeLaunchDescription:
     base_frame = LaunchConfiguration("base_frame")
     ee_frame = LaunchConfiguration("ee_frame")
 
+    pose_reference_topic_name = LaunchConfiguration("pose_reference_topic_name")
     joint_trajectory_topic_name = LaunchConfiguration("joint_trajectory_topic_name")
     joint_states_topic_name = LaunchConfiguration("joint_states_topic_name")
 
@@ -271,6 +281,7 @@ def _include_pose_controller() -> IncludeLaunchDescription:
             "verbose": verbose,
             "base_frame": base_frame,
             "ee_frame": ee_frame,
+            "pose_reference_topic_name": pose_reference_topic_name,
             "joint_trajectory_topic_name": joint_trajectory_topic_name,
             "joint_states_topic_name": joint_states_topic_name,
         }.items(),
@@ -278,6 +289,7 @@ def _include_pose_controller() -> IncludeLaunchDescription:
 
 
 def _include_oc_planner(controller: str) -> IncludeLaunchDescription:
+    planner_mode = LaunchConfiguration("planner_mode")
     cam_frame = LaunchConfiguration("cam_frame")
     tcp_frame = LaunchConfiguration("tcp_frame")
     tag_id = LaunchConfiguration("tag_id")
@@ -295,6 +307,7 @@ def _include_oc_planner(controller: str) -> IncludeLaunchDescription:
             )
         ),
         launch_arguments={
+            "mode": planner_mode,
             "cam_frame": cam_frame,
             "tcp_frame": tcp_frame,
             "tag_id": tag_id,
