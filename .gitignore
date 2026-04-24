@@ -54,6 +54,7 @@ data/*
 
 # Proprietary end-effector 3D model
 **/end_effector.stl
+**/end_effector.dae
 
 # Ignore any test meshes
 **/tests/**/*.stl
