@@ -103,7 +103,10 @@ def launch_setup(context: LaunchContext) -> list[Node]:
     model = LaunchConfiguration("model")
     backend = LaunchConfiguration("dr_backend")
     output_path = PathJoinSubstitution(
-        [FindPackageShare("calibration_pkg"), "../../../../logs/output"]
+        [
+            FindPackageShare("calibration_pkg"),
+            f"../../../../logs/output/{backend.perform(context)}_{model.perform(context)}",
+        ]
     )
     mesh_path = PathJoinSubstitution(
         [FindPackageShare("calibration_pkg"), "../../../../logs/eye/eye.obj"]

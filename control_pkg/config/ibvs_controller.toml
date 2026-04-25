@@ -36,10 +36,10 @@ timeout = 0.5
 "ctrl.lpf_coeff" = 0.743
 "ctrl.conv_ttol" = 8.684e-4
 "ctrl.lambda" = [
+  0.75,
+  0.75,
+  0.75,
   0.5,
   0.5,
   0.5,
-  0.35,
-  0.35,
-  0.35,
 ]

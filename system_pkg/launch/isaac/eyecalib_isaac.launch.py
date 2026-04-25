@@ -369,9 +369,10 @@ def _launch_logging_pkg(context: LaunchContext) -> IncludeLaunchDescription:
     csv = LaunchConfiguration("csv")
     wandb = LaunchConfiguration("wandb")
     wandb_group = LaunchConfiguration("wandb_group").perform(context)
-    calibration = LaunchConfiguration("calibration").perform(context)
     if wandb_group == "":
-        wandb_group = f"TCPCalib|{calibration.split('_')[-1].upper()}|default"
+        model = LaunchConfiguration("model").perform(context)
+        dr_backend = LaunchConfiguration("dr_backend").perform(context)
+        wandb_group = f"EyeCalib|{dr_backend}|{model}|default"
 
     return IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
@@ -400,9 +401,10 @@ def _launch_sweep_pkg(context: LaunchContext) -> IncludeLaunchDescription:
     n_runs = LaunchConfiguration("n_runs")
     sweep_id = LaunchConfiguration("sweep_id")
     wandb_group = LaunchConfiguration("wandb_group").perform(context)
-    calibration = LaunchConfiguration("calibration").perform(context)
     if wandb_group == "":
-        wandb_group = f"TCPCalib|{calibration.split('_')[-1].upper()}|default"
+        model = LaunchConfiguration("model").perform(context)
+        dr_backend = LaunchConfiguration("dr_backend").perform(context)
+        wandb_group = f"EyeCalib|{dr_backend}|{model}|default"
 
     return IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
