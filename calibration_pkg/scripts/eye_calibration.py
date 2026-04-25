@@ -5,6 +5,7 @@ ROS node for performing eye texture calibration using differentiable rendering (
 """
 
 import logging
+import pickle
 from copy import copy
 from pathlib import Path
 from typing import Any, Callable
@@ -29,6 +30,7 @@ from torchvision.utils import save_image
 
 import vc_core.dr.common as common
 import vc_core.dr.kaolin as vc_kal
+import vc_core.utils.geometry.pose as pose_utils
 from vc_core.segmentation.sam import SAM2, SAMPromptConfig
 from vc_core.utils.ros.tf2 import lookup_transform
 
@@ -98,7 +100,8 @@ class EyeCalibration(Node):
         self._size = self.get_parameter("dr.raster.size").value
         self._bridge = CvBridge()
         self._sam = self._init_seg()
-        self._sam_prompts = []
+        self._sam_prompts = self._init_seg_prompts()
+        self._pose_home = None
         self._poses = self._init_poses()
         self._optim = self._init_optim()
         self._reset()
@@ -198,23 +201,26 @@ class EyeCalibration(Node):
         self._pub_seg.publish(msg)
 
     def callback_timer(self) -> None:
-        if self._pose_target is None or self._pose_target_reached:
+        tracking = self._pose_target is not None and not self._pose_target_reached
+        if self._pose_home is not None and not tracking:
             return
         # extract marker pose
         transform = lookup_transform(self._frames["cam"], self._frames["marker"], self._tf_buffer)
         if transform is None:
             return
-        pos, ori = transform.transform.translation, transform.transform.rotation
-        tvec = np.array([pos.x, pos.y, pos.z])
-        rot = R.from_quat([ori.x, ori.y, ori.z, ori.w])
-        # extract target pose
-        tvec_mk_cam, quat_mk_cam = self._pose_target
-        rot_target_inv = R.from_quat(quat_mk_cam)
-        tvec_target = -rot_target_inv.apply(tvec_mk_cam, inverse=True)
-        # compute pose error
-        tvec_err = np.linalg.norm(tvec - tvec_target, axis=0)
-        rot_err = (rot * rot_target_inv).magnitude()
-        self._pose_target_reached = tvec_err < self._ref_ptol[0] and rot_err < self._ref_ptol[1]
+        tvec, rot = pose_utils.from_transform_gm(transform.transform)
+        if self._pose_home is None:
+            tvec_home, rot_home = pose_utils.pose_inv((tvec, rot))
+            self._pose_home = (tvec_home, rot_home.as_quat())
+        if tracking:
+            # extract target pose
+            tvec_mk_cam, quat_mk_cam = self._pose_target
+            rot_target_inv = R.from_quat(quat_mk_cam)
+            tvec_target = -rot_target_inv.apply(tvec_mk_cam, inverse=True)
+            # compute pose error
+            tvec_err = np.linalg.norm(tvec - tvec_target, axis=0)
+            rot_err = (rot * rot_target_inv).magnitude()
+            self._pose_target_reached = tvec_err < self._ref_ptol[0] and rot_err < self._ref_ptol[1]
 
     def callback_img(self, msg: Image) -> None:
         n_curr = len(self._silhouette)
@@ -236,6 +242,8 @@ class EyeCalibration(Node):
         if len(self._sam_prompts) < self._n_view:
             self._sam.sample_points(img)
             self._sam_prompts.append((copy(self._sam.point_prompts), copy(self._sam.label_prompts)))
+            if len(self._sam_prompts) == self._n_view:
+                self._store_prompts()
         else:
             self._sam.point_prompts = self._sam_prompts[n_curr][0]
             self._sam.label_prompts = self._sam_prompts[n_curr][1]
@@ -254,10 +262,11 @@ class EyeCalibration(Node):
             self._rgb = torch.stack(self._rgb, dim=0)
             self._optimize()
             self.publish_perr()
+            self._pose_target = self._pose_home
         else:  # update target
             self._pose_target = self._get_target_pose()
             self._pose_target_reached = False
-            self.publish_target(msg.header)
+        self.publish_target(msg.header)
 
     def callback_cam_info(self, msg: CameraInfo) -> None:
         if self._cameras is None:
@@ -316,6 +325,15 @@ class EyeCalibration(Node):
             cfg=SAMPromptConfig(n_pos=prompt_n_pos, n_neg=prompt_n_neg),
             device=self._device,
         )
+
+    def _init_seg_prompts(self) -> list[tuple[list[tuple[int, int]], list[int]]]:
+        """Initialize segmentation prompts from pickle file if it exists."""
+        path = Path(self.get_parameter("output_path").value).parent / "prompts.pkl"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        if path.exists():
+            with open(path, "rb") as f:
+                return pickle.load(f)
+        return []
 
     def _init_poses(self) -> tuple[Tensor, Tensor]:
         """Initialize the target eye-to-camera poses (tvec, rmat)."""
@@ -565,6 +583,12 @@ class EyeCalibration(Node):
         right = min(left + self._size, W)
         bottom = min(top + self._size, H)
         return img[..., top:bottom, left:right, :]
+
+    def _store_prompts(self) -> None:
+        """Store the collected segmentation prompts."""
+        path = Path(self.get_parameter("output_path").value).parent / "prompts.pkl"
+        with open(path, "wb") as f:
+            pickle.dump(self._sam_prompts, f)
 
     def _store_outputs(
         self, texture: Tensor, initial: Tensor, interm: Tensor, final: Tensor, target: Tensor

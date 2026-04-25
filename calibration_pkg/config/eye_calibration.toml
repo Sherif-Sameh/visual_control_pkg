@@ -13,7 +13,7 @@
 # Target pose parameters
 "pose.n_view_sqrt" = 3
 "pose.dist" = 0.3
-"pose.range.elev" = [20.0, -10.0] 
+"pose.range.elev" = [15.0, -10.0] 
 "pose.range.azim" = [2.5, -10.0]
 
 # Mesh parameters
@@ -76,14 +76,14 @@
 
 
 [overrides-hashenc-cuda]
-"dr.model.res" = 512
+"dr.model.res" = 1024
 "dr.model.n_level" = 16
 "dr.optim.loss.symmetry" = 5e-2
 "dr.optim.lr" = 1e-2
 
 
 [overrides-hashenc-nvdiffrast]
-"dr.model.res" = 512
+"dr.model.res" = 1024
 "dr.model.n_level" = 16
 "dr.optim.loss.symmetry" = 5e-2
 "dr.optim.lr" = 1e-2
