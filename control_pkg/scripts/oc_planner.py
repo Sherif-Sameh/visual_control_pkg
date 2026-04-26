@@ -55,6 +55,7 @@ class OcPlanner(Node):
         self._n_pub = self.get_parameter("n_pub").value
         self._n_update = self.get_parameter("n_update").value
         self._tag_id = self.get_parameter("tag.tag_id").value
+        self._n_horizon = self.get_parameter("solver.n_horizon").value
         self._pose_mk_tgt = (
             np.array(pose_mk_tgt[:3]),
             R.from_quat(pose_mk_tgt[3:], scalar_first=True),
@@ -217,7 +218,8 @@ class OcPlanner(Node):
         if self._pose_tgt_tcpd is not None:
             self._ocp_solver.reset(x0)
         else:
-            self._ocp_solver.warmup(n_shift=int(elaps / self._time_step))
+            n_shift = max(min(int(elaps / self._time_step), self._n_horizon - 1), 1)
+            self._ocp_solver.warmup(n_shift=n_shift)
         # solve for trajectory
         pose, twist = self._ocp_solver.solve(x0, ref)
         return pose, twist

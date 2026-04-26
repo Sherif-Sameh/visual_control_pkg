@@ -410,13 +410,13 @@ class EyePoseTextureMipmapModel(EyePoseTextureModel):
             Texture map [0, 1]. Shape is (3, `res`, `res`).
         """
         n_level = len(self.texture)
-        scale = 2 ** torch.arange(1, n_level).float()
+        scale = (2 ** torch.arange(1, n_level)).tolist()
         # upsample lower-res textures
         texture = [self.texture[0].unsqueeze(0)]
         for i, s in enumerate(scale):
             texture.append(
                 F.interpolate(
-                    self.texture[i + 1].unsqueeze(0), scale_factor=s.item(), mode=self.mode
+                    self.texture[i + 1].unsqueeze(0), scale_factor=float(s), mode=self.mode
                 )
             )
         # sum textures

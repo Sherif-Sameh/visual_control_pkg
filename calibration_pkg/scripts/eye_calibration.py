@@ -34,6 +34,7 @@ import vc_core.utils.geometry.pose as pose_utils
 from vc_core.segmentation.sam import SAM2, SAMPromptConfig
 from vc_core.utils.ros.tf2 import lookup_transform
 
+torch.set_float32_matmul_precision("high")
 logging.getLogger("kaolin.rep.surface_mesh").setLevel(logging.ERROR)
 
 
@@ -547,6 +548,7 @@ class EyeCalibration(Node):
             self._optim._mesh({}, texture=texture), cameras=self._cameras, R=rmat, T=tvec
         ).detach()
         self._store_outputs(texture, initial, interm, final, target)
+        torch.cuda.empty_cache()
 
     def _optimize_silhouette(self, target: Tensor) -> None:
         """Run silhouette-only optimizer to reduce pose errors before main optimization."""
