@@ -288,7 +288,7 @@ bool IbvsController::update_features(const std::vector<AprilTagDetection> &detec
     auto pt_it = find_traj_point(elapsed);
     if (pt_it == m_traj_msg->points.cbegin()) return false;
     auto pt_prev_it = std::prev(pt_it);
-    manif::SE3d oMcd;
+    manif::SE3d oMcd_mnf;
     vpColVector v_cam;
     if (pt_it != m_traj_msg->points.cend())
     {
@@ -298,7 +298,7 @@ bool IbvsController::update_features(const std::vector<AprilTagDetection> &detec
         // Interpolate pose
         manif::SE3d oMcd_1 = utils::geometry::to_mnf_se3<double, true>((*pt_prev_it).transforms[0]);
         manif::SE3d oMcd_2 = utils::geometry::to_mnf_se3<double, true>((*pt_it).transforms[0]);
-        oMcd = oMcd_1.plus(lambda * oMcd_2.minus(oMcd_1));
+        oMcd_mnf = oMcd_1.plus(lambda * oMcd_2.minus(oMcd_1));
         // Interpolate twist
         vpColVector v_cam_1 = utils::mappings::to_vp_vpcolvector((*pt_prev_it).velocities[0]);
         vpColVector v_cam_2 = utils::mappings::to_vp_vpcolvector((*pt_it).velocities[0]);
@@ -306,13 +306,16 @@ bool IbvsController::update_features(const std::vector<AprilTagDetection> &detec
     }
     else
     {
-        oMcd = utils::geometry::to_mnf_se3<double, true>((*pt_prev_it).transforms[0]);
+        oMcd_mnf = utils::geometry::to_mnf_se3<double, true>((*pt_prev_it).transforms[0]);
         v_cam = utils::mappings::to_vp_vpcolvector((*pt_prev_it).velocities[0]);
     }
 
     // Update features and feed-forward velocity signal
-    vpHomogeneousMatrix cdMo = utils::geometry::to_vp_hmatrix(oMcd.inverse());
+    vpHomogeneousMatrix oMcd = utils::geometry::to_vp_hmatrix(oMcd_mnf);
     vpHomogeneousMatrix cMo = utils::geometry::to_vp_hmatrix((*it).pose.pose.pose);
+    vpHomogeneousMatrix cMcd = cMo * oMcd;
+    vpHomogeneousMatrix cdMo = oMcd.inverse();
+    v_cam = vpVelocityTwistMatrix(cMcd) * v_cam;
     for (std::size_t i = 0; i < m_pd.size(); i++)
     {
         // Desired features

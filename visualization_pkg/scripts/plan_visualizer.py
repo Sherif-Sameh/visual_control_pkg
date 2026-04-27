@@ -60,6 +60,7 @@ class PlanVisualizer(Node):
         marker.color.b = self._traj_color[2]
         marker.color.a = self._traj_alpha
         marker.points = traj
+        marker.frame_locked = True
         self._pub_marker.publish(marker)
 
     def _update_trajectory(self, msg: MultiDOFJointTrajectory) -> list[Point]:
