@@ -10,8 +10,8 @@ def quat_inv(q: ca.SX) -> ca.SX:
 
     Assumes scalar-first (i.e. [w, x, y, z]) convention.
     """
-    w, x, y, z = q[0], q[1], q[2], q[3]
-    return ca.vertcat(w, -x, -y, -z)
+    conj = ca.vertcat(q[0], -q[1], -q[2], -q[3])
+    return conj / ca.dot(q, q)
 
 
 def quat_mult(q1: ca.SX, q2: ca.SX) -> ca.SX:
@@ -37,7 +37,7 @@ def quat_diff(q: ca.SX, q_ref: ca.SX) -> ca.SX:
 
     Extracts vector part of difference quaternion only.
     """
-    q_err = quat_mult(quat_inv(q_ref), q)
+    q_err = quat_mult(quat_inv(q), q_ref)
     q_err = ca.if_else(q_err[0] < 0, -q_err, q_err)
     return q_err[1:4]
 

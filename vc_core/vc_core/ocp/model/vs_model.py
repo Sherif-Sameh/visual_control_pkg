@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 import casadi as ca
 from acados_template import AcadosModel
 
-from .features import feature_dot, project
+from .features import project
 from .geometry import quat_apply, quat_diff, quat_dot
 
 if TYPE_CHECKING:
@@ -22,17 +22,17 @@ def export_vs_ode_model(fp: NDArray, alpha: float = 0.001) -> AcadosModel:
     of interest.
     3) `u` **(n=6):** Camera's twist vector. The actual control input.
 
-    In addition to the main state, a derived visual state `z` **(n=4)** augments the model's cost
-    and constraint formulations. The visual state is made up of the 2D feature location `s` and
-    its rate of change `s_dot`.
+    In addition to the main state, a derived visual state `s` **(n=2)** augments the model's
+    constraint formulation. The visual state `s` corresponds to the image coordinates of visual
+    feature of interest.
 
     The model's control input `u_dot` **(n=6)** represents camera's local acceleration vector.
 
     The model's "dynamics" are defined through the exponential map of the **SE3** Lie group for the
     camera's pose. The camera twist vector `u` is updated directly through its rate of change `u_dot`.
 
-    The model's stage cost in made up of the three groups of terms corresponding to state `x`,
-    input `u_dot` and visual feature velocities `s_dot`.
+    The model's stage cost in made up of the two groups of terms corresponding to state `x` and
+    input `u_dot`
 
     The model's constraints are made up the traditional state `x` and input `u_dot` box constraints
     along with nonlinear ball constraints on `v`, `w`, `v_dot` and `w_dot` and visual feature `s`
@@ -55,8 +55,7 @@ def export_vs_ode_model(fp: NDArray, alpha: float = 0.001) -> AcadosModel:
 
     # setup visual features
     fp = ca.SX([fp[0], fp[1], fp[2]])
-    s, depth = project(p, q, fp)
-    s_dot = feature_dot(u, s, depth)
+    s, _ = project(p, q, fp)
 
     # setup input
     u_dot = ca.SX.sym("u_dot", 6)
@@ -77,9 +76,9 @@ def export_vs_ode_model(fp: NDArray, alpha: float = 0.001) -> AcadosModel:
     f_impl = xdot - f_expl
 
     # setup costs
-    p_err = p - p_ref
+    p_err = p_ref - p
     q_err = quat_diff(q, q_ref)
-    cost_y = ca.vertcat(p_err, q_err, u, u_dot, s_dot)
+    cost_y = ca.vertcat(p_err, q_err, u, u_dot)
     cost_y_e = ca.vertcat(p_err, q_err, u)
 
     # setup nonlinear constraints

@@ -1,11 +1,14 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from functools import partial
 from typing import TYPE_CHECKING
 
 import numpy as np
 import scipy.linalg
 from acados_template import AcadosOcp, AcadosOcpSolver
+from scipy.spatial.transform import Rotation as R
+from scipy.spatial.transform import Slerp
 
 from vc_core.ocp.model import export_vs_ode_model
 
@@ -17,30 +20,27 @@ if TYPE_CHECKING:
 class VsOcpSolverCfg:
     """Configuration for the task-space visual servoing Acados OCP solver."""
 
-    @dataclass
-    class CostCfg:
-        """Quadratic cost function configuration."""
-
-        Q_x: np.ndarray
-        """Cost matrix for the model state errors (`p`, `q`, `u`). Shape is (12, 12)."""
-
-        R_u: np.ndarray
-        """Cost matrix for the model inputs (`u_dot`). Shape is (6, 6)."""
-
-        Q_z: np.ndarray
-        """Cost matrix for the model feature errors (`s_dot`). Shape is (2, 2)."""
-
-        Q_x_e: np.ndarray
-        """Cost matrix for the model terminal state errors (`p`, `q`, `u`). Shape is (12, 12)."""
-
-    cost_cfg: CostCfg
-    """Quadratic cost function configuration."""
-
     alpha: float = 1.0
     """Coefficient of quat norm restorative term in equation for `qdot`. Default value is 1.0."""
 
     fp: np.ndarray = field(default_factory=lambda: np.zeros(3))
     """Visual feature coordinates in the marker's refernce frame. Default value is zeros(3)."""
+
+    @dataclass
+    class CostCfg:
+        """Quadratic cost function configuration."""
+
+        Q_x: np.ndarray = field(default_factory=lambda: np.eye(12))
+        """
+        Cost matrix for the model state errors (`p`, `q`, `u`). Shape is (12, 12). 
+        Default value is eye(12).
+        """
+
+        R_u: np.ndarray = field(default_factory=lambda: np.eye(6))
+        """Cost matrix for the model inputs (`u_dot`). Shape is (6, 6). Default value is eye(6)."""
+
+    cost_cfg: CostCfg = CostCfg()
+    """Quadratic cost function configuration. Default values derived from `CostCfg`"""
 
     @dataclass
     class ConstraintCfg:
@@ -121,10 +121,20 @@ class VsOcpSolver:
 
     NX = 13  # Size of state vector
     NU = 6  # Size of input vector
-    NZ = 4  # Size of feature vector
+    NZ = 2  # Size of feature vector
 
     def __init__(self, cfg: VsOcpSolverCfg):
         self._check_dims(cfg)
+        max_vel = (
+            np.array([np.inf, np.inf])
+            if cfg.constraint_cfg.uh.size == 0
+            else np.sqrt(cfg.constraint_cfg.uh[:2])
+        )
+        self._get_ref = partial(
+            self._interpolate_poses,
+            max_step=tuple((max_vel * cfg.solver_cfg.time_step).tolist()),
+            n_step=cfg.solver_cfg.n_horizon,
+        )
         # setup ocp and model
         self._ocp = AcadosOcp()
         self._ocp.model = export_vs_ode_model(cfg.fp, alpha=cfg.alpha)
@@ -133,11 +143,9 @@ class VsOcpSolver:
         # setup cost
         self._ocp.cost.cost_type = "NONLINEAR_LS"
         self._ocp.cost.cost_type_e = "NONLINEAR_LS"
-        self._ocp.cost.W = scipy.linalg.block_diag(
-            cfg.cost_cfg.Q_x, cfg.cost_cfg.R_u, cfg.cost_cfg.Q_z
-        )
-        self._ocp.cost.W_e = cfg.cost_cfg.Q_x_e
-        self._ocp.cost.yref = np.zeros(self.NX - 1 + self.NU + self.NZ // 2)
+        self._ocp.cost.W = scipy.linalg.block_diag(cfg.cost_cfg.Q_x, cfg.cost_cfg.R_u)
+        self._ocp.cost.W_e = cfg.cost_cfg.Q_x
+        self._ocp.cost.yref = np.zeros(self.NX - 1 + self.NU)
         self._ocp.cost.yref_e = np.zeros(self.NX - 1)
 
         # setup constraints
@@ -183,18 +191,6 @@ class VsOcpSolver:
         self._ocp_solver.set_flat("x", np.tile(x0, n_horizon + 1))
         self._ocp_solver.set_flat("u", np.zeros(self.NU * n_horizon))
 
-    def set_constraints(self, fields: list[str], values: list[NDArray]) -> None:
-        """Set the values of the solver's constraints for all intermediate stages.
-
-        Args:
-            fields: List of constraint attributes to set (e.g. lbx, ubx, etc.).
-            values: Corresponding values of `fields`.
-        """
-        n_horizon = self._ocp.solver_options.N_horizon
-        for i in range(1, n_horizon):
-            for f, v in zip(fields, values):
-                self._ocp_solver.constraints_set(i, f, v)
-
     def solve(
         self, x0: NDArray, ref: NDArray, print_stats_on_failure: bool = False
     ) -> tuple[NDArray, NDArray]:
@@ -215,7 +211,7 @@ class VsOcpSolver:
         self._ocp_solver.set(0, "x", x0)
         self._ocp_solver.set(0, "lbx", x0)
         self._ocp_solver.set(0, "ubx", x0)
-        self._ocp_solver.set_flat("p", np.tile(ref, n_horizon + 1))
+        self._ocp_solver.set_flat("p", self._get_ref(x0[:7], ref).flatten())
         # solve NLP
         status = self._ocp_solver.solve()
         if status != 0 and print_stats_on_failure:
@@ -266,7 +262,6 @@ class VsOcpSolver:
         assert cfg.fp.shape == (3,)
         assert cfg.cost_cfg.Q_x.shape == (cls.NX - 1, cls.NX - 1)
         assert cfg.cost_cfg.R_u.shape == (cls.NU, cls.NU)
-        assert cfg.cost_cfg.Q_z.shape == (cls.NZ // 2, cls.NZ // 2)
         if cfg.constraint_cfg.lbx.size > 0:
             assert cfg.constraint_cfg.lbx.size == cfg.constraint_cfg.idxbx.size
         if cfg.constraint_cfg.ubx.size > 0:
@@ -276,6 +271,45 @@ class VsOcpSolver:
         if cfg.constraint_cfg.ubu.size > 0:
             assert cfg.constraint_cfg.ubu.size == cfg.constraint_cfg.idxbu.size
         if cfg.constraint_cfg.lh.size > 0:
-            assert cfg.constraint_cfg.lh.shape == (4 + cls.NZ // 2,)
+            assert cfg.constraint_cfg.lh.shape == (4 + cls.NZ,)
         if cfg.constraint_cfg.uh.size > 0:
-            assert cfg.constraint_cfg.uh.shape == (4 + cls.NZ // 2,)
+            assert cfg.constraint_cfg.uh.shape == (4 + cls.NZ,)
+
+    @staticmethod
+    def _interpolate_poses(
+        p0: NDArray, p_ref: NDArray, max_step: tuple[float, float], n_step: int
+    ) -> NDArray:
+        """Generates a linear/SLERP interpolation between two poses.
+
+        Args:
+            p0: Initial pose. Shape is (7,).
+            p_ref: Reference pose. Shape is (7,).
+            max_step: Maximum allowable translation and rotation magnitudes respectively.
+            n_step: Number of steps for interpolation.
+
+        Returns:
+            Interpolated poses. Shape is (`n_step` + 1, 7)
+        """
+        tvec0, rot0 = p0[:3], R.from_quat(p0[3:], scalar_first=True)
+        tvec_ref, rot_ref = p_ref[:3], R.from_quat(p_ref[3:], scalar_first=True)
+
+        tvec_err = tvec_ref - tvec0
+        rot_err = rot0.inv() * rot_ref
+        tvec_mag = np.linalg.norm(tvec_err)
+        rot_mag = rot_err.magnitude()
+
+        tvec_nstep = int(tvec_mag / max_step[0]) + 1
+        rot_nstep = int(rot_mag / max_step[1]) + 1
+        if tvec_nstep > n_step:
+            tvec_nstep = n_step + 1
+            tvec_ref = tvec0 + max_step[0] * n_step * tvec_err / tvec_mag
+        if rot_nstep > n_step:
+            rot_nstep = n_step + 1
+            rot_ref = rot0 * R.from_rotvec(max_step[1] * n_step * rot_err.as_rotvec() / rot_mag)
+
+        tvec_interp = np.tile(tvec_ref, (n_step + 1, 1))
+        quat_interp = np.tile(rot_ref.as_quat(scalar_first=True), (n_step + 1, 1))
+        tvec_interp[:tvec_nstep] = np.linspace(tvec0, tvec_ref, tvec_nstep)
+        rot_slerp = Slerp([0, 1], R.concatenate([rot0, rot_ref]))
+        quat_interp[:rot_nstep] = rot_slerp(np.linspace(0, 1, rot_nstep)).as_quat(scalar_first=True)
+        return np.concatenate([tvec_interp, quat_interp], axis=-1)

@@ -54,12 +54,7 @@ def test_vs_ocp_solver(capsys: pytest.CaptureFixture) -> None:
 
 def setup_ocp_solver() -> VsOcpSolver:
     cfg = VsOcpSolverCfg(
-        cost_cfg=VsOcpSolverCfg.CostCfg(
-            Q_x=np.diag([200] * 3 + [400] * 3 + [150] * 3 + [350] * 3),
-            R_u=np.diag([1] * 6),
-            Q_z=np.diag([0] * 2),
-            Q_x_e=np.diag([300] * 3 + [500] * 3 + [150] * 3 + [350] * 3),
-        ),
+        cost_cfg=VsOcpSolverCfg.CostCfg(Q_x=np.diag([1] * 6 + [0.5] * 6), R_u=np.diag([0.1] * 6)),
         alpha=0.001,
         fp=np.array([0.05, 0.05, 0.0]),
         constraint_cfg=VsOcpSolverCfg.ConstraintCfg(
@@ -135,7 +130,7 @@ def plot_twist(v: NDArray, r: NDArray) -> None:
     for i in range(6):
         axes[i].plot(steps, v[:, i], label="True", color="tab:green")
         axes[i].plot([0, N - 1], [r[i], r[i]], "r--", label="Reference")
-        axes[i].hlines([-0.5, 0.5], 0, N - 1, linestyles="dashed", label="Limits")
+        axes[i].hlines([-0.25, 0.25], 0, N - 1, linestyles="dashed", label="Limits")
         axes[i].set_ylabel(ylabels[i])
         axes[i].set_xlabel("Step")
         axes[i].grid(True)

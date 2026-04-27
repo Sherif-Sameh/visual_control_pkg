@@ -79,7 +79,7 @@ def test_quat_diff() -> None:
     # compute quaternion difference with SciPy
     r = R.from_quat(q, scalar_first=True)
     r_ref = R.from_quat(q_ref, scalar_first=True)
-    r_err = r_ref.inv() * r
+    r_err = r.inv() * r_ref
     q_err_scipy = r_err.as_quat(scalar_first=True)
     if q_err_scipy[0] < 0:
         q_err_scipy = -q_err_scipy
