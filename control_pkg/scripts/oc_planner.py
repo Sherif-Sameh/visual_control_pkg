@@ -39,8 +39,6 @@ class OcPlanner(Node):
         self.declare_parameter("model.fp", rclpy.Parameter.Type.DOUBLE_ARRAY)
         self.declare_parameter("cost.Q_x_diag", rclpy.Parameter.Type.DOUBLE_ARRAY)
         self.declare_parameter("cost.R_u_diag", rclpy.Parameter.Type.DOUBLE_ARRAY)
-        self.declare_parameter("cost.Q_z_diag", rclpy.Parameter.Type.DOUBLE_ARRAY)
-        self.declare_parameter("cost.Q_x_e_diag", rclpy.Parameter.Type.DOUBLE_ARRAY)
         self.declare_parameter("constraint.lh", rclpy.Parameter.Type.DOUBLE_ARRAY)
         self.declare_parameter("constraint.uh", rclpy.Parameter.Type.DOUBLE_ARRAY)
         self.declare_parameter("solver.n_horizon", rclpy.Parameter.Type.INTEGER)
@@ -175,10 +173,7 @@ class OcPlanner(Node):
             alpha=model_params["alpha"],
             fp=np.array(model_params["fp"]),
             cost_cfg=VsOcpSolverCfg.CostCfg(
-                Q_x=np.diag(cost_params["Q_x_diag"]),
-                R_u=np.diag(cost_params["R_u_diag"]),
-                Q_z=np.diag(cost_params["Q_z_diag"]),
-                Q_x_e=np.diag(cost_params["Q_x_e_diag"]),
+                Q_x=np.diag(cost_params["Q_x_diag"]), R_u=np.diag(cost_params["R_u_diag"])
             ),
             constraint_cfg=VsOcpSolverCfg.ConstraintCfg(**constraint_params),
             solver_cfg=VsOcpSolverCfg.SolverCfg(**solver_params),

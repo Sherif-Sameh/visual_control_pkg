@@ -3,8 +3,8 @@
 [planner]
 
 # General parameters
-n_pub = 80
-n_update = 60
+n_pub = 100
+n_update = 100
 
 # Dynamic model parameters
 "model.alpha" = 1e-3
@@ -12,53 +12,23 @@ n_update = 60
 
 # Cost function parameters
 "cost.Q_x_diag" = [
-    6.0, # px
-    6.0, # py
-    1.2, # pz
-    1.2, # rx
-    1.2, # ry
-    1.2, # rz
-    5.0, # vx
-    5.0, # vy
-    1.0, # vz
-    1.0, # wx
-    1.0, # wy
-    1.0, # wz
+    1.0, 1.0, 1.0,  # px, py, pz
+    1.0, 1.0, 1.0,  # rx, ry, ry
+    0.5, 0.5, 0.5,  # vx, vy, vz
+    0.5, 0.5, 0.5,  # wx, wy, wz
 ]
 "cost.R_u_diag" = [
-    5.0, # vdotx
-    5.0, # vdoty
-    1.0, # vdotz
-    1.0, # wdotx
-    1.0, # wdoty
-    1.0, # wdotz
-]
-"cost.Q_z_diag" = [
-    0.0, # sdot_x
-    0.0, # sdot_y
-]
-"cost.Q_x_e_diag" = [
-    7.5, # px
-    7.5, # py
-    1.5, # pz
-    1.5, # rx
-    1.5, # ry
-    1.5, # rz
-    5.0, # vx
-    5.0, # vy
-    1.0, # vz
-    1.0, # wx
-    1.0, # wy
-    1.0, # wz
+    0.9, 0.9, 0.9,  # vdotx, vdoty, vdotz
+    0.9, 0.9, 0.9,  # wdotx, wdoty, wdotz
 ]
 
 # Constraint parameters
 "constraint.lh" = [-1.0, -1.0, -1.0, -1.0, -0.41, -0.3]
-"constraint.uh" = [0.0025, 0.0025, 0.0025, 0.01, 0.41, 0.3]
+"constraint.uh" = [9e-4, 2.5e-3, 9e-4, 2.5e-3, 0.41, 0.3]
 
 # Solver parameters
-"solver.n_horizon" = 80
-"solver.time_step" = 0.1
+"solver.n_horizon" = 100
+"solver.time_step" = 0.15
 "solver.nlp_solver_max_iter" = 100
 "solver.nlp_tol" = 1e-5
 "solver.qp_solver_iter_max" = 50
@@ -67,7 +37,8 @@ n_update = 60
 
 # Overrides
 [overrides-fast]
-n_pub = 60
-n_update = 20
-"constraint.uh" = [0.01, 0.04, 0.01, 0.04, 0.41, 0.3]
-"solver.n_horizon" = 60
+n_pub = 80
+n_update = 80
+"solver.n_horizon" = 80
+"solver.time_step" = 0.1
+"constraint.uh" = [2.5e-3, 2.5e-3, 2.5e-3, 2.5e-3, 0.41, 0.3]
