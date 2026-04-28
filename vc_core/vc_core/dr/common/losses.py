@@ -176,8 +176,7 @@ def _build_mncc_loss(
 ) -> Callable[[Tensor, Tensor], Tensor]:
     """Build a torch multi-scale NCC function for the given reduction method.
 
-    Reductions are only applied across the batch and channel dimensions. If `reduction` = `none`,
-    the loss shape is (B, 1, 1, C) to allow broadcasting with other 4D mask-based losses.
+    Reductions are only applied across the batch and channel dimensions.
 
     The implementation of multi-scale normalized cross correlation (mNCC) follows the description given
     in the paper titled: `Intraoperative 2D/3D Image Registration via Differentiable X-ray Rendering` [0].
@@ -206,11 +205,10 @@ def _build_mncc_loss(
         return (x - mu) / (std + 1e-6)
 
     def patchify(x: Tensor) -> Tensor:
-        """Divide input to square patches and zero-pad as needed."""
+        """Divide input to square patches."""
         h, w = x.shape[-3:-1]
-        pad_h = (patch_size - h % patch_size) % patch_size
-        pad_w = (patch_size - w % patch_size) % patch_size
-        x_p = F.pad(x, (0, 0, 0, pad_w, 0, pad_h), mode="constant", value=0)
+        h_new, w_new = (h // patch_size) * patch_size, (w // patch_size) * patch_size
+        x_p = x[:, :h_new, :w_new, :]
         x_p = x_p.unfold(1, patch_size, patch_size).unfold(2, patch_size, patch_size)
         x_p = x_p.permute(0, 1, 2, 4, 5, 3).contiguous().flatten(1, 2)
         return x_p
@@ -222,12 +220,11 @@ def _build_mncc_loss(
 
     def mncc_loss(input: Tensor, target: Tensor) -> Tensor:
         """Compute mNCC loss."""
-        h, w = input.shape[-3:-1]
         input_patches = patchify(input)  # (B, nP, Ps, Ps, C)
         target_patches = patchify(target)  # (B, nP, Ps, Ps, C)
         global_ncc = ncc(input, target)  # (B, C)
         local_ncc = ncc(input_patches, target_patches).mean(dim=-2)  # (B, C)
-        loss = -(global_ncc + local_ncc) / 2
+        loss = 1 - (global_ncc + local_ncc) / 2
         loss = loss[:, None, None]
         return loss
 
@@ -260,11 +257,19 @@ def _build_masked_loss(
     """
     fn = build_loss_fn(inner_fn_name, reduction="none", **kwargs)
 
-    def masked_loss(input: Tensor, target: Tensor) -> Tensor:
-        """Computed masked loss."""
-        loss = fn(input[..., 1:], target[..., 1:])
-        loss = loss * target[..., :1]
-        return loss
+    if inner_fn_name not in ["mncc_loss"]:  # mask after loss
+
+        def masked_loss(input: Tensor, target: Tensor) -> Tensor:
+            """Computed masked loss."""
+            loss = fn(input[..., 1:], target[..., 1:])
+            loss = loss * target[..., :1]
+            return loss
+    else:  # mask before loss
+
+        def masked_loss(input: Tensor, target: Tensor) -> Tensor:
+            """Computed masked loss."""
+            loss = fn(input[..., 1:] * target[..., :1], target[..., 1:] * target[..., :1])
+            return loss
 
     return _build_loss_fn(masked_loss, reduction=reduction, dim=dim)
 
