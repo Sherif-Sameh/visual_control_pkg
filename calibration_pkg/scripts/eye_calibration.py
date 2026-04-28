@@ -15,6 +15,7 @@ import rclpy
 import torch
 from cv_bridge import CvBridge
 from geometry_msgs.msg import PoseStamped, TransformStamped
+from kaolin.metrics.trianglemesh import average_edge_length
 from kaolin.render.camera import Camera
 from numpy.typing import NDArray
 from rcl_interfaces.msg import SetParametersResult
@@ -58,7 +59,7 @@ class EyeCalibration(Node):
         self.declare_parameter("sam.prompt.n_pos", rclpy.Parameter.Type.INTEGER)
         self.declare_parameter("sam.prompt.n_neg", rclpy.Parameter.Type.INTEGER)
         self.declare_parameter("pose.n_view_sqrt", rclpy.Parameter.Type.INTEGER)
-        self.declare_parameter("pose.dist", rclpy.Parameter.Type.DOUBLE)
+        self.declare_parameter("pose.range.dist", rclpy.Parameter.Type.DOUBLE_ARRAY)
         self.declare_parameter("pose.range.elev", rclpy.Parameter.Type.DOUBLE_ARRAY)
         self.declare_parameter("pose.range.azim", rclpy.Parameter.Type.DOUBLE_ARRAY)
         self.declare_parameter("dr.mesh.path", rclpy.Parameter.Type.STRING)
@@ -68,6 +69,7 @@ class EyeCalibration(Node):
         self.declare_parameter("dr.model.type", rclpy.Parameter.Type.STRING)
         self.declare_parameter("dr.model.res", rclpy.Parameter.Type.INTEGER)
         self.declare_parameter("dr.model.scale", rclpy.Parameter.Type.DOUBLE)
+        self.declare_parameter("dr.model.mesh_scale", rclpy.Parameter.Type.DOUBLE)
         self.declare_parameter("dr.model.n_level", rclpy.Parameter.Type.INTEGER)
         self.declare_parameter("dr.model.log2_hsz", rclpy.Parameter.Type.INTEGER)
         self.declare_parameter("dr.model.mlp_n_layer", rclpy.Parameter.Type.INTEGER)
@@ -80,6 +82,7 @@ class EyeCalibration(Node):
         self.declare_parameter("dr.optim.loss.weights", rclpy.Parameter.Type.DOUBLE_ARRAY)
         self.declare_parameter("dr.optim.loss.symmetry", rclpy.Parameter.Type.DOUBLE)
         self.declare_parameter("dr.optim.loss.tan_norm", rclpy.Parameter.Type.DOUBLE)
+        self.declare_parameter("dr.optim.loss.laplacian", rclpy.Parameter.Type.DOUBLE)
         self.declare_parameter("dr.optim.lr", rclpy.Parameter.Type.DOUBLE)
         self.declare_parameter("dr.optim.sched.T_0", rclpy.Parameter.Type.INTEGER)
         self.declare_parameter("dr.optim.sched.T_mult", rclpy.Parameter.Type.INTEGER)
@@ -169,10 +172,10 @@ class EyeCalibration(Node):
             tvec_cam_eye, rot_cam_eye = self._apply_rot_offset(tvec, rmat)
             rot_cam_gt_eye = R.from_quat(pose_gt[3:])
             tvec_err.append(tvec_cam_eye - pose_gt[:3])
-            rot_err.append(rot_cam_gt_eye * rot_cam_eye.inv())
+            rot_err.append((rot_cam_gt_eye * rot_cam_eye.inv()).as_rotvec())
         # average pose errors
         tvec_err = np.abs(np.stack(tvec_err, axis=0)).mean(axis=0)
-        quat_err = R.from_euler("x", R.concatenate(rot_err).magnitude().mean()).as_quat()
+        quat_err = R.from_rotvec(np.abs(np.stack(rot_err, axis=0)).mean(axis=0)).as_quat()
 
         msg = PoseStamped()
         msg.header.stamp = self.get_clock().now().to_msg()
@@ -303,7 +306,7 @@ class EyeCalibration(Node):
                 "dr.shader.sigma",
                 "dr.shader.boxlen",
                 "dr.optim.loss.symmetry",
-                "dr.optim.loss.tan_norm",
+                "dr.optim.loss.laplacian",
                 "dr.optim.lr",
                 "dr.optim.sched.eta_min",
             ] and (param.type_ != ParamType.DOUBLE or param.value < 0):
@@ -339,8 +342,9 @@ class EyeCalibration(Node):
     def _init_poses(self) -> tuple[Tensor, Tensor]:
         """Initialize the target eye-to-camera poses (tvec, rmat)."""
         pose_params = {k: v.value for k, v in self.get_parameters_by_prefix("pose").items()}
-        dist = pose_params["dist"]
+        range_dist = pose_params["range.dist"]
         range_elev, range_azim = pose_params["range.elev"], pose_params["range.azim"]
+        dist = torch.linspace(range_dist[0], range_dist[1], pose_params["n_view_sqrt"])
         elev, azim = torch.meshgrid(
             torch.linspace(range_elev[0], range_elev[1], pose_params["n_view_sqrt"]),
             torch.linspace(range_azim[0], range_azim[1], pose_params["n_view_sqrt"]),
@@ -353,12 +357,13 @@ class EyeCalibration(Node):
                 row_a = torch.flip(row_a, dims=[0])
             elev_sorted.append(row_e)
             azim_sorted.append(row_a)
+        dist = torch.cat([dist for _ in range(pose_params["n_view_sqrt"])])
         elev, azim = torch.cat(elev_sorted, 0), torch.cat(azim_sorted, 0)
         rmat, tvec = vc_kal.utils.look_at_view_transform(dist, elev, azim, device=self._device)
         return tvec, rmat
 
-    def _init_optim(self, **kwargs) -> vc_kal.optim.EyePoseTextureOptimizer:
-        """Initialize the DR-based eye pose and texture optimizer."""
+    def _init_optim(self, **kwargs) -> vc_kal.optim.EyePoseMeshTextureOptimizer:
+        """Initialize the DR-based eye pose, mesh and texture optimizer."""
         has_optim = hasattr(self, "_optim")
         mesh = (
             self._init_optim_mesh()
@@ -380,19 +385,28 @@ class EyeCalibration(Node):
                 k: v.value for k, v in self.get_parameters_by_prefix("dr.optim").items()
             }
             loss_fn = self._init_optim_loss_fn(optim_params)
-            symmetry_w, tan_norm_w = optim_params["loss.symmetry"], optim_params["loss.tan_norm"]
+            symmetry_w, tan_norm_w, laplacian_w = (
+                optim_params["loss.symmetry"],
+                optim_params["loss.tan_norm"],
+                optim_params["loss.laplacian"],
+            )
             lr, lr_sched_cfg = self._init_optim_lr_and_sched(optim_params)
         else:
             loss_fn = self._optim._loss_fn
-            symmetry_w, tan_norm_w = self._optim._symmetry_w, self._optim._tan_norm_w
+            symmetry_w, tan_norm_w, laplacian_w = (
+                self._optim._symmetry_w,
+                self._optim._tan_norm_w,
+                self._optim._laplacian_w,
+            )
             lr, lr_sched_cfg = self._optim._lr, self._optim._sched_cfg
-        return vc_kal.optim.EyePoseTextureOptimizer(
+        return vc_kal.optim.EyePoseMeshTextureOptimizer(
             mesh,
             model,
             mesh_renderer,
             loss_fn,
             symmetry_w=symmetry_w,
             tan_norm_w=tan_norm_w,
+            laplacian_w=laplacian_w,
             lr=lr,
             lr_sched_cfg=lr_sched_cfg,
         )
@@ -411,9 +425,9 @@ class EyeCalibration(Node):
         self._mesh_offset = torch.tensor(
             [0.0, 0.0, mesh.mesh.vertices[..., -1].amax()], device=self._device
         )
-        # ensure that vertex_features is not None
-        n_face = mesh.mesh.vertices.shape[1]
-        mesh.mesh.vertex_features = torch.zeros([self._n_view, n_face, 0])
+        # ensure that face_features is not None
+        n_face = mesh.mesh.faces.shape[0]
+        mesh.mesh.face_features = torch.zeros([self._n_view, n_face, 3, 0])
         # update UVs and texture to Kaolin conventions
         mesh.mesh.face_uvs = 1 - mesh.mesh.face_uvs
         mesh.mesh.materials[0][0]["map_Kd"] = (
@@ -421,23 +435,28 @@ class EyeCalibration(Node):
         )
         return mesh.to(device=self._device)
 
-    def _init_optim_model(self, mesh: vc_kal.mesh.EyeObjMesh) -> common.model.EyePoseTextureModel:
-        """Initialize the eye pose and texture model used by the optimizer."""
+    def _init_optim_model(
+        self, mesh: vc_kal.mesh.EyeObjMesh
+    ) -> common.model.EyePoseMeshTextureModel:
+        """Initialize the eye pose, mesh and texture model used by the optimizer."""
         model_params = {k: v.value for k, v in self.get_parameters_by_prefix("dr.model").items()}
         model_type = model_params["type"]
         assert model_type in ["simple", "mipmap", "hashenc"]
+        mesh_edge_len = average_edge_length(mesh.mesh.vertices, mesh.mesh.faces).mean().item()
         kwargs = {
             "pos": self._poses[0],
             "z_dir": self._poses[1][..., -1],
+            "n_vertex": mesh.mesh.vertices.shape[1],
             "res": model_params["res"],
             "text_ref": mesh.mesh.materials[0][0]["map_Kd"],
             "scale": model_params["scale"],
+            "scale_mesh": mesh_edge_len * model_params["mesh_scale"],
         }
         match model_type:
             case "simple":
-                model = common.model.EyePoseTextureModel(text_init=torch.zeros(3), **kwargs)
+                model = common.model.EyePoseMeshTextureModel(text_init=torch.zeros(3), **kwargs)
             case "mipmap":
-                model = common.model.EyePoseTextureMipmapModel(
+                model = common.model.EyePoseMeshTextureMipmapModel(
                     text_init=torch.full((3,), 0.5), n_level=model_params["n_level"], **kwargs
                 )
             case "hashenc":
@@ -447,7 +466,7 @@ class EyeCalibration(Node):
                     n_level=model_params["n_level"],
                     log2_hashmap_size=model_params["log2_hsz"],
                 )
-                model = common.model.EyePoseTextureHashEncoderModel(
+                model = common.model.EyePoseMeshTextureHashEncoderModel(
                     enc_cfg=enc_cfg, mlp_n_layer=model_params["mlp_n_layer"], **kwargs
                 )
         return torch.compile(model.to(device=self._device))
@@ -491,7 +510,7 @@ class EyeCalibration(Node):
     def _init_optim_lr_and_sched(self, optim_params: dict[str, Any]):
         """Initialize the learning rate and LR scheduler config used by the optimzier."""
         lr = optim_params["lr"]
-        lr_sched_cfg = vc_kal.optim.EyePoseTextureOptimizer.LRSchedulerCfg(
+        lr_sched_cfg = vc_kal.optim.EyePoseMeshTextureOptimizer.LRSchedulerCfg(
             cls=CosineAnnealingWarmRestarts,
             kwargs={
                 "T_0": optim_params["sched.T_0"],
@@ -533,43 +552,51 @@ class EyeCalibration(Node):
             self._optim._mesh.mesh, cameras=self._cameras, R=self._poses[1], T=self._poses[0]
         ).detach()
         # run silhouette-only optimization and get intermediate renders
-        tvec, rmat = self._optimize_silhouette(target)
+        tvec, rmat, vertex_offsets = self._optimize_silhouette(target)
         interm = self._optim._renderer(
-            self._optim._mesh.mesh, cameras=self._cameras, R=rmat, T=tvec
+            self._optim._mesh({"vertices": vertex_offsets}), cameras=self._cameras, R=rmat, T=tvec
         ).detach()
+        torch.cuda.empty_cache()
         # run main optimization
-        tvec, rmat, texture = self._optim.optimize(
+        tvec, rmat, vertex_offsets, texture = self._optim.optimize(
             target, n_iter=n_iter, n_iter_text=n_iter_text, cameras=self._cameras
         )
-        tvec = tvec + rmat @ self._mesh_offset
-        self._poses = (tvec, rmat)
         # render final output with texture and poses
         final = self._optim._renderer(
-            self._optim._mesh({}, texture=texture), cameras=self._cameras, R=rmat, T=tvec
+            self._optim._mesh({"vertices": vertex_offsets}, texture=texture),
+            cameras=self._cameras,
+            R=rmat,
+            T=tvec,
         ).detach()
-        self._store_outputs(texture, initial, interm, final, target)
         torch.cuda.empty_cache()
+        tvec = tvec + rmat @ self._mesh_offset
+        self._poses = (tvec, rmat)
+        self._store_outputs(vertex_offsets, texture, initial, interm, final, target)
 
-    def _optimize_silhouette(self, target: Tensor) -> None:
+    def _optimize_silhouette(self, target: Tensor) -> tuple[Tensor, Tensor, Tensor]:
         """Run silhouette-only optimizer to reduce pose errors before main optimization."""
         n_iter = self.get_parameter("dr.optim.n_iter.init").value
         # replace loss function, LR and LR scheduler
         self._optim._loss_fn = torch.compile(
             common.losses.build_combined_loss_fn(
-                ["mse_loss"], [slice(1)], device=self._device, reduction="mean"
+                ["centroid_loss"],
+                [slice(1)],
+                device=self._device,
+                reduction="mean",
+                kwargs=[{"size": self._size, "device": self._device}],
             )
         )
         self._optim._lr = 1e-2
-        self._optim._sched_cfg = vc_kal.optim.EyePoseTextureOptimizer.LRSchedulerCfg(
+        self._optim._sched_cfg = vc_kal.optim.EyePoseMeshTextureOptimizer.LRSchedulerCfg(
             cls=CosineAnnealingLR, kwargs={"T_max": n_iter, "eta_min": 1e-6}
         )
         # run optimizer to update model's pose parameters
-        tvec, rmat, _ = self._optim.optimize(
+        tvec, rmat, vertex_offsets, _ = self._optim.optimize(
             target, n_iter=n_iter, n_iter_text=0, cameras=self._cameras
         )
         # reset optimizer back to its initial state
         self._optim = self._init_optim(optimizer=True)
-        return tvec, rmat
+        return tvec, rmat, vertex_offsets
 
     def _get_target(self) -> Tensor:
         """Get the target image from stored silhouette and RGB images."""
@@ -593,12 +620,19 @@ class EyeCalibration(Node):
             pickle.dump(self._sam_prompts, f)
 
     def _store_outputs(
-        self, texture: Tensor, initial: Tensor, interm: Tensor, final: Tensor, target: Tensor
+        self,
+        vertex_offsets: Tensor,
+        texture: Tensor,
+        initial: Tensor,
+        interm: Tensor,
+        final: Tensor,
+        target: Tensor,
     ) -> None:
-        """Store the output texture, renders and targets."""
+        """Store the output vertex offsets, texture, renders and targets."""
         path = Path(self.get_parameter("output_path").value)
         n_view_sqrt = self.get_parameter("pose.n_view_sqrt").value
         path.mkdir(parents=True, exist_ok=True)
+        torch.save(vertex_offsets.cpu(), f"{path}/vertex_offsets.pt")
         save_image(texture, f"{path}/texture.png")
         args = (initial, interm, final, target)
         labels = ("initial", "interm", "final", "target")
