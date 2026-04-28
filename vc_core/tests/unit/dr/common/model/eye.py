@@ -6,10 +6,10 @@ import pytest
 import torch
 
 from vc_core.dr.common.model import (
+    EyePoseMeshTextureHashEncoderModel,
+    EyePoseMeshTextureMipmapModel,
+    EyePoseMeshTextureModel,
     EyePoseModel,
-    EyePoseTextureHashEncoderModel,
-    EyePoseTextureMipmapModel,
-    EyePoseTextureModel,
     HashEncoder2DCfg,
 )
 from vc_core.dr.kaolin.utils import look_at_view_transform
@@ -51,18 +51,20 @@ def test_eye_pose_model(device: torch.device) -> None:
 @pytest.mark.parametrize("device", Devices)
 def test_eye_pose_texture_model(device: torch.device) -> None:
     # Create eye pose texture model
+    n_vertex = 500
     res = 256
     n_view = 3
     distance, elevation, azimuth = 1, 50, 30
     R, T = look_at_view_transform(distance, elevation, azimuth, device=device)
     text_init = torch.full((3,), 0.8, device=device)
-    model = EyePoseTextureModel(T[0], R[0, :, -1], res, text_init, n_view=n_view)
+    model = EyePoseMeshTextureModel(T[0], R[0, :, -1], n_vertex, res, text_init, n_view=n_view)
 
     # Test `forward()` method
-    pos_m, rot_m, text_m = model()
-    assert all([m.requires_grad for m in [pos_m, rot_m, text_m]])
+    pos_m, rot_m, v_off_m, text_m = model()
+    assert all([m.requires_grad for m in [pos_m, rot_m, v_off_m, text_m]])
     assert pos_m.shape == (n_view, 3)
     assert rot_m.shape == (n_view, 3, 3)
+    assert v_off_m.shape == (n_vertex, 3)
     assert text_m.shape == (3, res, res)
     assert torch.allclose(text_m, torch.sigmoid(text_init.view(3, 1, 1)))
 
@@ -71,20 +73,22 @@ def test_eye_pose_texture_model(device: torch.device) -> None:
 @pytest.mark.parametrize("device,mode", product(Devices, Modes))
 def test_eye_pose_texture_mipmap_model(device: torch.device, mode: str) -> None:
     # Create eye pose texture model
+    n_vertex = 500
     res = 256
     n_view, n_level = 3, 5
     distance, elevation, azimuth = 1, 50, 30
     R, T = look_at_view_transform(distance, elevation, azimuth, device=device)
     text_init = torch.full((3,), 0.8, device=device)
-    model = EyePoseTextureMipmapModel(
-        T[0], R[0, :, -1], res, text_init, n_view=n_view, n_level=n_level, mode=mode
+    model = EyePoseMeshTextureMipmapModel(
+        T[0], R[0, :, -1], n_vertex, res, text_init, n_view=n_view, n_level=n_level, mode=mode
     )
 
     # Test `forward()` method
-    pos_m, rot_m, text_m = model()
-    assert all([m.requires_grad for m in [pos_m, rot_m, text_m]])
+    pos_m, rot_m, v_off_m, text_m = model()
+    assert all([m.requires_grad for m in [pos_m, rot_m, v_off_m, text_m]])
     assert pos_m.shape == (n_view, 3)
     assert rot_m.shape == (n_view, 3, 3)
+    assert v_off_m.shape == (n_vertex, 3)
     assert text_m.shape == (3, res, res)
     assert torch.allclose(text_m, torch.sigmoid(text_init.view(3, 1, 1)))
 
@@ -93,15 +97,17 @@ def test_eye_pose_texture_mipmap_model(device: torch.device, mode: str) -> None:
 @pytest.mark.parametrize("device", Devices)
 def test_eye_pose_texture_hash_encoder_model(device: torch.device) -> None:
     # Create eye pose texture model
+    n_vertex = 500
     n_view = 3
     res = 512
     enc_cfg = HashEncoder2DCfg(finest_res=res)
     mlp_n_layer, mlp_n_feature = 2, 64
     distance, elevation, azimuth = 1, 50, 30
     R, T = look_at_view_transform(distance, elevation, azimuth, device=device)
-    model = EyePoseTextureHashEncoderModel(
+    model = EyePoseMeshTextureHashEncoderModel(
         T[0],
         R[0, :, -1],
+        n_vertex,
         n_view=n_view,
         enc_cfg=enc_cfg,
         mlp_n_layer=mlp_n_layer,
@@ -109,8 +115,9 @@ def test_eye_pose_texture_hash_encoder_model(device: torch.device) -> None:
     )
 
     # Test `forward()` method
-    pos_m, rot_m, text_m = model()
-    assert all([m.requires_grad for m in [pos_m, rot_m, text_m]])
+    pos_m, rot_m, v_off_m, text_m = model()
+    assert all([m.requires_grad for m in [pos_m, rot_m, v_off_m, text_m]])
     assert pos_m.shape == (n_view, 3)
     assert rot_m.shape == (n_view, 3, 3)
+    assert v_off_m.shape == (n_vertex, 3)
     assert text_m.shape == (3, res, res)

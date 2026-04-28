@@ -167,16 +167,19 @@ class EyePoseModel(nn.Module):
         return pos_s, z_dir_s, z_basis_s
 
 
-class EyePoseTextureModel(nn.Module):
-    """PyTorch model for estimating the pose and texture of an eye mesh.
+class EyePoseMeshTextureModel(nn.Module):
+    """PyTorch model for estimating the pose, mesh and texture of an eye mesh.
 
-    Since estimating both camera/eye pose and texture from a single view is an ill-posed
-    optimization problem. Multiple views of the same mesh must be used. Then, the learned texture
+    Since estimating all of these parameters from a single view is an ill-posed optimization
+    problem. Multiple views of the same mesh must be used. Then, the learned mesh and texture
     must be able to fit all of them for different poses using the same fixed meshs UVs. Therefore,
     the `n_rep` parameter of `EyeModel` is re-purposed for this model as `n_view`.
 
     Refer to `vc_core.dr.common.model.EyePoseModel` for a detailed description of the eye pose
     parameterization.
+
+    The mesh geometry is paramterized through per-vertex offsets. To account for the scale mismatch
+    between mesh vertices and other parameters, vertex offsets are scaled by `scale_mesh`.
 
     Texture is modeled only through a single full-resolution RGB image of shape (3, `res`, `res`).
     Only a single texture model is stored and used by the model.
@@ -189,6 +192,7 @@ class EyePoseTextureModel(nn.Module):
         pos: Initial guess for positions. Shape is (N, 3) or (3,).
         z_dir: Initial guess for directions of the Z-axis. Can be unnormalized. Shape is (N, 3)
             or (3,).
+        n_vertex: Number of vertex offsets to learn for updating the mesh.
         res: Texture resolution.
         text_init: Initial value to apply to texture. Shape is (3,).
         text_ref: Optional reference texture to mix with learned texture. Shape is (3, S, S),
@@ -197,6 +201,7 @@ class EyePoseTextureModel(nn.Module):
         n_view: Number of different views to optimize simultaneously. Ignored if any of the other
             input parameters is 2D. Default value is 2.
         scale: Optional scale factor for position offsets. Default value is 1.0.
+        scale_mesh: Optional scale factor for mesh vertex offsets. Default value is 1e-3.
         **kwargs: Additional arguments for initializing texture representation.
     """
 
@@ -204,6 +209,7 @@ class EyePoseTextureModel(nn.Module):
         self,
         pos: Tensor,
         z_dir: Tensor,
+        n_vertex: int,
         res: int,
         text_init: Tensor,
         *,
@@ -211,10 +217,12 @@ class EyePoseTextureModel(nn.Module):
         iris_radius: float = 0.525,
         n_view: int = 2,
         scale: float = 1.0,
+        scale_mesh: float = 1e-3,
         **kwargs,
     ):
         super().__init__()
         self.scale = scale
+        self.scale_mesh = scale_mesh
         device = pos.device
         n_view = self._get_n_view(pos, z_dir, n_view)
         # preprocess all inputs
@@ -223,6 +231,7 @@ class EyePoseTextureModel(nn.Module):
         z_dir = z_dir.repeat((n_view, 1)) if z_dir.ndim == 1 else z_dir
         z_dir = F.normalize(z_dir, dim=-1).to(dtype=torch.float32, device=device)
         z_basis = torch.stack(get_tangent_basis(z_dir), dim=-1)
+        vertex_offsets = torch.zeros((n_vertex, 3), dtype=torch.float32, device=device)
         text_init = text_init.to(dtype=torch.float32, device=device)
         # register buffers
         self.register_buffer("pos_init", pos)
@@ -231,6 +240,7 @@ class EyePoseTextureModel(nn.Module):
         # create parameters
         self.pos_offset = nn.Parameter(torch.zeros_like(pos))
         self.z_tan = nn.Parameter(torch.zeros((n_view, 2), dtype=torch.float32, device=device))
+        self.vertex_offsets = nn.Parameter(vertex_offsets)
         self._init_texture(res, text_init, **kwargs)
         # create function for mixing textures
         self.mix_textures = self._build_mix_textures_fn(res, text_ref, iris_radius, device)
@@ -248,10 +258,11 @@ class EyePoseTextureModel(nn.Module):
         # apply tangent rotation to z-axis and create rotation matrix
         z_dir = apply_tangent_rotation_exact(self.z_dir_init, self.z_tan, self.z_basis)
         rot = get_rotation_from_z(z_dir)
+        vertex_offsets = self.vertex_offsets * self.scale_mesh
         # get output texture
         texture = self._get_texture()
         texture = self.mix_textures(texture)
-        return pos, rot, texture
+        return pos, rot, vertex_offsets, texture
 
     @staticmethod
     def _get_n_view(pos: Tensor, z_dir: Tensor, n_view: int) -> int:
@@ -264,7 +275,6 @@ class EyePoseTextureModel(nn.Module):
     def _build_mix_textures_fn(
         self, res: int, text_ref: Tensor | None, iris_radius: float, device: device
     ) -> Callable[[Tensor], Tensor]:
-        """"""
         if text_ref is None:
             return lambda input: input
 
@@ -311,16 +321,19 @@ class EyePoseTextureModel(nn.Module):
         return torch.sigmoid(self.texture)
 
 
-class EyePoseTextureMipmapModel(EyePoseTextureModel):
-    """PyTorch model for estimating the pose and texture of an eye mesh.
+class EyePoseMeshTextureMipmapModel(EyePoseMeshTextureModel):
+    """PyTorch model for estimating the pose, mesh and texture of an eye mesh.
 
-    Since estimating both camera/eye pose and texture from a single view is an ill-posed
-    optimization problem. Multiple views of the same mesh must be used. Then, the learned texture
+    Since estimating all of these parameters from a single view is an ill-posed optimization
+    problem. Multiple views of the same mesh must be used. Then, the learned mesh and texture
     must be able to fit all of them for different poses using the same fixed meshs UVs. Therefore,
     the `n_rep` parameter of `EyeModel` is re-purposed for this model as `n_view`.
 
     Refer to `vc_core.dr.common.model.EyePoseModel` for a detailed description of the eye pose
     parameterization.
+
+    The mesh geometry is paramterized through per-vertex offsets. To account for the scale mismatch
+    between mesh vertices and other parameters, vertex offsets are scaled by `scale_mesh`.
 
     Unlike `vc_core.dr.common.model.EyePoseTextureModel`, a hierarchy/pyramid of textures is used
     to represent the learned texture. The approach is based on a similar idea to mipmapping in
@@ -338,6 +351,7 @@ class EyePoseTextureMipmapModel(EyePoseTextureModel):
         pos: Initial guess for positions. Shape is (N, 3) or (3,).
         z_dir: Initial guess for directions of the Z-axis. Can be unnormalized. Shape is (N, 3)
             or (3,).
+        n_vertex: Number of vertex offsets to learn for updating the mesh.
         res: Texture resolution.
         text_init: Initial value to apply to texture. Shape is (3,).
         text_ref: Optional reference texture to mix with learned texture. Shape is (3, S, S),
@@ -346,6 +360,7 @@ class EyePoseTextureMipmapModel(EyePoseTextureModel):
         n_view: Number of different views to optimize simultaneously. Ignored if any of the other
             input parameters is 2D. Default value is 2.
         scale: Optional scale factor for position offsets. Default value is 1.0.
+        scale_mesh: Optional scale factor for mesh vertex offsets. Default value is 1e-3.
         n_level: Number of levels for texture mipmapping. Default value is 3.
         mode: Mode for interpolation using `torch.nn.functional.interpolate`. Default value is
             `bilinear`.
@@ -355,6 +370,7 @@ class EyePoseTextureMipmapModel(EyePoseTextureModel):
         self,
         pos: Tensor,
         z_dir: Tensor,
+        n_vertex: int,
         res: int,
         text_init: Tensor,
         *,
@@ -362,18 +378,21 @@ class EyePoseTextureMipmapModel(EyePoseTextureModel):
         iris_radius: float = 0.525,
         n_view: int = 2,
         scale: float = 1.0,
+        scale_mesh: float = 1e-3,
         n_level: int = 2,
         mode: str = "bilinear",
     ):
         super().__init__(
             pos,
             z_dir,
+            n_vertex,
             res,
             text_init,
             text_ref=text_ref,
             iris_radius=iris_radius,
             n_view=n_view,
             scale=scale,
+            scale_mesh=scale_mesh,
             n_level=n_level,
         )
         self.mode = mode
@@ -424,16 +443,19 @@ class EyePoseTextureMipmapModel(EyePoseTextureModel):
         return torch.sigmoid(texture)
 
 
-class EyePoseTextureHashEncoderModel(EyePoseTextureModel):
-    """PyTorch model for estimating the pose and texture of an eye mesh.
+class EyePoseMeshTextureHashEncoderModel(EyePoseMeshTextureModel):
+    """PyTorch model for estimating the pose, mesh and texture of an eye mesh.
 
-    Since estimating both camera/eye pose and texture from a single view is an ill-posed
-    optimization problem. Multiple views of the same mesh must be used. Then, the learned texture
+    Since estimating all of these parameters from a single view is an ill-posed optimization
+    problem. Multiple views of the same mesh must be used. Then, the learned mesh and texture
     must be able to fit all of them for different poses using the same fixed meshs UVs. Therefore,
     the `n_rep` parameter of `EyeModel` is re-purposed for this model as `n_view`.
 
     Refer to `vc_core.dr.common.model.EyePoseModel` for a detailed description of the eye pose
     parameterization.
+
+    The mesh geometry is paramterized through per-vertex offsets. To account for the scale mismatch
+    between mesh vertices and other parameters, vertex offsets are scaled by `scale_mesh`.
 
     Uses a 2D multi-resolution hash encoder for embedding inputs to generate the learned RGB texture.
     The embedding approach is based on the 3D voxel multi-res embedding presented in the paper
@@ -449,12 +471,14 @@ class EyePoseTextureHashEncoderModel(EyePoseTextureModel):
         pos: Initial guess for positions. Shape is (N, 3) or (3,).
         z_dir: Initial guess for directions of the Z-axis. Can be unnormalized. Shape is (N, 3)
             or (3,).
+        n_vertex: Number of vertex offsets to learn for updating the mesh.
         text_ref: Optional reference texture to mix with learned texture. Shape is (3, S, S),
             where S does not have to be equal to `res`. Default value is `None`.
         iris_radius: Iris radius as a fraction of half `res`. Default value is 0.525.
         n_view: Number of different views to optimize simultaneously. Ignored if any of the other
             input parameters is 2D. Default value is 2.
         scale: Optional scale factor for position offsets. Default value is 1.0.
+        scale_mesh: Optional scale factor for mesh vertex offsets. Default value is 1e-3.
         enc_cfg: Configuration for the 2D hash encoder. Default initialized.
         mlp_n_layer: Number of hidden layers for RGB projection MLP. Default value is 2.
         mlp_n_feature: Number of features per hidden layer for RGB projection MLP. Default value is 64.
@@ -467,11 +491,13 @@ class EyePoseTextureHashEncoderModel(EyePoseTextureModel):
         self,
         pos: Tensor,
         z_dir: Tensor,
+        n_vertex: int,
         *,
         text_ref: Tensor | None = None,
         iris_radius: float = 0.525,
         n_view: int = 2,
         scale: float = 1.0,
+        scale_mesh: float = 1e-3,
         enc_cfg: HashEncoder2DCfg = HashEncoder2DCfg(),
         mlp_n_layer: int = 2,
         mlp_n_feature: int = 64,
@@ -479,12 +505,14 @@ class EyePoseTextureHashEncoderModel(EyePoseTextureModel):
         super().__init__(
             pos,
             z_dir,
+            n_vertex,
             enc_cfg.finest_res,
             torch.zeros(3, device=pos.device),
             text_ref=text_ref,
             iris_radius=iris_radius,
             n_view=n_view,
             scale=scale,
+            scale_mesh=scale_mesh,
             enc_cfg=enc_cfg,
             mlp_n_layer=mlp_n_layer,
             mlp_n_feature=mlp_n_feature,
