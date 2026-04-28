@@ -1,4 +1,7 @@
+from __future__ import annotations
+
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import torch
 from kaolin.io.obj import import_mesh
@@ -6,13 +9,19 @@ from kaolin.rep import SurfaceMesh
 
 from .base import Mesh
 
+if TYPE_CHECKING:
+    from torch import Tensor
+
 
 class EyeObjMesh(Mesh):
     """Mesh class for Kaolin eye meshes initialized from a .obj file.
 
-    Extends `vc_core.dr.kaolin.mesh.Mesh` to allow filtering the full eye mesh by removing
-    vertices and their corresponding normals that wouldn't be visible and re-ordering and
-    filtering faces as needed after loading the raw mesh from obj.
+    Extends `vc_core.dr.kaolin.mesh.Mesh` to provide the following additional functionalities:
+    - Filtering the full eye mesh by removing vertices and their corresponding normals that
+    wouldn't be visible and re-ordering and filtering faces as needed after loading the raw mesh
+    from obj. This controlled by `elev_lim` and `azim_lim`.
+    - Projecting mesh vertex offsets to the tangent plane of each vertex according to its normal
+    direction.
 
     This class makes the following assumptions about the eye mesh:
 
@@ -43,13 +52,44 @@ class EyeObjMesh(Mesh):
         assert path.exists() and path.suffix == ".obj"
         mesh = import_mesh(str(path), with_materials=True, with_normals=True, **kwargs)
         mesh = self._filter_mesh(mesh, elev_lim, azim_lim)
+        mesh.vertex_normals = torch.nn.functional.normalize(mesh.vertex_normals, dim=-1, eps=1e-8)
         super().__init__(mesh, n_rep=n_rep)
+
+    def forward(self, offsets: dict[str, Tensor], texture: Tensor | None = None) -> SurfaceMesh:
+        """Apply offsets to the mesh's tensor attributes and override texture if given.
+
+        If mesh vertex offsets are given, they are projected to the tangent plane of the
+        corresponding vertex to avoid distorting the mesh along its normals.
+
+        If a texture is given, it's assumed that the underlying mesh has only a single material
+        shared by all its instances and stored under the `map_Kd` key in its materials dict.
+
+        **Note**: the attributes of the returned mesh instance should not be modified manually.
+        For consistent attributes, they should only be updated through this function.
+
+        Args:
+            offset: Dictionary of offset tensors to apply to mesh attributes. Keys must match
+                the names of the attributes in `kaolin.rep.SurfaceMesh` exactly.
+            texture: Optional texture to override mesh's texture. Default value is `None`.
+
+        Returns:
+            New mesh created by applying given offsets and texture and copying unchanged attributes
+            from the original mesh.
+        """
+        for k, v in offsets.items():
+            if k == "vertices":
+                v = self._project_vertex_offsets(v)
+            setattr(self._mesh_shallow, k, getattr(self._mesh, k) + v)
+        if texture is not None:
+            self._mesh_shallow.materials = [[{"map_Kd": texture}]]
+        return self._mesh_shallow
+
+    __call__ = forward
 
     @staticmethod
     def _filter_mesh(
         mesh: SurfaceMesh, elev_lim: tuple[float, float], azim_lim: tuple[float, float]
     ) -> SurfaceMesh:
-        """"""
         if mesh.batching != SurfaceMesh.Batching.NONE:
             mesh = mesh[0]
         # convert vertices to spherical coordinates
@@ -95,3 +135,18 @@ class EyeObjMesh(Mesh):
         mesh.material_assignments = mesh.material_assignments.to(torch.int16)
         assert mesh.check_sanity()
         return mesh
+
+    def _project_vertex_offsets(self, vertex_offsets: Tensor) -> Tensor:
+        """Project mesh vertex offsets to their respective tangent planes.
+
+        Vertex offsets are broadcast to the batch dimension of the mesh if needed.
+
+        Args:
+            vertex_offsets: Mesh vertex offsets. Shape is (N, 3) or (B, N, C).
+
+        Returns:
+            Projected mesh vertex offsets. Shape is (B, N, 3).
+        """
+        vertex_normals = self._mesh.vertex_normals
+        vertex_offsets_proj = torch.sum(vertex_offsets * vertex_normals, dim=-1, keepdim=True)
+        return vertex_offsets - vertex_offsets_proj * vertex_normals

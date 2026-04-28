@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Callable, Sequence
 
+import kaolin as kal
 import torch
 
 from vc_core.dr.common.losses import build_loss_fn
@@ -113,8 +114,8 @@ class EyePoseOptimizer(Optimizer):
         self._model.resample_params(pos, z_dir, **kwargs)
 
 
-class EyePoseTextureOptimizer(Optimizer):
-    """Optimizer for optimizing an eye mesh's pose and texture using differentiable rendering (Kaolin).
+class EyePoseMeshTextureOptimizer(Optimizer):
+    """Optimizer for optimizing an eye mesh's pose, mesh and texture using differentiable rendering (Kaolin).
 
     This optimizer treats all parameters of the model as a single parameter group. Unlike
     `vc_core.dr.kaolin.optim.EyePoseOptimizer`, batched pose parameters are not treated as copies.
@@ -129,6 +130,7 @@ class EyePoseTextureOptimizer(Optimizer):
         symmetry_loss: Name of loss to use for symmetry loss function. Default value is `mse_loss`.
         symmetry_w: Weight for texture symmetry-based loss. Default value is 0.1.
         tan_norm_w: Weight for norm loss penalty of model tangent offsets. Default value is 5e-4.
+        laplacian_w: Weight for vertex offset Laplacian loss. Default value is 1e-2.
         lr: Learning rate for Adam optimizer. Default value is 1e-2.
         lr_sched_cfg: Optional configuration for learning rate scheduler. Default value is `None`.
     """
@@ -143,15 +145,17 @@ class EyePoseTextureOptimizer(Optimizer):
         symmetry_loss: str = "mse_loss",
         symmetry_w: float = 0.1,
         tan_norm_w: float = 5e-4,
+        laplacian_w: float = 1e-2,
         lr: float | Sequence[float] = 1e-2,
         lr_sched_cfg: Optimizer.LRSchedulerCfg | None = None,
     ):
         super().__init__(mesh, model, renderer, loss_fn, lr=lr, lr_sched_cfg=lr_sched_cfg)
-        self._tan_norm_w = tan_norm_w
         self._symmetry_loss = torch.compile(
             build_loss_fn("symmetry_loss", reduction="mean", inner_fn_name=symmetry_loss)
         )
         self._symmetry_w = symmetry_w
+        self._tan_norm_w = tan_norm_w
+        self._laplacian_w = laplacian_w
 
     def optimize(
         self,
@@ -186,16 +190,19 @@ class EyePoseTextureOptimizer(Optimizer):
             if self._sched_cfg is not None
             else None
         )
+        n_vertex = self._mesh.mesh.vertices.shape[1]
+        laplacian_matrix = kal.ops.mesh.uniform_laplacian(n_vertex, self._mesh.mesh.faces)
         # optimization loop
         for iter in range(n_iter):
-            pos, rot, texture = self._model()
+            pos, rot, vertex_offsets, texture = self._model()
             if iter < n_iter_text:
-                pos, rot = pos.detach(), rot.detach()
-            meshes = self._mesh({}, texture=texture)
+                pos, rot, vertex_offsets = pos.detach(), rot.detach(), vertex_offsets.detach()
+            meshes = self._mesh({"vertices": vertex_offsets}, texture=texture)
             images = self._renderer(meshes, T=pos, R=rot, **kwargs)
             loss = self._loss_fn(images, target)
             loss += self._symmetry_w * self._symmetry_loss(texture, None)
             loss += self._tan_norm_w * torch.linalg.norm(self._model.z_tan, dim=-1).mean()
+            loss += self._laplacian_w * torch.matmul(laplacian_matrix, vertex_offsets).mean()
             optim.zero_grad()
             loss.backward()
             optim.step()
@@ -209,5 +216,5 @@ class EyePoseTextureOptimizer(Optimizer):
             if sched is not None:
                 sched.step()
         # get final parameters
-        pos, rot, texture = [m.detach() for m in self._model()]
-        return pos, rot, texture
+        pos, rot, vertex_offsets, texture = [m.detach() for m in self._model()]
+        return pos, rot, vertex_offsets, texture
