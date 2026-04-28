@@ -8,13 +8,14 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pytest
 import torch
+from kaolin.metrics.trianglemesh import average_edge_length
 from kaolin.render.camera import Camera
 from torch.optim.lr_scheduler import CosineAnnealingLR, CosineAnnealingWarmRestarts
 
 from vc_core.dr.common.losses import build_combined_loss_fn
-from vc_core.dr.common.model import EyePoseTextureModel
+from vc_core.dr.common.model import EyePoseMeshTextureModel
 from vc_core.dr.kaolin.mesh import EyeObjMesh
-from vc_core.dr.kaolin.optim import EyePoseTextureOptimizer
+from vc_core.dr.kaolin.optim import EyePoseMeshTextureOptimizer
 from vc_core.dr.kaolin.render import (
     BlendParams,
     ComposeShader,
@@ -40,7 +41,7 @@ Backends = ["cuda", "nvdiffrast"]
 
 @pytest.mark.unit
 @pytest.mark.parametrize("device,backend", product(Devices, Backends))
-def test_eye_pose_texture_optimizer(
+def test_eye_pose_mesh_texture_optimizer(
     caplog: pytest.LogCaptureFixture,
     capsys: pytest.CaptureFixture,
     device: torch.device,
@@ -50,20 +51,27 @@ def test_eye_pose_texture_optimizer(
         return  # Kaolin doesn't support CPU rendering
     # Create obj meshes
     n_view = 9
-    path = Path(__file__).parents[1] / "samples/eye_mesh/eye.obj"
-    mesh = EyeObjMesh(path, n_rep=n_view)
-    F = mesh.mesh.vertices.shape[1]
-    mesh.mesh.vertex_features = torch.zeros([n_view, F, 0])
+    path = Path(__file__).parents[1] / "samples/eye_mesh"
+    mesh = EyeObjMesh(path / "eye_low.obj", n_rep=n_view)
+    mesh_gt = EyeObjMesh(path / "eye.obj", n_rep=n_view)
+
+    V, F = mesh.mesh.vertices.shape[1], mesh.mesh.faces.shape[0]
+    F_GT = mesh_gt.mesh.faces.shape[0]
+    mesh.mesh.face_features = torch.zeros([n_view, F, 3, 0])
+    mesh_gt.mesh.face_features = torch.zeros([n_view, F_GT, 3, 0])
     mesh.mesh.face_uvs = 1 - mesh.mesh.face_uvs
     mesh.mesh.materials[0][0]["map_Kd"] = (
         mesh.mesh.materials[0][0]["map_Kd"].float().permute(2, 0, 1) / 255.0
     )
+    mesh_edge_len = average_edge_length(mesh.mesh.vertices, mesh.mesh.faces).mean().item()
     with caplog.at_level(logging.ERROR):
         mesh = mesh.to(device)
+        mesh_gt = mesh_gt.to(device)
         mesh.mesh.materials[0][0]["map_Kd"] = mesh.mesh.materials[0][0]["map_Kd"].cuda()
-    distance = 0.3
+    distance = torch.linspace(-0.05, 0.0, 3) + 0.3
+    distance = torch.cat([distance, distance, distance])
     elevation, azimuth = torch.meshgrid(
-        torch.linspace(-25.0, 25.0, 3), torch.linspace(-15.0, 15.0, 3), indexing="xy"
+        torch.linspace(-10.0, 20.0, 3), torch.linspace(-10.0, 15.0, 3), indexing="xy"
     )
     elevation, azimuth = elevation.flatten().to(device=device), azimuth.flatten().to(device=device)
     R_gt, T_gt = look_at_view_transform(distance, elevation, azimuth, device=device)
@@ -74,19 +82,21 @@ def test_eye_pose_texture_optimizer(
     R, T = look_at_view_transform(
         distance, elevation + 10 * noise, azimuth + 10 * noise, device=device
     )
-    T = T + torch.tensor([0.025, -0.025, -0.05], device=device) * distance
+    T = T + torch.tensor([0.025, -0.025, -0.05], device=device) * 0.3
     text_init = torch.zeros(3, device=device)
-    model = EyePoseTextureModel(
+    model = EyePoseMeshTextureModel(
         T,
         R[:, :, -1],
+        V,
         res=256,
         text_init=text_init,
         text_ref=mesh.mesh.materials[0][0]["map_Kd"],
         n_view=n_view,
-        scale=0.1,
+        scale=0.05,
+        scale_mesh=mesh_edge_len * 0.25,
     )
     model = torch.compile(model.to(device=device))
-    _, _, texture_init = model()
+    _, _, _, texture_init = model()
     texture_init = texture_init.detach()
 
     # Setup camera
@@ -124,27 +134,34 @@ def test_eye_pose_texture_optimizer(
         shader=ComposeShader(
             [
                 SoftSilhouetteShader(BlendParams(sigmainv=1e6, boxlen=0, knum=1)),
-                HardColorAmbientShader(raw_texture=False, uvs_origin="Kaolin"),
+                HardColorAmbientShader(raw_texture=True, uvs_origin="OpenGL"),
             ]
         ),
     ).to(device=device)
-    initial = renderer_gt(mesh.mesh, cameras=cameras, R=R, T=T).detach()
-    target = renderer_gt(mesh.mesh, cameras=cameras, R=R_gt, T=T_gt).detach()
+    initial = renderer(mesh.mesh, cameras=cameras, R=R, T=T).detach()
+    target = renderer_gt(mesh_gt.mesh, cameras=cameras, R=R_gt, T=T_gt).detach()
+    del mesh_gt, renderer_gt
     assert initial.shape == (n_view, img_size, img_size, 4)
     assert target.shape == (n_view, img_size, img_size, 4)
 
     # Create temporary silhouette-based optimizer
     n_iter = 100
     lr = 0.01
-    optim = EyePoseTextureOptimizer(
+    optim = EyePoseMeshTextureOptimizer(
         mesh,
         model,
         renderer,
         torch.compile(
-            build_combined_loss_fn(["mse_loss"], [slice(1)], device=device, reduction="mean")
+            build_combined_loss_fn(
+                ["centroid_loss"],
+                [slice(1)],
+                device=device,
+                reduction="mean",
+                kwargs=[{"size": img_size, "device": device}],
+            )
         ),
         lr=lr,
-        lr_sched_cfg=EyePoseTextureOptimizer.LRSchedulerCfg(
+        lr_sched_cfg=EyePoseMeshTextureOptimizer.LRSchedulerCfg(
             CosineAnnealingLR, {"T_max": n_iter, "eta_min": 1e-6}
         ),
     )
@@ -155,7 +172,7 @@ def test_eye_pose_texture_optimizer(
     # Create eye pose texture optimizer
     n_iter, n_iter_text = 300, 20
     lr = 0.05
-    optim = EyePoseTextureOptimizer(
+    optim = EyePoseMeshTextureOptimizer(
         mesh,
         model,
         renderer,
@@ -171,22 +188,22 @@ def test_eye_pose_texture_optimizer(
             )
         ),
         lr=lr,
-        lr_sched_cfg=EyePoseTextureOptimizer.LRSchedulerCfg(
-            CosineAnnealingWarmRestarts, {"T_0": 100, "eta_min": 3e-4}
+        lr_sched_cfg=EyePoseMeshTextureOptimizer.LRSchedulerCfg(
+            CosineAnnealingWarmRestarts, {"T_0": 150, "eta_min": 1e-6}
         ),
     )
 
     # Run optimizer for a number of iterations
     logger = MemoryLogger(n_log=5, filter="loss")
-    T, R, texture = optim.optimize(
+    T, R, vertex_offsets, texture = optim.optimize(
         target, n_iter=n_iter, n_iter_text=n_iter_text, logger=logger, cameras=cameras
     )
-    mesh_final = mesh({}, texture=texture)
-    final = renderer_gt(mesh_final, cameras=cameras, R=R, T=T).detach()
+    mesh_final = mesh({"vertices": vertex_offsets}, texture=texture)
+    final = renderer(mesh_final, cameras=cameras, R=R, T=T).detach()
     T_err = torch.linalg.norm(T_gt - T, dim=-1)
     z_dir_err = torch.acos((R_gt[..., -1] * R[..., -1]).sum(dim=-1))
     with capsys.disabled():
-        print(f"\nBackend: {backend}, GT Distance: {distance:.2f}m")
+        print(f"\nBackend: {backend}")
         print(f"\tPosition Errors (m): {T_err.cpu()}")
         print(f"\tZ direction Errors (deg): {torch.rad2deg(z_dir_err).cpu()}")
 

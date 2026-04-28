@@ -304,6 +304,58 @@ def _build_symmetry_loss(
     return _build_loss_fn(symmetry_loss, reduction=reduction, dim=dim)
 
 
+def _build_centroid_loss(
+    *,
+    reduction: Literal["mean", "sum", "none"] = "mean",
+    _: int | Sequence[int] | None = None,
+    size: int | tuple[int, int],
+    device: str | torch.device = "cpu",
+    inner_fn_name: str = "mse_loss",
+    **kwargs,
+) -> Callable[[Tensor, Tensor], Tensor]:
+    """Build a mask-based centroid loss.
+
+    Reductions are only applied across the batch dimension.
+
+    Args:
+        reduction: Specifies the reduction to apply to the output (none | mean | sum). If mean,
+            the mean of the output is taken. If sum, the output will be summed. If none, no
+            reduction will be applied. Default value is mean.
+        _: Unused argument in place of `dim` for consistency.
+        size: Spatial dimensions of the masks (H, W).
+        device: Device for pre-computing mesh-grids needed in centroid computation.
+        inner_fn_name: Name of loss function to use for comparing the centroid of the input and the
+            target masks. A function from the `vc_core.dr.losses` module or `torch.nn.functional`
+            that accepts input and target tensors respectively plus additional fixed kwargs
+            (e.g., `mse_loss`).
+
+    Returns:
+        Centroid loss.
+    """
+    H, W = (size, size) if isinstance(size, int) else size
+    u_coords = torch.arange(W, device=device).float()
+    v_coords = torch.arange(H, device=device).float()
+    u_grid, v_grid = torch.meshgrid(u_coords, v_coords, indexing="xy")
+    u_grid, v_grid = u_grid.view(1, H, W, 1), v_grid.view(1, H, W, 1)
+    fn = build_loss_fn(inner_fn_name, reduction=reduction, **kwargs)
+
+    def centroid(x: Tensor) -> tuple[Tensor, Tensor]:
+        """Compute centroid along spatial dimensions."""
+        mass = x.sum((-3, -2, -1)) + 1e-6
+        cu = (x * u_grid).sum((-3, -2, -1)) / mass
+        cv = (x * v_grid).sum((-3, -2, -1)) / mass
+        return cu, cv
+
+    def centroid_loss(input: Tensor, target: Tensor) -> Tensor:
+        """Compute centroid loss."""
+        cu_inp, cv_inp = centroid(input)
+        cu_tgt, cv_tgt = centroid(target)
+        loss = fn(cu_inp, cu_tgt) + fn(cv_inp, cv_tgt)
+        return loss
+
+    return centroid_loss
+
+
 def _build_loss_fn(
     fn: Callable[[Tensor, Tensor, Any], Tensor],
     reduction: Literal["sum", "mean", "none"] = "mean",
