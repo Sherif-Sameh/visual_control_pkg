@@ -292,9 +292,10 @@ bool IbvsController::update_features(const std::vector<AprilTagDetection> &detec
     vpColVector v_cam;
     if (pt_it != m_traj_msg->points.cend())
     {
-        double pt_sec = rclcpp::Duration((*pt_it).time_from_start).seconds();
-        double pt_prev_sec = rclcpp::Duration((*pt_prev_it).time_from_start).seconds();
-        double lambda = (elapsed.seconds() - pt_prev_sec) / (pt_sec - pt_prev_sec);
+        int64_t pt_sec = rclcpp::Duration((*pt_it).time_from_start).nanoseconds();
+        int64_t pt_prev_sec = rclcpp::Duration((*pt_prev_it).time_from_start).nanoseconds();
+        double lambda =
+            static_cast<double>(elapsed.nanoseconds() - pt_prev_sec) / (pt_sec - pt_prev_sec);
         // Interpolate pose
         manif::SE3d oMcd_1 = utils::geometry::to_mnf_se3<double, true>((*pt_prev_it).transforms[0]);
         manif::SE3d oMcd_2 = utils::geometry::to_mnf_se3<double, true>((*pt_it).transforms[0]);
