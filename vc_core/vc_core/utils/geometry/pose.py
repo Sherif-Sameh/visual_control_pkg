@@ -28,6 +28,13 @@ def from_transform_gm(transform_gm: Transform) -> PoseType:
     return tvec, rot
 
 
+def from_pose_ndarray(pose_np: NDArray, scalar_first: bool = False) -> PoseType:
+    """Initialize pose tuple from a flattened NumPy pose array."""
+    tvec = np.copy(pose_np[..., :3])
+    rot = R.from_quat(pose_np[..., 3:], scalar_first=scalar_first)
+    return tvec, rot
+
+
 def pose_inv(pose01: PoseType) -> PoseType:
     """Invert pose of frame 1 wrt frame 0.
 

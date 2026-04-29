@@ -60,7 +60,7 @@ class OcPlanner(Node):
         )
         self._time_step = self.get_parameter("solver.time_step").value
         self._traj_stamp = self.get_clock().now()
-        self._ocp_solver = self._init_ocp_solver()
+        self._ocp_solver = None
         self._pose_tcp_cam = None
         self._pose_tgt_tcpd = None
         self._pose_mk_camd = None
@@ -126,8 +126,11 @@ class OcPlanner(Node):
         self._pub_exec_time.publish(msg)
 
     def callback_timer(self) -> None:
-        if self._pose_tcp_cam is None:
-            self._pose_tcp_cam = self._lookup_transform()
+        if self._pose_tcp_cam is not None:
+            return
+        self._pose_tcp_cam = self._lookup_transform()
+        if self._pose_tcp_cam is not None:
+            self._ocp_solver = self._init_ocp_solver()
 
     def callback_pref(self, msg: PoseStamped) -> None:
         self._pose_tgt_tcpd = pose_utils.from_pose_gm(msg.pose)
@@ -171,6 +174,9 @@ class OcPlanner(Node):
 
         ocp_cfg = VsOcpSolverCfg(
             alpha=model_params["alpha"],
+            tc=np.concatenate(
+                [self._pose_tcp_cam[0], self._pose_tcp_cam[1].as_quat(scalar_first=True)]
+            ),
             fp=np.array(model_params["fp"]),
             cost_cfg=VsOcpSolverCfg.CostCfg(
                 Q_x=np.diag(cost_params["Q_x_diag"]), R_u=np.diag(cost_params["R_u_diag"])

@@ -10,6 +10,7 @@ from acados_template import AcadosOcp, AcadosOcpSolver
 from scipy.spatial.transform import Rotation as R
 from scipy.spatial.transform import Slerp
 
+import vc_core.utils.geometry.pose as pose_utils
 from vc_core.ocp.model import export_vs_ode_model
 
 if TYPE_CHECKING:
@@ -22,6 +23,12 @@ class VsOcpSolverCfg:
 
     alpha: float = 1.0
     """Coefficient of quat norm restorative term in equation for `qdot`. Default value is 1.0."""
+
+    tc: np.ndarray = field(default_factory=lambda: np.array([0.0] * 3 + [1.0] + [0.0] * 3))
+    """
+    Relative pose of camera frame wrt tool frame (px, py, pz, qw, qx, qy, qz).
+    Default value is the identity.
+    """
 
     fp: np.ndarray = field(default_factory=lambda: np.zeros(3))
     """Visual feature coordinates in the marker's refernce frame. Default value is zeros(3)."""
@@ -135,9 +142,14 @@ class VsOcpSolver:
             max_step=tuple((max_vel * cfg.solver_cfg.time_step).tolist()),
             n_step=cfg.solver_cfg.n_horizon,
         )
+        # setup pose and twist transformations between cam and tcp
+        self._pose_tcp_cam = pose_utils.from_pose_ndarray(cfg.tc, scalar_first=True)
+        self._pose_cam_tcp = pose_utils.pose_inv(self._pose_tcp_cam)
+        self._adj_tcp_cam = pose_utils.pose_adj(self._pose_tcp_cam)
+        self._adj_cam_tcp = pose_utils.pose_adj(self._pose_cam_tcp)
         # setup ocp and model
         self._ocp = AcadosOcp()
-        self._ocp.model = export_vs_ode_model(cfg.fp, alpha=cfg.alpha)
+        self._ocp.model = export_vs_ode_model(cfg.tc, cfg.fp, alpha=cfg.alpha)
         self._ocp.parameter_values = np.zeros(7)
 
         # setup cost
@@ -197,8 +209,8 @@ class VsOcpSolver:
         """Solve NLP for control input sequence.
 
         Args:
-            x0: Initial state. Shape is (`NX`,).
-            ref: Reference pose (px, py, pz, qw, qx, qy, qz). Shape is (7,).
+            x0: Initial state of camera. Shape is (`NX`,).
+            ref: Reference pose of camera (px, py, pz, qw, qx, qy, qz). Shape is (7,).
             print_stats_on_failure: Print solver statistics on failure. Default value is `False`.
 
         Returns:
@@ -208,6 +220,7 @@ class VsOcpSolver:
         """
         n_horizon = self._ocp.solver_options.N_horizon
         # set initial state and reference
+        x0, ref = self._transform_x0_and_ref(x0, ref)
         self._ocp_solver.set(0, "x", x0)
         self._ocp_solver.set(0, "lbx", x0)
         self._ocp_solver.set(0, "ubx", x0)
@@ -218,7 +231,7 @@ class VsOcpSolver:
             self._ocp_solver.print_statistics()
         # get camera pose and twist sequences
         x = self._ocp_solver.get_flat("x").reshape(n_horizon + 1, self.NX)
-        return x[:, :7], x[:, 7:]
+        return self._transform_trajectory(x[:, :7], x[:, 7:])
 
     def warmup(self, n_shift: int = 1):
         """Warm-up the solver by shifting the previous solution and repeating the last input/state.
@@ -313,3 +326,51 @@ class VsOcpSolver:
         rot_slerp = Slerp([0, 1], R.concatenate([rot0, rot_ref]))
         quat_interp[:rot_nstep] = rot_slerp(np.linspace(0, 1, rot_nstep)).as_quat(scalar_first=True)
         return np.concatenate([tvec_interp, quat_interp], axis=-1)
+
+    def _transform_x0_and_ref(self, x0: NDArray, ref: NDArray) -> tuple[NDArray, NDArray]:
+        """Transform the initial state and reference pose from camera to tool frames.
+
+        Args:
+            x0: Pose of camera frame wrt world/marker frame and twist expressed in the camera frame.
+                Shape is (`NX`,).
+            ref: Reference pose of camera frame wrt world/marker frame (px, py, pz, qw, qx, qy, qz).
+                Shape is (7,).
+
+        Returns:
+            Tuple of arrays containing the initial state of the tool frame (`NX`,) and the
+            reference pose of the tool frame (7,) respectively.
+        """
+        # transform poses
+        pose_x0 = pose_utils.from_pose_ndarray(x0[:7], scalar_first=True)
+        pose_ref = pose_utils.from_pose_ndarray(ref, scalar_first=True)
+        pose_x0_tcp = pose_utils.pose_mult(pose_x0, self._pose_cam_tcp)
+        pose_ref_tcp = pose_utils.pose_mult(pose_ref, self._pose_cam_tcp)
+        # transform twist
+        twist_x0_tcp = x0[7:] @ self._adj_tcp_cam.T
+        # flatten into arrays
+        x0_tcp = np.concatenate(
+            [pose_x0_tcp[0], pose_x0_tcp[1].as_quat(scalar_first=True), twist_x0_tcp]
+        )
+        ref_tcp = np.concatenate([pose_ref_tcp[0], pose_ref_tcp[1].as_quat(scalar_first=True)])
+        return x0_tcp, ref_tcp
+
+    def _transform_trajectory(self, pose: NDArray, twist: NDArray) -> tuple[NDArray, NDArray]:
+        """Transform the trajectory from tool to camera poses and twists.
+
+        Args:
+            pose: Poses of tool frame wrt world/marker frame. Shape is (N, 7).
+            twist: Twists expressed in the tool frame. Shape is (N, 6).
+
+        Returns:
+            Tuple of arrays containing the poses of the camera wrt world/marker frame (N, 7) and
+            the twists expressed in the camera frame (N, 6) respectively.
+        """
+        # transform poses
+        pose_mk_tcp = pose_utils.from_pose_ndarray(pose, scalar_first=True)
+        pose_mk_cam = pose_utils.pose_mult(pose_mk_tcp, self._pose_tcp_cam)
+        pose_mk_cam = np.concatenate(
+            [pose_mk_cam[0], pose_mk_cam[1].as_quat(scalar_first=True)], axis=-1
+        )
+        # transform twists
+        twist_cam = twist @ self._adj_cam_tcp.T
+        return pose_mk_cam, twist_cam

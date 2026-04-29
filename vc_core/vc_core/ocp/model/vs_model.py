@@ -12,24 +12,24 @@ if TYPE_CHECKING:
     from numpy.typing import NDArray
 
 
-def export_vs_ode_model(fp: NDArray, alpha: float = 0.001) -> AcadosModel:
+def export_vs_ode_model(tc: NDArray, fp: NDArray, alpha: float = 0.001) -> AcadosModel:
     """Defines an instance of `acados_template.AcadosModel` for task-space visual servoing.
 
     The model's state consists of the following three groups of terms:
 
-    1) `p` **(n=3):** Camera's position wrt reference frame of the visual marker of interest.
-    2) `q` **(n=4):** Camera's orientation (scalar-first) wrt reference frame of the visual marker
+    1) `p` **(n=3):** Tool's position wrt reference frame of the visual marker of interest.
+    2) `q` **(n=4):** Tool's orientation (scalar-first) wrt reference frame of the visual marker
     of interest.
-    3) `u` **(n=6):** Camera's twist vector. The actual control input.
+    3) `u` **(n=6):** Tool's twist vector. The actual control input.
 
     In addition to the main state, a derived visual state `s` **(n=2)** augments the model's
     constraint formulation. The visual state `s` corresponds to the image coordinates of visual
     feature of interest.
 
-    The model's control input `u_dot` **(n=6)** represents camera's local acceleration vector.
+    The model's control input `u_dot` **(n=6)** represents tool's local acceleration vector.
 
     The model's "dynamics" are defined through the exponential map of the **SE3** Lie group for the
-    camera's pose. The camera twist vector `u` is updated directly through its rate of change `u_dot`.
+    tool's pose. The tool twist vector `u` is updated directly through its rate of change `u_dot`.
 
     The model's stage cost in made up of the two groups of terms corresponding to state `x` and
     input `u_dot`
@@ -39,6 +39,7 @@ def export_vs_ode_model(fp: NDArray, alpha: float = 0.001) -> AcadosModel:
     visibility constraints.
 
     Args:
+        tc: Relative pose of camera frame wrt tool frame (px, py, pz, qw, qx, qy, qz).
         fp: Feature coordinates wrt to the reference frame of the visual marker of interest.
         alpha: Coefficient of quat norm restorative term in equation for `qdot`. This prevents the
             quaternion's magnitude from drifting away from 1 during integration over the full
@@ -54,8 +55,10 @@ def export_vs_ode_model(fp: NDArray, alpha: float = 0.001) -> AcadosModel:
     x = ca.vertcat(p, q, u)
 
     # setup visual features
+    tcp = ca.SX([tc[0], tc[1], tc[2]])
+    tcq = ca.SX([tc[3], tc[4], tc[5], tc[6]])
     fp = ca.SX([fp[0], fp[1], fp[2]])
-    s, _ = project(p, q, fp)
+    s, _ = project(p, q, tcp, tcq, fp)
 
     # setup input
     u_dot = ca.SX.sym("u_dot", 6)
