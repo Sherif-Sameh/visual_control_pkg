@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -10,7 +11,7 @@ from kaolin.rep import SurfaceMesh
 from .base import Mesh
 
 if TYPE_CHECKING:
-    from torch import Tensor
+    from torch import BoolTensor, Tensor, device
 
 
 class EyeObjMesh(Mesh):
@@ -22,6 +23,8 @@ class EyeObjMesh(Mesh):
     from obj. This controlled by `elev_lim` and `azim_lim`.
     - Projecting mesh vertex offsets to the tangent plane of each vertex according to its normal
     direction.
+    - Anchor a set of vertices whose spherical coordinates are contained within a circular patch on
+    the unit sphere centered at (0, 0, 1). This is controlled by `anchor_lim`.
 
     This class makes the following assumptions about the eye mesh:
 
@@ -35,6 +38,8 @@ class EyeObjMesh(Mesh):
             is (-30, 30).
         azim_lim: Azimuth limits (min, max) in degrees for filtering mesh vertices. Default value
             is (-75, 75).
+        anchor_lim: Angular radius (deg) of circular patch for anchored vertices on the mesh. Default
+            value is 7.5.
         n_rep: Number of times to repeat the wrapped mesh. Default value is 1.
         kwargs: Other arguments to pass to the `kaolin.io.obj.import_mesh` function.
     """
@@ -45,6 +50,7 @@ class EyeObjMesh(Mesh):
         *,
         elev_lim: tuple[float, float] = (-30.0, 30.0),
         azim_lim: tuple[float, float] = (-75.0, 75.0),
+        anchor_lim: float = 7.5,
         n_rep: int = 1,
         **kwargs,
     ):
@@ -53,6 +59,7 @@ class EyeObjMesh(Mesh):
         mesh = import_mesh(str(path), with_materials=True, with_normals=True, **kwargs)
         mesh = self._filter_mesh(mesh, elev_lim, azim_lim)
         mesh.vertex_normals = torch.nn.functional.normalize(mesh.vertex_normals, dim=-1, eps=1e-8)
+        self._anchor_mask = self._get_anchor_mask(mesh, anchor_lim)
         super().__init__(mesh, n_rep=n_rep)
 
     def forward(self, offsets: dict[str, Tensor], texture: Tensor | None = None) -> SurfaceMesh:
@@ -78,7 +85,7 @@ class EyeObjMesh(Mesh):
         """
         for k, v in offsets.items():
             if k == "vertices":
-                v = self._project_vertex_offsets(v)
+                v = self._process_vertex_offsets(v)
             setattr(self._mesh_shallow, k, getattr(self._mesh, k) + v)
         if texture is not None:
             self._mesh_shallow.materials = [[{"map_Kd": texture}]]
@@ -136,8 +143,23 @@ class EyeObjMesh(Mesh):
         assert mesh.check_sanity()
         return mesh
 
-    def _project_vertex_offsets(self, vertex_offsets: Tensor) -> Tensor:
-        """Project mesh vertex offsets to their respective tangent planes.
+    @staticmethod
+    def _get_anchor_mask(mesh: SurfaceMesh, anchor_lim: float) -> BoolTensor:
+        if mesh.batching != SurfaceMesh.Batching.NONE:
+            mesh = mesh[0]
+        v_norm = torch.nn.functional.normalize(mesh.vertices, dim=-1, eps=1e-8)
+        c_norm = torch.tensor([0.0, 0.0, 1.0], device=v_norm.device)
+        dot = (v_norm * c_norm).sum(dim=-1, keepdim=True)
+        lim = torch.deg2rad(torch.tensor([anchor_lim], device=v_norm.device))
+        mask = dot >= torch.cos(lim)
+        mask = ~mask
+        return mask
+
+    def _process_vertex_offsets(self, vertex_offsets: Tensor) -> Tensor:
+        """Process mesh vertex offsets before their application to the mesh vertices.
+
+        Offsets of anchored vertices are masked out then the remaining offsets are projected to
+        their respective tangent planes.
 
         Vertex offsets are broadcast to the batch dimension of the mesh if needed.
 
@@ -145,8 +167,15 @@ class EyeObjMesh(Mesh):
             vertex_offsets: Mesh vertex offsets. Shape is (N, 3) or (B, N, C).
 
         Returns:
-            Projected mesh vertex offsets. Shape is (B, N, 3).
+            Processed mesh vertex offsets. Shape is (B, N, 3).
         """
+        vertex_offsets *= self._anchor_mask
         vertex_normals = self._mesh.vertex_normals
         vertex_offsets_proj = torch.sum(vertex_offsets * vertex_normals, dim=-1, keepdim=True)
         return vertex_offsets - vertex_offsets_proj * vertex_normals
+
+    def to(self, device: str | device) -> "EyeObjMesh":
+        self._mesh = self._mesh.to(device)
+        self._mesh_shallow = copy.copy(self._mesh)
+        self._anchor_mask = self._anchor_mask.to(device=device)
+        return self

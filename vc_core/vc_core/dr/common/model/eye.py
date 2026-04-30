@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import math
-from typing import TYPE_CHECKING, Callable
+from typing import TYPE_CHECKING
 
 import torch
 import torch.nn as nn
@@ -16,7 +16,7 @@ from vc_core.utils.geometry.vector import (
 from .hash_encoder import HashEncoder2D, HashEncoder2DCfg
 
 if TYPE_CHECKING:
-    from torch import Tensor, device
+    from torch import Tensor
 
 
 class EyePoseModel(nn.Module):
@@ -184,10 +184,6 @@ class EyePoseMeshTextureModel(nn.Module):
     Texture is modeled only through a single full-resolution RGB image of shape (3, `res`, `res`).
     Only a single texture model is stored and used by the model.
 
-    The learned texture is mixed with the reference texture such that only a part of the reference
-    can be overriden. The textures are mixed through a circular iris-based mask centered at the
-    image center, whose radius is set through `iris_radius`.
-
     Args:
         pos: Initial guess for positions. Shape is (N, 3) or (3,).
         z_dir: Initial guess for directions of the Z-axis. Can be unnormalized. Shape is (N, 3)
@@ -195,9 +191,6 @@ class EyePoseMeshTextureModel(nn.Module):
         n_vertex: Number of vertex offsets to learn for updating the mesh.
         res: Texture resolution.
         text_init: Initial value to apply to texture. Shape is (3,).
-        text_ref: Optional reference texture to mix with learned texture. Shape is (3, S, S),
-            where S does not have to be equal to `res`. Default value is `None`.
-        iris_radius: Iris radius as a fraction of half `res`. Default value is 0.525.
         n_view: Number of different views to optimize simultaneously. Ignored if any of the other
             input parameters is 2D. Default value is 2.
         scale: Optional scale factor for position offsets. Default value is 1.0.
@@ -213,8 +206,6 @@ class EyePoseMeshTextureModel(nn.Module):
         res: int,
         text_init: Tensor,
         *,
-        text_ref: Tensor | None = None,
-        iris_radius: float = 0.525,
         n_view: int = 2,
         scale: float = 1.0,
         scale_mesh: float = 1e-3,
@@ -242,8 +233,6 @@ class EyePoseMeshTextureModel(nn.Module):
         self.z_tan = nn.Parameter(torch.zeros((n_view, 2), dtype=torch.float32, device=device))
         self.vertex_offsets = nn.Parameter(vertex_offsets)
         self._init_texture(res, text_init, **kwargs)
-        # create function for mixing textures
-        self.mix_textures = self._build_mix_textures_fn(res, text_ref, iris_radius, device)
 
     def forward(self) -> tuple[Tensor, Tensor, Tensor]:
         """Construct the model's pose and texture estimates return them.
@@ -258,10 +247,10 @@ class EyePoseMeshTextureModel(nn.Module):
         # apply tangent rotation to z-axis and create rotation matrix
         z_dir = apply_tangent_rotation_exact(self.z_dir_init, self.z_tan, self.z_basis)
         rot = get_rotation_from_z(z_dir)
+        # scale vertex offsets
         vertex_offsets = self.vertex_offsets * self.scale_mesh
         # get output texture
         texture = self._get_texture()
-        texture = self.mix_textures(texture)
         return pos, rot, vertex_offsets, texture
 
     @staticmethod
@@ -271,33 +260,6 @@ class EyePoseMeshTextureModel(nn.Module):
         if z_dir.ndim == 2:
             return z_dir.shape[0]
         return n_view
-
-    def _build_mix_textures_fn(
-        self, res: int, text_ref: Tensor | None, iris_radius: float, device: device
-    ) -> Callable[[Tensor], Tensor]:
-        if text_ref is None:
-            return lambda input: input
-
-        # resize reference texture to model resolution
-        text_ref = text_ref.to(dtype=torch.float32, device=device)
-        text_ref = F.interpolate(text_ref[None], res, mode="bilinear", align_corners=True)[0]
-        # pre-compute the mask to combine the two textures
-        coords = torch.arange(0, res, dtype=torch.float32, device=device)
-        dx, dy = torch.meshgrid(coords - res / 2, coords - res / 2, indexing="xy")
-        dsqr = dx**2 + dy**2
-        # create combined boolean and gaussian mask
-        radius = iris_radius * res / 2
-        text_mask = torch.exp(-dsqr / (2 * (radius * 0.5) ** 2))
-        text_mask = torch.where(dsqr <= radius**2, 1.0, text_mask).unsqueeze(0)
-        # register buffers
-        self.register_buffer("text_ref", text_ref)
-        self.register_buffer("text_mask", text_mask)
-
-        def mix_textures_fn(input: Tensor) -> Tensor:
-            """Mix input texture with reference texture according to circular mask."""
-            return input * self.text_mask + self.text_ref * (1 - self.text_mask)
-
-        return mix_textures_fn
 
     def _init_texture(self, res: int, text_init: Tensor, **kwargs) -> None:
         """Initialize texture parameter from inputs.
@@ -343,10 +305,6 @@ class EyePoseMeshTextureMipmapModel(EyePoseMeshTextureModel):
     high-res ones focus on higher frequency details. Only the coarsest texture will be initialized
     to `text_init`, others are all zero-initialized.
 
-    The learned texture is mixed with the reference texture such that only a part of the reference
-    can be overriden. The textures are mixed through a circular iris-based mask centered at the
-    image center, whose radius is set through `iris_radius`.
-
     Args:
         pos: Initial guess for positions. Shape is (N, 3) or (3,).
         z_dir: Initial guess for directions of the Z-axis. Can be unnormalized. Shape is (N, 3)
@@ -354,9 +312,6 @@ class EyePoseMeshTextureMipmapModel(EyePoseMeshTextureModel):
         n_vertex: Number of vertex offsets to learn for updating the mesh.
         res: Texture resolution.
         text_init: Initial value to apply to texture. Shape is (3,).
-        text_ref: Optional reference texture to mix with learned texture. Shape is (3, S, S),
-            where S does not have to be equal to `res`. Default value is `None`.
-        iris_radius: Iris radius as a fraction of half `res`. Default value is 0.525.
         n_view: Number of different views to optimize simultaneously. Ignored if any of the other
             input parameters is 2D. Default value is 2.
         scale: Optional scale factor for position offsets. Default value is 1.0.
@@ -374,8 +329,6 @@ class EyePoseMeshTextureMipmapModel(EyePoseMeshTextureModel):
         res: int,
         text_init: Tensor,
         *,
-        text_ref: Tensor | None = None,
-        iris_radius: float = 0.525,
         n_view: int = 2,
         scale: float = 1.0,
         scale_mesh: float = 1e-3,
@@ -388,8 +341,6 @@ class EyePoseMeshTextureMipmapModel(EyePoseMeshTextureModel):
             n_vertex,
             res,
             text_init,
-            text_ref=text_ref,
-            iris_radius=iris_radius,
             n_view=n_view,
             scale=scale,
             scale_mesh=scale_mesh,
@@ -463,18 +414,11 @@ class EyePoseMeshTextureHashEncoderModel(EyePoseMeshTextureModel):
     MLP network is used to convert the feature embeddings into RGB values. The embedding are
     evaluated at the grid center locations.
 
-    The learned texture is mixed with the reference texture such that only a part of the reference
-    can be overriden. The textures are mixed through a circular iris-based mask centered at the
-    image center, whose radius is set through `iris_radius`.
-
     Args:
         pos: Initial guess for positions. Shape is (N, 3) or (3,).
         z_dir: Initial guess for directions of the Z-axis. Can be unnormalized. Shape is (N, 3)
             or (3,).
         n_vertex: Number of vertex offsets to learn for updating the mesh.
-        text_ref: Optional reference texture to mix with learned texture. Shape is (3, S, S),
-            where S does not have to be equal to `res`. Default value is `None`.
-        iris_radius: Iris radius as a fraction of half `res`. Default value is 0.525.
         n_view: Number of different views to optimize simultaneously. Ignored if any of the other
             input parameters is 2D. Default value is 2.
         scale: Optional scale factor for position offsets. Default value is 1.0.
@@ -493,8 +437,6 @@ class EyePoseMeshTextureHashEncoderModel(EyePoseMeshTextureModel):
         z_dir: Tensor,
         n_vertex: int,
         *,
-        text_ref: Tensor | None = None,
-        iris_radius: float = 0.525,
         n_view: int = 2,
         scale: float = 1.0,
         scale_mesh: float = 1e-3,
@@ -508,8 +450,6 @@ class EyePoseMeshTextureHashEncoderModel(EyePoseMeshTextureModel):
             n_vertex,
             enc_cfg.finest_res,
             torch.zeros(3, device=pos.device),
-            text_ref=text_ref,
-            iris_radius=iris_radius,
             n_view=n_view,
             scale=scale,
             scale_mesh=scale_mesh,

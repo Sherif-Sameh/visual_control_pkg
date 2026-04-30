@@ -90,7 +90,6 @@ def test_eye_pose_mesh_texture_optimizer(
         V,
         res=256,
         text_init=text_init,
-        text_ref=mesh.mesh.materials[0][0]["map_Kd"],
         n_view=n_view,
         scale=0.05,
         scale_mesh=mesh_edge_len * 0.25,
