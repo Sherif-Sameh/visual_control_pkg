@@ -4,7 +4,7 @@
 
 # Trajectory parameters
 "traj.length" = 30
-"traj.spacing" = 0.025
+"traj.spacing" = 0.01
 "traj.width" = 0.01
 "traj.alpha" = 0.5
 "traj.color" = [0.0, 1.0, 0.0]
