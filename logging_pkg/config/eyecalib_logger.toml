@@ -32,6 +32,7 @@ target_nodes = ["eye_calibration"]
     "eye_calibration-sam.prompt.n_pos",
     "eye_calibration-sam.prompt.n_neg",
     "eye_calibration-pose.n_view_sqrt",
+    "eye_calibration-pose.prop_cut",
     "eye_calibration-pose.range.dist",
     "eye_calibration-pose.range.elev",
     "eye_calibration-pose.range.azim",

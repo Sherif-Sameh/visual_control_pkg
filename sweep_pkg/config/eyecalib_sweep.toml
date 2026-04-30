@@ -5,7 +5,7 @@
 
 # General parameters
 timer_period = 0.1
-n_runs_per_set = 3
+n_runs_per_set = 1
 target_nodes = ["eye_calibration"]
 
 # Objective function parameters
@@ -34,6 +34,7 @@ target_nodes = ["eye_calibration"]
     "eye_calibration-sam.prompt.n_pos",
     "eye_calibration-sam.prompt.n_neg",
     "eye_calibration-pose.n_view_sqrt",
+    "eye_calibration-pose.prop_cut",
     "eye_calibration-pose.range.dist",
     "eye_calibration-pose.range.elev",
     "eye_calibration-pose.range.azim",
@@ -71,8 +72,8 @@ goal = "minimize"
 
 [sweep.parameters]
 "eye_calibration-dr.shader.sigma" = { distribution = "log_uniform_values", min = 1e-6, max = 3e-5 }
-"eye_calibration-dr.shader.boxlen" = { distribution = "log_uniform_values", min = 5e-3, max = 5e-2 }
-"eye_calibration-dr.optim.loss.symmetry" = { distribution = "log_uniform_values", min = 5e-3, max = 0.1 }
+"eye_calibration-dr.shader.boxlen" = { distribution = "log_uniform_values", min = 1e-3, max = 1e-2 }
+"eye_calibration-dr.optim.loss.symmetry" = { distribution = "log_uniform_values", min = 1e-2, max = 0.1 }
 "eye_calibration-dr.optim.loss.laplacian" = { distribution = "log_uniform_values", min = 1e-4, max = 1e-2 }
 "eye_calibration-dr.optim.lr" = { distribution = "log_uniform_values", min = 5e-3, max = 0.1 }
 "eye_calibration-dr.optim.sched.eta_min" = { distribution = "log_uniform_values", min = 1e-6, max = 1e-4 }

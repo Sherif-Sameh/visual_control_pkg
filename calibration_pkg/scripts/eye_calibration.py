@@ -22,6 +22,7 @@ from rcl_interfaces.msg import SetParametersResult
 from rclpy.node import Node
 from rclpy.qos import QoSProfile, ReliabilityPolicy
 from scipy.spatial.transform import Rotation as R
+from scipy.stats import trim_mean
 from sensor_msgs.msg import CameraInfo, Image
 from std_msgs.msg import Empty, Header
 from tf2_ros import Buffer, TransformBroadcaster, TransformListener
@@ -59,6 +60,7 @@ class EyeCalibration(Node):
         self.declare_parameter("sam.prompt.n_pos", rclpy.Parameter.Type.INTEGER)
         self.declare_parameter("sam.prompt.n_neg", rclpy.Parameter.Type.INTEGER)
         self.declare_parameter("pose.n_view_sqrt", rclpy.Parameter.Type.INTEGER)
+        self.declare_parameter("pose.prop_cut", rclpy.Parameter.Type.DOUBLE)
         self.declare_parameter("pose.range.dist", rclpy.Parameter.Type.DOUBLE_ARRAY)
         self.declare_parameter("pose.range.elev", rclpy.Parameter.Type.DOUBLE_ARRAY)
         self.declare_parameter("pose.range.azim", rclpy.Parameter.Type.DOUBLE_ARRAY)
@@ -101,6 +103,7 @@ class EyeCalibration(Node):
         self._ref_pose = np.array(self.get_parameter("ref.pose").value)
         self._ref_ptol = np.array(self.get_parameter("ref.pose.tol").value)
         self._n_view = self.get_parameter("pose.n_view_sqrt").value ** 2
+        self._prop_cut = self.get_parameter("pose.prop_cut").value
         self._size = self.get_parameter("dr.raster.size").value
         self._bridge = CvBridge()
         self._sam = self._init_seg()
@@ -174,8 +177,10 @@ class EyeCalibration(Node):
             tvec_err.append(tvec_cam_eye - pose_gt[:3])
             rot_err.append((rot_cam_gt_eye * rot_cam_eye.inv()).as_rotvec())
         # average pose errors
-        tvec_err = np.abs(np.stack(tvec_err, axis=0)).mean(axis=0)
-        quat_err = R.from_rotvec(np.abs(np.stack(rot_err, axis=0)).mean(axis=0)).as_quat()
+        tvec_err = trim_mean(np.abs(np.stack(tvec_err, axis=0)), self._prop_cut, axis=0)
+        quat_err = R.from_rotvec(
+            trim_mean(np.abs(np.stack(rot_err, axis=0)), self._prop_cut, axis=0)
+        ).as_quat()
 
         msg = PoseStamped()
         msg.header.stamp = self.get_clock().now().to_msg()
@@ -448,7 +453,6 @@ class EyeCalibration(Node):
             "z_dir": self._poses[1][..., -1],
             "n_vertex": mesh.mesh.vertices.shape[1],
             "res": model_params["res"],
-            "text_ref": mesh.mesh.materials[0][0]["map_Kd"],
             "scale": model_params["scale"],
             "scale_mesh": mesh_edge_len * model_params["mesh_scale"],
         }
