@@ -7,6 +7,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+from vc_core.utils.geometry.rotation import apply_tangent_rotation
 from vc_core.utils.geometry.vector import (
     apply_tangent_rotation_exact,
     get_rotation_from_z,
@@ -22,19 +23,15 @@ if TYPE_CHECKING:
 class EyePoseModel(nn.Module):
     """PyTorch model for estimating the pose of an eye mesh.
 
-    Only 5 DOFs of the relative pose as observed by a camera can be estimated.
-    These 5 DOFs are represented through the position of the eye and the orientation of its
-    vertical axis (Z-axis) relative to the camera.
-
     The position is parameterized by zero-centering it around the initial guess/previous estimate
-    and by scaling its magnitude by a set scaling factor. The Z-axis is parameterized through
-    offsets in the 2D tangent space of the initial guess/previous estimate for its orientation
-    scaled by `π`. The orthonormal basis for the tangent space is derived through Gram-Schmidt
-    and so are the X and Y-axes to form a full right-handed rotation matrix.
+    and by scaling its magnitude by a set scaling factor. The rotation is parameterized through
+    offsets in the 3D tangent space of the initial guess/previous estimate for its orientation
+    scaled by `π`. It is assumed that relative rotation about the Z-axis is almost zero. Therefore,
+    tangent rotations are sampled on a grid for XY only and Z is set to zero.
 
     Args:
         pos: Initial guess for the position. Shape is (3,).
-        z_dir: Initial guess for the direction of the Z-axis. Can be unnormalized. Shape is (3,).
+        rot: Initial guess for the rotation. Shape is (3, 3).
         pos_sigma: Standard deviation for position noise to add to initial guess/previous estimate
             before starting optimization. If tensor, shape is (3,).
         z_tan_range: Range for sampling Z-axis tangent space around initial guess/previous estimate.
@@ -44,10 +41,12 @@ class EyePoseModel(nn.Module):
         scale: Optional scale factor for position offsets. Default value is 1.0.
     """
 
+    TAN_SIGMA = 0.015
+
     def __init__(
         self,
         pos: Tensor,
-        z_dir: Tensor,
+        rot: Tensor,
         pos_sigma: float | Tensor,
         z_tan_range: float | Tensor,
         *,
@@ -58,28 +57,29 @@ class EyePoseModel(nn.Module):
         self.scale = scale
         device = pos.device
         # preprocess input tensors
-        z_dir = F.normalize(z_dir, dim=-1)
         pos_sigma = pos_sigma if torch.is_tensor(pos_sigma) else torch.tensor([pos_sigma] * 3)
         pos_sigma = pos_sigma.to(dtype=torch.float32, device=device)
+        tan_sigma = torch.tensor([self.TAN_SIGMA, self.TAN_SIGMA, 0.0])
+        tan_sigma = tan_sigma.to(dtype=torch.float32, device=device)
         z_tan_range = (
             z_tan_range if torch.is_tensor(z_tan_range) else torch.tensor([z_tan_range] * 2)
         )
         z_tan_range = z_tan_range.to(dtype=torch.float32, device=device)
         assert pos.shape == (3,)
-        assert z_dir.shape == (3,)
+        assert rot.shape == (3, 3)
         assert pos_sigma.shape == (3,)
         assert z_tan_range.shape == (2,)
-        # sample initial positions and Z-axis directions
-        pos, z_dir, z_basis = self._sample_pos_and_z_dir(pos, z_dir, pos_sigma, z_tan_range, n_rep)
+        # sample initial positions and orientations
+        pos, rot = self._sample_pos_and_rot(pos, rot, pos_sigma, z_tan_range, n_rep)
         # register buffers
         self.register_buffer("pos_init", pos)
-        self.register_buffer("z_dir_init", z_dir)
-        self.register_buffer("z_basis", z_basis)
+        self.register_buffer("rot_init", rot)
         self.register_buffer("pos_sigma", pos_sigma)
+        self.register_buffer("tan_sigma", tan_sigma)
         self.register_buffer("z_tan_range", z_tan_range)
         # create parameters
         self.pos_offset = nn.Parameter(torch.zeros_like(pos))
-        self.z_tan = nn.Parameter(torch.zeros((n_rep, 2), dtype=torch.float32, device=device))
+        self.rot_tan = nn.Parameter(torch.randn_like(pos) * tan_sigma)
 
     @property
     def n_rep(self) -> int:
@@ -87,72 +87,64 @@ class EyePoseModel(nn.Module):
         return self.pos_offset.shape[0]
 
     def forward(self) -> tuple[Tensor, Tensor]:
-        """Construct the model's pose and ambient light estimates return them.
+        """Construct the model's pose estimates and return them.
 
         Returns:
-            tuple containing three tensors. First is the position whose shape is (N, 3). Second is
+            Tuple containing two tensors. First is the position whose shape is (N, 3). Second is
             the rotation matrix whose shape (N, 3, 3).
         """
         # unnormalize position
         pos = self.pos_offset * self.scale + self.pos_init
-        # apply tangent rotation to z-axis and create rotation matrix
-        z_dir = apply_tangent_rotation_exact(self.z_dir_init, self.z_tan, self.z_basis)
-        rot = get_rotation_from_z(z_dir)
+        # apply tangent rotation
+        rot = apply_tangent_rotation(self.rot_init, self.rot_tan)
         return pos, rot
 
     @torch.no_grad
-    def resample_params(self, pos: Tensor, z_dir: Tensor, **kwargs) -> None:
-        """Update reference position and Z-axis direction and resample new parameters.
+    def resample_params(self, pos: Tensor, rot: Tensor, **kwargs) -> None:
+        """Update reference position and orientation and resample new parameters.
 
         Args:
             pos: Position to center new positions around. Shape is (3,).
-            z_dir: Z-axis direction to center new directions around. Shape is (3,).
+            rot: Rotation to center new orientations around. Shape is (3, 3).
             **kwargs: Optional overrides for sampling paramters `pos_sigma`, `z_tan_range` and `n_rep`.
         """
         # apply overrides
         pos_sigma = kwargs.get("pos_sigma", self.pos_sigma)
         z_tan_range = kwargs.get("z_tan_range", self.z_tan_range)
         n_rep = kwargs.get("n_rep", self.n_rep)
-        # resample reference position and Z-axis direction
-        pos, z_dir, z_basis = self._sample_pos_and_z_dir(pos, z_dir, pos_sigma, z_tan_range, n_rep)
+        # resample reference position and orientation
+        pos, rot = self._sample_pos_and_rot(pos, rot, pos_sigma, z_tan_range, n_rep)
         # update buffers
         self.pos_init = pos
-        self.z_dir_init = z_dir
-        self.z_basis = z_basis
+        self.rot_init = rot
         # reset parameters
         self.pos_offset = nn.Parameter(torch.zeros_like(self.pos_init))
-        self.z_tan = nn.Parameter(torch.zeros((n_rep, 2), dtype=torch.float32, device=pos.device))
+        self.rot_tan = nn.Parameter(torch.randn_like(pos) * self.tan_sigma)
 
     @staticmethod
     @torch.no_grad
-    def _sample_pos_and_z_dir(
-        pos: Tensor, z_dir: Tensor, pos_sigma: Tensor, z_tan_range: Tensor, n_samples: int
-    ) -> tuple[Tensor, Tensor, Tensor]:
-        """Sample new positions and Z-axis unit vectors around given vectors.
+    def _sample_pos_and_rot(
+        pos: Tensor, rot: Tensor, pos_sigma: Tensor, z_tan_range: Tensor, n_samples: int
+    ) -> tuple[Tensor, Tensor]:
+        """Sample new positions and orientations around given values.
 
         Args:
-            pos: Mean position to sample around. Shape is (3,).
-            z_dir: Z-axis direction to sample around. Shape is (3,)
+            pos: Position to sample around. Shape is (3,).
+            rot: Rotation to sample around. Shape is (3, 3).
             pos_sigma: Standard deviation for position noise. Shape is (3,).
-            z_tan_range: Range for sampling tangent space. Shape is (2,).
+            z_tan_range: Range for sampling Z-axis tangent space. Shape is (2,).
             n_samples: Number of samples for each sampled vector.
 
         Returns:
-            tuple of tensors. First is the sampled position offsets whose shape is (`n_samples`, 3).
-            Second is the sampled Z-axis directions whose shape is (`n_samples`, 3). Third is the
-            orthonormal basis for the sampled Z-axis directions whose shape is (`n_samples`, 3, 2).
+            Tuple of tensors. First is the sampled positions whose shape is (`n_samples`, 3).
+            Second is the sampled rotations whose shape is (`n_samples`, 3, 3).
         """
         if n_samples == 1:
-            z_dir = z_dir.view(1, 3)
-            return pos.view(1, 3), z_dir, torch.stack(get_tangent_basis(z_dir), dim=-1)
+            return pos.view(1, 3), rot.view(1, 3, 3)
         device = pos.device
         # sample positions
         pos_sigma = pos_sigma.view(1, 3).expand([n_samples, -1])
         pos_s = pos + torch.normal(mean=0, std=pos_sigma)
-
-        # compute Z-axis basis
-        z_dir = z_dir.view(1, 3)
-        z_basis = torch.stack(get_tangent_basis(z_dir), dim=-1)
 
         # sample from grid in Z-axis's tangent space
         n_samples_sqrt = int(math.sqrt(n_samples))
@@ -161,10 +153,10 @@ class EyePoseModel(nn.Module):
         z_tan_1 = torch.linspace(-z_tan_range[1], z_tan_range[1], n_samples_sqrt, device=device)
         z_tan_s = torch.stack(torch.meshgrid(z_tan_0, z_tan_1, indexing="xy"), dim=-1).view(-1, 2)
 
-        # update Z-axis directions and re-compute basis
-        z_dir_s = apply_tangent_rotation_exact(z_dir, z_tan_s, z_basis)
-        z_basis_s = torch.stack(get_tangent_basis(z_dir_s), dim=-1)
-        return pos_s, z_dir_s, z_basis_s
+        # complete tangent vector and compute resulting rotations
+        tan_s = torch.cat([z_tan_s, torch.zeros_like(z_tan_s[:, :1])], dim=-1)
+        rot_s = apply_tangent_rotation(rot, tan_s)
+        return pos_s, rot_s
 
 
 class EyePoseMeshTextureModel(nn.Module):

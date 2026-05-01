@@ -10,6 +10,7 @@ import numpy as np
 import pytest
 import torch
 from kaolin.render.camera import Camera
+from scipy.spatial.transform import Rotation
 from torch.optim.lr_scheduler import CosineAnnealingLR
 
 from vc_core.dr.common.losses import build_combined_loss_fn
@@ -72,9 +73,9 @@ def test_eye_pose_optimizer(
     elevation, azimuth = 0.0, 0.0
     R, T = look_at_view_transform(distance, elevation, azimuth, device=device)
     T = T + torch.tensor([0.025, -0.025, -0.05], device=device) * distance
-    pos, z_dir = T[0, :], R[0, :, -1]
+    pos, rot = T[0], R[0]
     pos_sigma, z_tan_range = 0.0, 0.005
-    model = EyePoseModel(pos, z_dir, pos_sigma, z_tan_range, n_rep=n_rep, scale=0.1)
+    model = EyePoseModel(pos, rot, pos_sigma, z_tan_range, n_rep=n_rep, scale=0.1)
     model = torch.compile(model.to(device=device))
 
     # Setup camera
@@ -152,15 +153,12 @@ def test_eye_pose_optimizer(
     logger_all = MemoryLogger(n_log=10)
     optim.optimize(target, n_iter=1, logger=logger_first, cameras=cameras)
     T, R = optim.optimize(target, n_iter=n_iter, logger=logger_all, cameras=cameras)
-    if R[-1, -1] < 0:
-        R[0, 0] *= -1
-        R[-1, -1] *= -1
     T_err = torch.linalg.norm(T_gt[0] - T, dim=0)
-    z_dir_err = torch.acos(torch.dot(R_gt[0, :, -1], R[:, -1]))
+    R_err = Rotation.from_matrix((R_gt[0] @ R.T).cpu().numpy()).magnitude()
     with capsys.disabled():
         print(f"\nBackend: {backend}, GT Distance: {distance:.2f}m")
         print(f"\tPosition Error: {T_err}m")
-        print(f"\tZ direction Error: {torch.rad2deg(z_dir_err)}deg")
+        print(f"\tRotation Error: {np.rad2deg(R_err)}deg")
 
     # visualize loss history and outputs vs target
     log_first = logger_first.flush()[1]

@@ -27,7 +27,7 @@ def test_eye_pose_model(device: torch.device) -> None:
     distance, elevation, azimuth = 1, 50, 30
     R, T = look_at_view_transform(distance, elevation, azimuth, device=device)
     T_sigma = torch.tensor([0.05, 0.1, 0.2], device=device)
-    model = EyePoseModel(T[0], R[0, :, -1], T_sigma, 0.2, n_rep=n_rep)
+    model = EyePoseModel(T[0], R[0], T_sigma, 0.2, n_rep=n_rep)
 
     # Test `forward()` method
     pos_m, rot_m = model()

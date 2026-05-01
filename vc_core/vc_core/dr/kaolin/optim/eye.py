@@ -84,7 +84,7 @@ class EyePoseOptimizer(Optimizer):
             meshes = self._mesh({})
             images = self._renderer(meshes, T=pos, R=rot, **kwargs)
             loss = self._loss_fn(images, target)
-            loss += self._tan_norm_w * torch.linalg.norm(self._model.z_tan, dim=-1)
+            loss += self._tan_norm_w * torch.linalg.norm(self._model.rot_tan, dim=-1)
             optim.zero_grad()
             loss.sum().backward()
             optim.step()
@@ -103,15 +103,15 @@ class EyePoseOptimizer(Optimizer):
         pos_min, rot_min = pos[min_idx].detach(), rot[min_idx].detach()
         return pos_min, rot_min
 
-    def resample_model_params(self, pos: Tensor, z_dir: Tensor, **kwargs) -> None:
+    def resample_model_params(self, pos: Tensor, rot: Tensor, **kwargs) -> None:
         """Resample the model's pose parameters around a new pose.
 
         Args:
-            pos: Mean position to sample around. Shape is (3,).
-            z_dir: Z-axis direction to sample around. Shape is (2,)
+            pos: Position to sample around. Shape is (3,).
+            rot: Rotation to sample around. Shape is (3, 3).
             **kwargs: Optional arguments to pass to the model's `resample_params()` method.
         """
-        self._model.resample_params(pos, z_dir, **kwargs)
+        self._model.resample_params(pos, rot, **kwargs)
 
 
 class EyePoseMeshTextureOptimizer(Optimizer):
