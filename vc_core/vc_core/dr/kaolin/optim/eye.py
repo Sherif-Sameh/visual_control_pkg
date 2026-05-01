@@ -166,7 +166,7 @@ class EyePoseMeshTextureOptimizer(Optimizer):
         eps: float | None = None,
         logger: Logger | None = None,
         **kwargs,
-    ) -> tuple[Tensor, Tensor, Tensor]:
+    ) -> tuple[Tensor, Tensor, Tensor, Tensor]:
         """Run the optimizer for a number of iterations to update model (Kaolin).
 
         Args:
@@ -201,7 +201,7 @@ class EyePoseMeshTextureOptimizer(Optimizer):
             images = self._renderer(meshes, T=pos, R=rot, **kwargs)
             loss = self._loss_fn(images, target)
             loss += self._symmetry_w * self._symmetry_loss(texture, None)
-            loss += self._tan_norm_w * torch.linalg.norm(self._model.z_tan, dim=-1).mean()
+            loss += self._tan_norm_w * torch.linalg.norm(self._model.rot_tan, dim=-1).mean()
             loss += self._laplacian_w * torch.matmul(laplacian_matrix, vertex_offsets).mean()
             optim.zero_grad()
             loss.backward()

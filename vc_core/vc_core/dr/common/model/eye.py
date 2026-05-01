@@ -8,11 +8,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from vc_core.utils.geometry.rotation import apply_tangent_rotation
-from vc_core.utils.geometry.vector import (
-    apply_tangent_rotation_exact,
-    get_rotation_from_z,
-    get_tangent_basis,
-)
 
 from .hash_encoder import HashEncoder2D, HashEncoder2DCfg
 
@@ -178,8 +173,7 @@ class EyePoseMeshTextureModel(nn.Module):
 
     Args:
         pos: Initial guess for positions. Shape is (N, 3) or (3,).
-        z_dir: Initial guess for directions of the Z-axis. Can be unnormalized. Shape is (N, 3)
-            or (3,).
+        rot: Initial guess for rotations. Shape is (N, 3, 3) or (3, 3).
         n_vertex: Number of vertex offsets to learn for updating the mesh.
         res: Texture resolution.
         text_init: Initial value to apply to texture. Shape is (3,).
@@ -190,10 +184,12 @@ class EyePoseMeshTextureModel(nn.Module):
         **kwargs: Additional arguments for initializing texture representation.
     """
 
+    TAN_SIGMA = 0.015
+
     def __init__(
         self,
         pos: Tensor,
-        z_dir: Tensor,
+        rot: Tensor,
         n_vertex: int,
         res: int,
         text_init: Tensor,
@@ -207,38 +203,37 @@ class EyePoseMeshTextureModel(nn.Module):
         self.scale = scale
         self.scale_mesh = scale_mesh
         device = pos.device
-        n_view = self._get_n_view(pos, z_dir, n_view)
+        n_view = self._get_n_view(pos, rot, n_view)
         # preprocess all inputs
         pos = pos.repeat((n_view, 1)) if pos.ndim == 1 else pos
         pos = pos.to(dtype=torch.float32, device=device)
-        z_dir = z_dir.repeat((n_view, 1)) if z_dir.ndim == 1 else z_dir
-        z_dir = F.normalize(z_dir, dim=-1).to(dtype=torch.float32, device=device)
-        z_basis = torch.stack(get_tangent_basis(z_dir), dim=-1)
+        rot = rot.repeat((n_view, 1, 1)) if rot.ndim == 2 else rot
+        rot = rot.to(dtype=torch.float32, device=device)
+        tan_sigma = torch.tensor([self.TAN_SIGMA, self.TAN_SIGMA, 0.0])
+        tan_sigma = tan_sigma.to(dtype=torch.float32, device=device)
         vertex_offsets = torch.zeros((n_vertex, 3), dtype=torch.float32, device=device)
         text_init = text_init.to(dtype=torch.float32, device=device)
         # register buffers
         self.register_buffer("pos_init", pos)
-        self.register_buffer("z_dir_init", z_dir)
-        self.register_buffer("z_basis", z_basis)
+        self.register_buffer("rot_init", rot)
         # create parameters
         self.pos_offset = nn.Parameter(torch.zeros_like(pos))
-        self.z_tan = nn.Parameter(torch.zeros((n_view, 2), dtype=torch.float32, device=device))
+        self.rot_tan = nn.Parameter(torch.randn_like(pos) * tan_sigma)
         self.vertex_offsets = nn.Parameter(vertex_offsets)
         self._init_texture(res, text_init, **kwargs)
 
-    def forward(self) -> tuple[Tensor, Tensor, Tensor]:
-        """Construct the model's pose and texture estimates return them.
+    def forward(self) -> tuple[Tensor, Tensor, Tensor, Tensor]:
+        """Construct the model's pose, mesh, and texture estimates return them.
 
         Returns:
-            tuple containing three tensors. First is the position whose shape is (N, 3). Second is
-            the rotation matrix whose shape (N, 3, 3). Third is the texture [0, 1] whose shape is
-            (3, H, W).
+            Tuple containing four tensors. First is the position whose shape is (N, 3). Second is
+            the rotation whose shape (N, 3, 3). Third is the vertex offsets whose shape is (V, 3).
+            Fourth is the texture [0, 1] whose shape is (3, H, W).
         """
         # unnormalize position
         pos = self.pos_offset * self.scale + self.pos_init
-        # apply tangent rotation to z-axis and create rotation matrix
-        z_dir = apply_tangent_rotation_exact(self.z_dir_init, self.z_tan, self.z_basis)
-        rot = get_rotation_from_z(z_dir)
+        # apply tangent rotation
+        rot = apply_tangent_rotation(self.rot_init, self.rot_tan)
         # scale vertex offsets
         vertex_offsets = self.vertex_offsets * self.scale_mesh
         # get output texture
@@ -246,11 +241,11 @@ class EyePoseMeshTextureModel(nn.Module):
         return pos, rot, vertex_offsets, texture
 
     @staticmethod
-    def _get_n_view(pos: Tensor, z_dir: Tensor, n_view: int) -> int:
+    def _get_n_view(pos: Tensor, rot: Tensor, n_view: int) -> int:
         if pos.ndim == 2:
             return pos.shape[0]
-        if z_dir.ndim == 2:
-            return z_dir.shape[0]
+        if rot.ndim == 3:
+            return rot.shape[0]
         return n_view
 
     def _init_texture(self, res: int, text_init: Tensor, **kwargs) -> None:
@@ -299,8 +294,7 @@ class EyePoseMeshTextureMipmapModel(EyePoseMeshTextureModel):
 
     Args:
         pos: Initial guess for positions. Shape is (N, 3) or (3,).
-        z_dir: Initial guess for directions of the Z-axis. Can be unnormalized. Shape is (N, 3)
-            or (3,).
+        rot: Initial guess for rotations. Shape is (N, 3, 3) or (3, 3).
         n_vertex: Number of vertex offsets to learn for updating the mesh.
         res: Texture resolution.
         text_init: Initial value to apply to texture. Shape is (3,).
@@ -316,7 +310,7 @@ class EyePoseMeshTextureMipmapModel(EyePoseMeshTextureModel):
     def __init__(
         self,
         pos: Tensor,
-        z_dir: Tensor,
+        rot: Tensor,
         n_vertex: int,
         res: int,
         text_init: Tensor,
@@ -329,7 +323,7 @@ class EyePoseMeshTextureMipmapModel(EyePoseMeshTextureModel):
     ):
         super().__init__(
             pos,
-            z_dir,
+            rot,
             n_vertex,
             res,
             text_init,
@@ -408,8 +402,7 @@ class EyePoseMeshTextureHashEncoderModel(EyePoseMeshTextureModel):
 
     Args:
         pos: Initial guess for positions. Shape is (N, 3) or (3,).
-        z_dir: Initial guess for directions of the Z-axis. Can be unnormalized. Shape is (N, 3)
-            or (3,).
+        rot: Initial guess for rotations. Shape is (N, 3, 3) or (3, 3).
         n_vertex: Number of vertex offsets to learn for updating the mesh.
         n_view: Number of different views to optimize simultaneously. Ignored if any of the other
             input parameters is 2D. Default value is 2.
@@ -426,7 +419,7 @@ class EyePoseMeshTextureHashEncoderModel(EyePoseMeshTextureModel):
     def __init__(
         self,
         pos: Tensor,
-        z_dir: Tensor,
+        rot: Tensor,
         n_vertex: int,
         *,
         n_view: int = 2,
@@ -438,7 +431,7 @@ class EyePoseMeshTextureHashEncoderModel(EyePoseMeshTextureModel):
     ):
         super().__init__(
             pos,
-            z_dir,
+            rot,
             n_vertex,
             enc_cfg.finest_res,
             torch.zeros(3, device=pos.device),

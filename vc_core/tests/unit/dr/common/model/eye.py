@@ -38,7 +38,7 @@ def test_eye_pose_model(device: torch.device) -> None:
     # Test `resample_params()` method
     n_rep_new = 4
     n_rep_min = min(n_rep, n_rep_new)
-    model.resample_params(pos_m[0], rot_m[0, :, -1], n_rep=n_rep_new)
+    model.resample_params(pos_m[0], rot_m[0], n_rep=n_rep_new)
     pos_m_new, rot_m_new = model()
     assert all([m.requires_grad for m in [pos_m_new, rot_m_new]])
     assert pos_m_new.shape == (n_rep_min, 3)
@@ -57,7 +57,7 @@ def test_eye_pose_texture_model(device: torch.device) -> None:
     distance, elevation, azimuth = 1, 50, 30
     R, T = look_at_view_transform(distance, elevation, azimuth, device=device)
     text_init = torch.full((3,), 0.8, device=device)
-    model = EyePoseMeshTextureModel(T[0], R[0, :, -1], n_vertex, res, text_init, n_view=n_view)
+    model = EyePoseMeshTextureModel(T[0], R[0], n_vertex, res, text_init, n_view=n_view)
 
     # Test `forward()` method
     pos_m, rot_m, v_off_m, text_m = model()
@@ -80,7 +80,7 @@ def test_eye_pose_texture_mipmap_model(device: torch.device, mode: str) -> None:
     R, T = look_at_view_transform(distance, elevation, azimuth, device=device)
     text_init = torch.full((3,), 0.8, device=device)
     model = EyePoseMeshTextureMipmapModel(
-        T[0], R[0, :, -1], n_vertex, res, text_init, n_view=n_view, n_level=n_level, mode=mode
+        T[0], R[0], n_vertex, res, text_init, n_view=n_view, n_level=n_level, mode=mode
     )
 
     # Test `forward()` method
@@ -106,7 +106,7 @@ def test_eye_pose_texture_hash_encoder_model(device: torch.device) -> None:
     R, T = look_at_view_transform(distance, elevation, azimuth, device=device)
     model = EyePoseMeshTextureHashEncoderModel(
         T[0],
-        R[0, :, -1],
+        R[0],
         n_vertex,
         n_view=n_view,
         enc_cfg=enc_cfg,

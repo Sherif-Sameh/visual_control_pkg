@@ -10,6 +10,7 @@ import pytest
 import torch
 from kaolin.metrics.trianglemesh import average_edge_length
 from kaolin.render.camera import Camera
+from scipy.spatial.transform import Rotation
 from torch.optim.lr_scheduler import CosineAnnealingLR, CosineAnnealingWarmRestarts
 
 from vc_core.dr.common.losses import build_combined_loss_fn
@@ -29,6 +30,7 @@ from vc_core.dr.kaolin.utils import look_at_view_transform
 from vc_core.loggers import MemoryLogger
 
 np.random.seed(0)
+np.set_printoptions(precision=4)
 torch.manual_seed(0)
 torch.cuda.manual_seed(0)
 torch.backends.cudnn.deterministic = True
@@ -86,7 +88,7 @@ def test_eye_pose_mesh_texture_optimizer(
     text_init = torch.ones(3, device=device) * 0.5
     model = EyePoseMeshTextureMipmapModel(
         T,
-        R[:, :, -1],
+        R,
         V,
         res=512,
         text_init=text_init,
@@ -202,11 +204,11 @@ def test_eye_pose_mesh_texture_optimizer(
     mesh_final = mesh({"vertices": vertex_offsets}, texture=texture)
     final = renderer(mesh_final, cameras=cameras, R=R, T=T).detach()
     T_err = torch.linalg.norm(T_gt - T, dim=-1)
-    z_dir_err = torch.acos((R_gt[..., -1] * R[..., -1]).sum(dim=-1))
+    R_err = Rotation.from_matrix((R_gt @ R.transpose(1, 2)).cpu().numpy()).magnitude()
     with capsys.disabled():
         print(f"\nBackend: {backend}")
         print(f"\tPosition Errors (m): {T_err.cpu()}")
-        print(f"\tZ direction Errors (deg): {torch.rad2deg(z_dir_err).cpu()}")
+        print(f"\tRotation Errors (deg): {np.rad2deg(R_err)}")
 
     # Store initial, final and target visualizations
     path = Path(__file__).parent / "outputs/texture_mipmap"
