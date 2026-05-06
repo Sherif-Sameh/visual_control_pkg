@@ -8,13 +8,14 @@
 # SAM2 parameters
 "sam.variant" = "sam2.1-hiera-small"
 "sam.prompt.n_pos" = 3
-"sam.prompt.n_neg" = 6
+"sam.prompt.n_neg" = 8
 
 # Target pose parameters
 "pose.n_view_sqrt" = 3
-"pose.range.dist" = [0.25, 0.325]
+"pose.prop_cut" = 0.25
+"pose.range.dist" = [0.25, 0.3]
 "pose.range.elev" = [15.0, -10.0] 
-"pose.range.azim" = [2.5, -10.0]
+"pose.range.azim" = [5.0, -5.0]
 
 # Mesh parameters
 "dr.mesh.scale" = 1.0
@@ -53,34 +54,68 @@
 
 
 # Model-type and backend specific overrides
-[overrides-simple-cuda]
+[overrides-simple-cuda]  # https://wandb.ai/u1999168-girona/visual_control%7Ceyecalib_sweeps/runs/r8yyc8kn?nw=nwuseru1999168
+"dr.shader.sigma" = 4.156e-5
+"dr.shader.boxlen" = 1.764e-4
+"dr.optim.loss.symmetry" = 1.163e-2
+"dr.optim.loss.laplacian" = 6.077e-5
+"dr.optim.lr" = 8.499e-3
+"dr.optim.sched.eta_min" = 1.336e-5
+"dr.optim.loss" = ["mse_loss", "mse_loss"]
+
+
+[overrides-simple-nvdiffrast]  # https://wandb.ai/u1999168-girona/visual_control%7Ceyecalib_sweeps/runs/9b6aucjx?nw=nwuseru1999168
 "dr.model.res" = 256
-# "dr.shader.sigma" = 1.289e-6
-# "dr.shader.boxlen" = 2.074e-2
-# "dr.optim.loss.tan_norm" = 9.635e-4
-# "dr.optim.loss.symmetry" = 6.413e-3
-# "dr.optim.lr" = 5.254e-2
-# "dr.optim.sched.eta_min" = 1.807e-5
-# "dr.optim.loss" = ["mse_loss", "mse_loss"]
+"dr.shader.sigma" = 5.378e-5
+"dr.shader.boxlen" = 1.334e-3
+"dr.optim.loss.symmetry" = 1.111e-2
+"dr.optim.loss.laplacian" = 4.435e-4
+"dr.optim.lr" = 3.943e-2
+"dr.optim.sched.eta_min" = 1.207e-5
+"dr.optim.loss" = ["mse_loss", "mse_loss"]
 
 
-[overrides-simple-nvdiffrast]
-"dr.model.res" = 256
-
-
-[overrides-mipmap-cuda]
+[overrides-mipmap-cuda]  # https://wandb.ai/u1999168-girona/visual_control%7Ceyecalib_sweeps/runs/c5pdc671?nw=nwuseru1999168
 "dr.model.res" = 512
+"dr.shader.sigma" = 4.366e-5
+"dr.shader.boxlen" = 4.800e-4
+"dr.optim.loss.symmetry" = 2.054e-3
+"dr.optim.loss.laplacian" = 5.617e-6
+"dr.optim.lr" = 3.727e-2
+"dr.optim.sched.eta_min" = 1.224e-6
+"dr.optim.loss" = ["mse_loss", "mse_loss"]
 
 
-[overrides-mipmap-nvdiffrast]
+[overrides-mipmap-nvdiffrast]  # https://wandb.ai/u1999168-girona/visual_control%7Ceyecalib_sweeps/runs/8iqalcf1?nw=nwuseru1999168
 "dr.model.res" = 512
+"dr.shader.sigma" = 5.357e-5
+"dr.shader.boxlen" = 1.399e-4
+"dr.optim.loss.symmetry" = 2.223e-2
+"dr.optim.loss.laplacian" = 7.176e-5
+"dr.optim.lr" = 2.463e-2
+"dr.optim.sched.eta_min" = 9.484e-5
+"dr.optim.loss" = ["mse_loss", "mse_loss"]
 
 
-[overrides-hashenc-cuda]
+[overrides-hashenc-cuda]  # https://wandb.ai/u1999168-girona/visual_control%7Ceyecalib_sweeps/runs/f6p74ols?nw=nwuseru1999168
 "dr.model.res" = 1024
 "dr.model.n_level" = 16
+"dr.shader.sigma" = 5.121e-5
+"dr.shader.boxlen" = 1.131e-4
+"dr.optim.loss.symmetry" = 2.133e-3
+"dr.optim.loss.laplacian" = 9.576e-6
+"dr.optim.lr" = 1.788e-2
+"dr.optim.sched.eta_min" = 1.067e-6
+"dr.optim.loss" = ["mse_loss", "mse_loss"]
 
 
-[overrides-hashenc-nvdiffrast]
+[overrides-hashenc-nvdiffrast]  # https://wandb.ai/u1999168-girona/visual_control%7Ceyecalib_sweeps/runs/5ptizd8d?nw=nwuseru1999168
 "dr.model.res" = 1024
 "dr.model.n_level" = 16
+"dr.shader.sigma" = 5.077e-5
+"dr.shader.boxlen" = 5.587e-4
+"dr.optim.loss.symmetry" = 1.141e-3
+"dr.optim.loss.laplacian" = 7.075e-6
+"dr.optim.lr" = 3.324e-2
+"dr.optim.sched.eta_min" = 3.398e-5
+"dr.optim.loss" = ["mse_loss", "mse_loss"]

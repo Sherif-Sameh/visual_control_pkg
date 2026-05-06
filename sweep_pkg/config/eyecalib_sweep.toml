@@ -71,10 +71,10 @@ name = "objective"
 goal = "minimize"
 
 [sweep.parameters]
-"eye_calibration-dr.shader.sigma" = { distribution = "log_uniform_values", min = 1e-6, max = 3e-5 }
-"eye_calibration-dr.shader.boxlen" = { distribution = "log_uniform_values", min = 1e-3, max = 1e-2 }
-"eye_calibration-dr.optim.loss.symmetry" = { distribution = "log_uniform_values", min = 1e-2, max = 0.1 }
-"eye_calibration-dr.optim.loss.laplacian" = { distribution = "log_uniform_values", min = 1e-4, max = 1e-2 }
+"eye_calibration-dr.shader.sigma" = { distribution = "log_uniform_values", min = 5e-6, max = 1e-4 }
+"eye_calibration-dr.shader.boxlen" = { distribution = "log_uniform_values", min = 1e-4, max = 5e-3 }
+"eye_calibration-dr.optim.loss.symmetry" = { distribution = "log_uniform_values", min = 5e-4, max = 5e-2 }
+"eye_calibration-dr.optim.loss.laplacian" = { distribution = "log_uniform_values", min = 5e-6, max = 5e-4 }
 "eye_calibration-dr.optim.lr" = { distribution = "log_uniform_values", min = 5e-3, max = 0.1 }
 "eye_calibration-dr.optim.sched.eta_min" = { distribution = "log_uniform_values", min = 1e-6, max = 1e-4 }
 [sweep.parameters."eye_calibration-dr.optim.loss"]

@@ -321,7 +321,9 @@ class EyeCalibration(Node):
                 failed("dr.optim.loss must be string array.")
                 break
         if result.successful:
-            self._optim = self._init_optim(renderer=True, optimizer=True)
+            self._poses = self._init_poses()
+            self._optim = self._init_optim(model=True, renderer=True, optimizer=True)
+            self._reset()
         return result
 
     def _init_seg(self) -> SAM2:
@@ -450,7 +452,7 @@ class EyeCalibration(Node):
         mesh_edge_len = average_edge_length(mesh.mesh.vertices, mesh.mesh.faces).mean().item()
         kwargs = {
             "pos": self._poses[0],
-            "z_dir": self._poses[1][..., -1],
+            "rot": self._poses[1],
             "n_vertex": mesh.mesh.vertices.shape[1],
             "res": model_params["res"],
             "scale": model_params["scale"],
@@ -461,7 +463,7 @@ class EyeCalibration(Node):
                 model = common.model.EyePoseMeshTextureModel(text_init=torch.zeros(3), **kwargs)
             case "mipmap":
                 model = common.model.EyePoseMeshTextureMipmapModel(
-                    text_init=torch.full((3,), 0.5), n_level=model_params["n_level"], **kwargs
+                    text_init=torch.zeros(3), n_level=model_params["n_level"], **kwargs
                 )
             case "hashenc":
                 kwargs.pop("res")
