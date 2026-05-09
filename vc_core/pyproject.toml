@@ -11,6 +11,7 @@ dependencies = [
     "opencv-python",
     "pillow",
     "matplotlib >= 3.8.4",
+    "pyvista",
     "wandb",
     "toml",
     "fire",
