@@ -21,8 +21,6 @@ class EyeObjMesh(Mesh):
     - Filtering the full eye mesh by removing vertices and their corresponding normals that
     wouldn't be visible and re-ordering and filtering faces as needed after loading the raw mesh
     from obj. This controlled by `elev_lim` and `azim_lim`.
-    - Projecting mesh vertex offsets to the tangent plane of each vertex according to its normal
-    direction.
     - Anchor a set of vertices whose spherical coordinates are contained within a circular patch on
     the unit sphere centered at (0, 0, 1). This is controlled by `anchor_lim`.
 
@@ -158,10 +156,8 @@ class EyeObjMesh(Mesh):
     def _process_vertex_offsets(self, vertex_offsets: Tensor) -> Tensor:
         """Process mesh vertex offsets before their application to the mesh vertices.
 
-        Offsets of anchored vertices are masked out then the remaining offsets are projected to
-        their respective tangent planes.
-
-        Vertex offsets are broadcast to the batch dimension of the mesh if needed.
+        Offsets of anchored vertices are masked out. Vertex offsets are broadcast to the batch
+        dimension of the mesh if needed.
 
         Args:
             vertex_offsets: Mesh vertex offsets. Shape is (N, 3) or (B, N, C).
@@ -170,9 +166,7 @@ class EyeObjMesh(Mesh):
             Processed mesh vertex offsets. Shape is (B, N, 3).
         """
         vertex_offsets *= self._anchor_mask
-        vertex_normals = self._mesh.vertex_normals
-        vertex_offsets_proj = torch.sum(vertex_offsets * vertex_normals, dim=-1, keepdim=True)
-        return vertex_offsets - vertex_offsets_proj * vertex_normals
+        return vertex_offsets
 
     def to(self, device: str | device) -> "EyeObjMesh":
         self._mesh = self._mesh.to(device)

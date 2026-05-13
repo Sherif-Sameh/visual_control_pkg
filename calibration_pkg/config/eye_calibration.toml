@@ -28,7 +28,7 @@
 "dr.model.mesh_scale" = 0.5
 "dr.model.n_level" = 5
 "dr.model.log2_hsz" = 14
-"dr.model.mlp_n_layer" = 0
+"dr.model.mlp_n_layer" = 1
 
 # Shader parameters
 "dr.shader.sigma" = 3e-5
@@ -54,68 +54,63 @@
 
 
 # Model-type and backend specific overrides
-[overrides-simple-cuda]  # https://wandb.ai/u1999168-girona/visual_control%7Ceyecalib_sweeps/runs/r8yyc8kn?nw=nwuseru1999168
-"dr.shader.sigma" = 4.156e-5
-"dr.shader.boxlen" = 1.764e-4
-"dr.optim.loss.symmetry" = 1.163e-2
-"dr.optim.loss.laplacian" = 6.077e-5
-"dr.optim.lr" = 8.499e-3
-"dr.optim.sched.eta_min" = 1.336e-5
+[overrides-simple-cuda]  # https://wandb.ai/u1999168-girona/visual_control%7Ceyecalib_sweeps/runs/xbh2rhcv?nw=nwuseru1999168
+"dr.shader.sigma" = 9.827e-6
+"dr.shader.boxlen" = 4.844e-4
+"dr.optim.loss.symmetry" = 1.839e-3
+"dr.optim.loss.laplacian" = 3.048e-5
+"dr.optim.lr" = 5.042e-3
+"dr.optim.sched.eta_min" = 1.054e-5
 "dr.optim.loss" = ["mse_loss", "mse_loss"]
 
 
-[overrides-simple-nvdiffrast]  # https://wandb.ai/u1999168-girona/visual_control%7Ceyecalib_sweeps/runs/9b6aucjx?nw=nwuseru1999168
-"dr.model.res" = 256
-"dr.shader.sigma" = 5.378e-5
-"dr.shader.boxlen" = 1.334e-3
-"dr.optim.loss.symmetry" = 1.111e-2
-"dr.optim.loss.laplacian" = 4.435e-4
-"dr.optim.lr" = 3.943e-2
-"dr.optim.sched.eta_min" = 1.207e-5
+[overrides-simple-nvdiffrast]  # https://wandb.ai/u1999168-girona/visual_control%7Ceyecalib_sweeps/runs/qk4dmvtd?nw=nwuseru1999168
+"dr.shader.sigma" = 3.389e-5
+"dr.shader.boxlen" = 1.297e-4
+"dr.optim.loss.symmetry" = 2.251e-3
+"dr.optim.loss.laplacian" = 5.126e-5
+"dr.optim.lr" = 1.864e-2
+"dr.optim.sched.eta_min" = 9.288e-6
 "dr.optim.loss" = ["mse_loss", "mse_loss"]
 
 
-[overrides-mipmap-cuda]  # https://wandb.ai/u1999168-girona/visual_control%7Ceyecalib_sweeps/runs/c5pdc671?nw=nwuseru1999168
-"dr.model.res" = 512
-"dr.shader.sigma" = 4.366e-5
-"dr.shader.boxlen" = 4.800e-4
-"dr.optim.loss.symmetry" = 2.054e-3
-"dr.optim.loss.laplacian" = 5.617e-6
-"dr.optim.lr" = 3.727e-2
-"dr.optim.sched.eta_min" = 1.224e-6
+[overrides-mipmap-cuda]  # https://wandb.ai/u1999168-girona/visual_control%7Ceyecalib_sweeps/runs/3ylaugif?nw=nwuseru1999168
+"dr.shader.sigma" = 5.742e-5
+"dr.shader.boxlen" = 1.798e-3
+"dr.optim.loss.symmetry" = 6.961e-4
+"dr.optim.loss.laplacian" = 1.208e-5
+"dr.optim.lr" = 3.751e-2
+"dr.optim.sched.eta_min" = 7.926e-5
 "dr.optim.loss" = ["mse_loss", "mse_loss"]
 
 
-[overrides-mipmap-nvdiffrast]  # https://wandb.ai/u1999168-girona/visual_control%7Ceyecalib_sweeps/runs/8iqalcf1?nw=nwuseru1999168
-"dr.model.res" = 512
-"dr.shader.sigma" = 5.357e-5
-"dr.shader.boxlen" = 1.399e-4
-"dr.optim.loss.symmetry" = 2.223e-2
-"dr.optim.loss.laplacian" = 7.176e-5
-"dr.optim.lr" = 2.463e-2
-"dr.optim.sched.eta_min" = 9.484e-5
+[overrides-mipmap-nvdiffrast]  # https://wandb.ai/u1999168-girona/visual_control%7Ceyecalib_sweeps/runs/pyljj9gc?nw=nwuseru1999168
+"dr.shader.sigma" = 8.256e-5
+"dr.shader.boxlen" = 3.235e-4
+"dr.optim.loss.symmetry" = 1.911e-3
+"dr.optim.loss.laplacian" = 4.307e-4
+"dr.optim.lr" = 3.275e-2
+"dr.optim.sched.eta_min" = 2.355e-5
 "dr.optim.loss" = ["mse_loss", "mse_loss"]
 
 
-[overrides-hashenc-cuda]  # https://wandb.ai/u1999168-girona/visual_control%7Ceyecalib_sweeps/runs/f6p74ols?nw=nwuseru1999168
-"dr.model.res" = 1024
+[overrides-hashenc-cuda]  # https://wandb.ai/u1999168-girona/visual_control%7Ceyecalib_sweeps/runs/vagm5auf?nw=nwuseru1999168
 "dr.model.n_level" = 16
-"dr.shader.sigma" = 5.121e-5
-"dr.shader.boxlen" = 1.131e-4
-"dr.optim.loss.symmetry" = 2.133e-3
-"dr.optim.loss.laplacian" = 9.576e-6
-"dr.optim.lr" = 1.788e-2
-"dr.optim.sched.eta_min" = 1.067e-6
+"dr.shader.sigma" = 8.605e-5
+"dr.shader.boxlen" = 2.854e-4
+"dr.optim.loss.symmetry" = 4.474e-3
+"dr.optim.loss.laplacian" = 5.537e-5
+"dr.optim.lr" = 3.308e-2
+"dr.optim.sched.eta_min" = 4.488e-5
 "dr.optim.loss" = ["mse_loss", "mse_loss"]
 
 
-[overrides-hashenc-nvdiffrast]  # https://wandb.ai/u1999168-girona/visual_control%7Ceyecalib_sweeps/runs/5ptizd8d?nw=nwuseru1999168
-"dr.model.res" = 1024
+[overrides-hashenc-nvdiffrast]  # https://wandb.ai/u1999168-girona/visual_control%7Ceyecalib_sweeps/runs/d2ueglz6?nw=nwuseru1999168
 "dr.model.n_level" = 16
-"dr.shader.sigma" = 5.077e-5
-"dr.shader.boxlen" = 5.587e-4
-"dr.optim.loss.symmetry" = 1.141e-3
-"dr.optim.loss.laplacian" = 7.075e-6
-"dr.optim.lr" = 3.324e-2
-"dr.optim.sched.eta_min" = 3.398e-5
+"dr.shader.sigma" = 9.440e-5
+"dr.shader.boxlen" = 5.056e-4
+"dr.optim.loss.symmetry" = 3.583e-3
+"dr.optim.loss.laplacian" = 1.340e-5
+"dr.optim.lr" = 2.874e-2
+"dr.optim.sched.eta_min" = 2.222e-5
 "dr.optim.loss" = ["mse_loss", "mse_loss"]
