@@ -64,6 +64,13 @@ def declare_arguments() -> list[DeclareLaunchArgument]:
             " Default is /pose.",
         )
     )
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "restart_topic_name",
+            default_value="/pose_estimator/restart",
+            description="Restart (std_msgs/Empty) topic name. Default is /pose_estimator/restart.",
+        )
+    )
     return declared_arguments
 
 
@@ -101,6 +108,7 @@ def _include_apriltag_estimator() -> IncludeLaunchDescription:
     camera_info_topic_name = LaunchConfiguration("camera_info_topic_name")
     camera_twist_topic_name = LaunchConfiguration("camera_twist_topic_name")
     detections_topic_name = LaunchConfiguration("detections_topic_name")
+    restart_topic_name = LaunchConfiguration("restart_topic_name")
 
     return IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
@@ -118,6 +126,7 @@ def _include_apriltag_estimator() -> IncludeLaunchDescription:
             "camera_info_topic_name": camera_info_topic_name,
             "camera_twist_topic_name": camera_twist_topic_name,
             "detections_topic_name": detections_topic_name,
+            "restart_topic_name": restart_topic_name,
         }.items(),
     )
 
@@ -128,6 +137,7 @@ def _include_charuco_estimator() -> IncludeLaunchDescription:
     camera_info_topic_name = LaunchConfiguration("camera_info_topic_name")
     camera_twist_topic_name = LaunchConfiguration("camera_twist_topic_name")
     detections_topic_name = LaunchConfiguration("detections_topic_name")
+    restart_topic_name = LaunchConfiguration("restart_topic_name")
 
     return IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
@@ -145,6 +155,7 @@ def _include_charuco_estimator() -> IncludeLaunchDescription:
             "camera_info_topic_name": camera_info_topic_name,
             "camera_twist_topic_name": camera_twist_topic_name,
             "detections_topic_name": detections_topic_name,
+            "restart_topic_name": restart_topic_name,
         }.items(),
     )
 
@@ -154,6 +165,7 @@ def _include_pose_estimator() -> IncludeLaunchDescription:
 
     camera_twist_topic_name = LaunchConfiguration("camera_twist_topic_name")
     pose_topic_name = LaunchConfiguration("pose_topic_name")
+    restart_topic_name = LaunchConfiguration("restart_topic_name")
 
     return IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
@@ -170,5 +182,6 @@ def _include_pose_estimator() -> IncludeLaunchDescription:
             "pose_frame": pose_frame,
             "camera_twist_topic_name": camera_twist_topic_name,
             "pose_topic_name": pose_topic_name,
+            "restart_topic_name": restart_topic_name,
         }.items(),
     )

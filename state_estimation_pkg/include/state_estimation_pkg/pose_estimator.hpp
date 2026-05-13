@@ -14,6 +14,7 @@
 #include "rclcpp/rclcpp.hpp"
 #include "rclcpp_components/register_node_macro.hpp"
 #include "sensor_msgs/msg/camera_info.hpp"
+#include "std_msgs/msg/empty.hpp"
 #include "tf2_eigen/tf2_eigen.hpp"
 #include "tf2_ros/transform_broadcaster.hpp"
 
@@ -41,6 +42,7 @@ private:
     void make_pose_tf(const std_msgs::msg::Header &header);
     void callback_cam_twist(const geometry_msgs::msg::TwistStamped::SharedPtr msg);
     void callback_pose(const AprilTagDetectionArray::SharedPtr msg);
+    void callback_rst(const std_msgs::msg::Empty::SharedPtr msg);
     rcl_interfaces::msg::SetParametersResult
     callback_params(const std::vector<rclcpp::Parameter> &parameters);
 
@@ -62,6 +64,7 @@ private:
     rclcpp::Publisher<AprilTagDetectionArray>::SharedPtr m_pub_pose{nullptr};
     rclcpp::Subscription<geometry_msgs::msg::TwistStamped>::SharedPtr m_sub_cam_twist{nullptr};
     rclcpp::Subscription<AprilTagDetectionArray>::SharedPtr m_sub_pose{nullptr};
+    rclcpp::Subscription<std_msgs::msg::Empty>::SharedPtr m_sub_rst{nullptr};
     std::unique_ptr<tf2_ros::TransformBroadcaster> m_tf_broadcaster{nullptr};
     rclcpp::node_interfaces::OnSetParametersCallbackHandle::SharedPtr m_cbh_param{nullptr};
 };

@@ -34,6 +34,8 @@ ApriltagEstimator::ApriltagEstimator(const rclcpp::NodeOptions &options)
         "/camera_twist", 1, std::bind(&ApriltagEstimator::callback_cam_twist, this, _1));
     m_sub_tag = this->create_subscription<AprilTagDetectionArray>(
         "/detections", 1, std::bind(&ApriltagEstimator::callback_tag, this, _1));
+    m_sub_rst = this->create_subscription<std_msgs::msg::Empty>(
+        "/apriltag_estimator/restart", 1, std::bind(&ApriltagEstimator::callback_rst, this, _1));
     m_tf_broadcaster = std::make_unique<tf2_ros::TransformBroadcaster>(*this);
     m_cbh_param = this->add_on_set_parameters_callback(
         std::bind(&ApriltagEstimator::callback_params, this, _1));
@@ -144,6 +146,11 @@ void ApriltagEstimator::callback_tag(const AprilTagDetectionArray::SharedPtr msg
     // Publish detections message and transforms
     publish_tag(msg->header, msg->detections[0].family);
     make_tag_tfs(msg->header, msg->detections[0].family);
+}
+
+void ApriltagEstimator::callback_rst(const std_msgs::msg::Empty::SharedPtr msg)
+{
+    m_ekf_map.clear(); // clear to re-intialize all EKF instances
 }
 
 rcl_interfaces::msg::SetParametersResult

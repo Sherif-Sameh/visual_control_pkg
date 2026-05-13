@@ -37,6 +37,13 @@ def declare_arguments() -> list[DeclareLaunchArgument]:
             " Default is /pose.",
         )
     )
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "restart_topic_name",
+            default_value="/pose_estimator/restart",
+            description="Restart (std_msgs/Empty) topic name. Default is /pose_estimator/restart.",
+        )
+    )
     return declared_arguments
 
 
@@ -58,6 +65,7 @@ def get_composable_node(**kwargs) -> ComposableNode:
         remappings=[
             ("/camera_twist", get_arg("camera_twist_topic_name")),
             ("/pose", get_arg("pose_topic_name")),
+            ("/pose_estimator/restart", get_arg("restart_topic_name")),
         ],
     )
 
@@ -71,6 +79,7 @@ def generate_launch_description() -> LaunchDescription:
 
     camera_twist_topic_name = LaunchConfiguration("camera_twist_topic_name")
     pose_topic_name = LaunchConfiguration("pose_topic_name")
+    restart_topic_name = LaunchConfiguration("restart_topic_name")
 
     # Load configuration from toml
     pkg_share = get_package_share_directory("state_estimation_pkg")
@@ -82,7 +91,11 @@ def generate_launch_description() -> LaunchDescription:
         package="state_estimation_pkg",
         plugin="PoseEstimator",
         parameters=[{"pose.frame": pose_frame, **config["estimator"]}],
-        remappings=[("/camera_twist", camera_twist_topic_name), ("/pose", pose_topic_name)],
+        remappings=[
+            ("/camera_twist", camera_twist_topic_name),
+            ("/pose", pose_topic_name),
+            ("/pose_estimator/restart", restart_topic_name),
+        ],
     )
 
     # Initialize standalone composable node container

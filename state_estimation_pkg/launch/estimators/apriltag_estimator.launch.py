@@ -44,6 +44,13 @@ def declare_arguments() -> list[DeclareLaunchArgument]:
             " topic name. Default is /detections.",
         )
     )
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "restart_topic_name",
+            default_value="/pose_estimator/restart",
+            description="Restart (std_msgs/Empty) topic name. Default is /pose_estimator/restart.",
+        )
+    )
     return declared_arguments
 
 
@@ -66,6 +73,7 @@ def get_composable_node(**kwargs) -> ComposableNode:
             ("/camera_info", get_arg("camera_info_topic_name")),
             ("/camera_twist", get_arg("camera_twist_topic_name")),
             ("/detections", get_arg("detections_topic_name")),
+            ("/apriltag_estimator/restart", get_arg("restart_topic_name")),
         ],
     )
 
@@ -80,6 +88,7 @@ def generate_launch_description() -> LaunchDescription:
     camera_info_topic_name = LaunchConfiguration("camera_info_topic_name")
     camera_twist_topic_name = LaunchConfiguration("camera_twist_topic_name")
     detections_topic_name = LaunchConfiguration("detections_topic_name")
+    restart_topic_name = LaunchConfiguration("restart_topic_name")
 
     # Load configuration from toml
     pkg_share = get_package_share_directory("state_estimation_pkg")
@@ -95,6 +104,7 @@ def generate_launch_description() -> LaunchDescription:
             ("/camera_info", camera_info_topic_name),
             ("/camera_twist", camera_twist_topic_name),
             ("/detections", detections_topic_name),
+            ("/apriltag_estimator/restart", restart_topic_name),
         ],
     )
 
