@@ -300,6 +300,7 @@ def _launch_state_estimation_pkg(context: LaunchContext) -> IncludeLaunchDescrip
             "camera_info_topic_name": CAMERA_INFO_TOPIC_NAME,
             "camera_twist_topic_name": f"{controller}_controller/camera_twist",
             "detections_topic_name": DETECTIONS_TOPIC_NAME,
+            "restart_topic_name": RESTART_TOPIC_NAME,
         }.items(),
     )
 
