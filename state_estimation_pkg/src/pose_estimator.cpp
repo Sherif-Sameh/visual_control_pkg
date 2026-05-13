@@ -113,6 +113,7 @@ void PoseEstimator::callback_pose(const AprilTagDetectionArray::SharedPtr msg)
 
 void PoseEstimator::callback_rst(const std_msgs::msg::Empty::SharedPtr msg)
 {
+    (void)msg;
     init_ekf(); // re-intialize EKF
 }
 

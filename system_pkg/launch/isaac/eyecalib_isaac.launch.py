@@ -466,6 +466,7 @@ def _launch_apriltag_container(context: LaunchContext) -> ComposableNodeContaine
         "camera_info_topic_name": CAMERA_INFO_TOPIC_NAME,
         "camera_twist_topic_name": f"{controller}_controller/camera_twist",
         "detections_topic_name": DETECTIONS_TOPIC_NAME,
+        "restart_topic_name": RESTART_TOPIC_NAME,
     }
     return ComposableNodeContainer(
         package="rclcpp_components",

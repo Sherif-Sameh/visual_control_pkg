@@ -150,6 +150,7 @@ void ApriltagEstimator::callback_tag(const AprilTagDetectionArray::SharedPtr msg
 
 void ApriltagEstimator::callback_rst(const std_msgs::msg::Empty::SharedPtr msg)
 {
+    (void)msg;
     m_ekf_map.clear(); // clear to re-intialize all EKF instances
 }
 

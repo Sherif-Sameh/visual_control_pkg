@@ -47,7 +47,7 @@ def declare_arguments() -> list[DeclareLaunchArgument]:
     declared_arguments.append(
         DeclareLaunchArgument(
             "restart_topic_name",
-            default_value="/pose_estimator/restart",
+            default_value="/apriltag_estimator/restart",
             description="Restart (std_msgs/Empty) topic name. Default is /pose_estimator/restart.",
         )
     )
