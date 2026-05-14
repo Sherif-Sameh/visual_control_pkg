@@ -1,7 +1,12 @@
+import os
+
+import toml
+from ament_index_python.packages import get_package_share_directory
 from launch import LaunchContext, LaunchDescription
 from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription, OpaqueFunction
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
+from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
 
 
@@ -163,7 +168,7 @@ def declare_arguments() -> list[DeclareLaunchArgument]:
     return declared_arguments
 
 
-def launch_setup(context: LaunchContext) -> list[IncludeLaunchDescription]:
+def launch_setup(context: LaunchContext) -> list[IncludeLaunchDescription | Node]:
     calibration = LaunchConfiguration("calibration").perform(context)
     calibration = calibration.replace(" ", "").split(",")
     launch = []
@@ -172,6 +177,8 @@ def launch_setup(context: LaunchContext) -> list[IncludeLaunchDescription]:
         launch.append(_include_handeye_calibration())
     if "handeye_evaluation" in calibration:
         launch.append(_include_handeye_evaluation())
+    if (he_sb := _include_handeye_static_broadcaster(context)) is not None:
+        launch.append(he_sb)
     if "tcp_calibration_p3d" in calibration:
         launch.append(_include_tcp_calibration_p3d())
     if "eye_calibration" in calibration:
@@ -247,6 +254,37 @@ def _include_handeye_evaluation() -> IncludeLaunchDescription:
             "detections_topic_name": detections_topic_name,
         }.items(),
     )
+
+
+def _include_handeye_static_broadcaster(context: LaunchContext) -> Node | None:
+    ee_frame = LaunchConfiguration("ee_frame").perform(context)
+    cam_frame = LaunchConfiguration("cam_frame").perform(context)
+
+    pkg_share = get_package_share_directory("calibration_pkg")
+    config_path = os.path.join(
+        pkg_share, "../../../../src/visual_control_pkg/calibration_pkg/config/handeye_params.toml"
+    )
+    if not os.path.exists(config_path):
+        return None
+    config = toml.load(config_path)
+    pose = config["pose"]
+    x, y, z = pose["translation"]
+    qw, qx, qy, qz = pose["rotation"]
+
+    # fmt: off
+    return Node(
+        package="tf2_ros",
+        executable="static_transform_publisher",
+        name="my_static_tf",
+        arguments=[
+            "--x", str(x), "--y", str(y), "--z", str(z),
+            "--qx", str(qx), "--qy", str(qy), "--qz", str(qz), "--qw", str(qw),
+            "--frame-id", ee_frame,
+            "--child-frame-id", f"{cam_frame}_est",
+        ],
+        output="screen",
+    )
+    # fmt: on
 
 
 def _include_tcp_calibration_p3d() -> IncludeLaunchDescription:

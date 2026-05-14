@@ -222,6 +222,8 @@ Visualization Manager:
           Value: true
         camera_color_optical_frame:0:
           Value: true
+        camera_color_optical_frame_est:
+          Value: false
         camera_color_optical_frame_gt:
           Value: false
         charuco:
@@ -300,6 +302,8 @@ Visualization Manager:
                                 charuco:0f:
                                   camera_color_optical_frame:0:
                                     {}
+                              camera_color_optical_frame_est:
+                                {}
                               camera_color_optical_frame_gt:
                                 {}
                           ft_frame:
