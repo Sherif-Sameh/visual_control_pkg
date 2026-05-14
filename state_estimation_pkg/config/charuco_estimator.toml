@@ -1,6 +1,6 @@
 ### Apriltag Estimator Configuration for ChArUco Boards ###
 
-[estimator]  # https://wandb.ai/u1999168-girona/visual_control%7Checalib_sweeps/sweeps/d8ywfeey/runs/phsackzd
+[estimator]  # https://wandb.ai/u1999168-girona/visual_control%7Checalib_sweeps/runs/dyol81kg?nw=nwuseru1999168
 
 # AprilTag parameters
 "tag.timeout" = 0.5
@@ -18,12 +18,12 @@
     6.400e-3,  # 0.08rad**2
 ]
 "ekf.Q_diag" = [
-    6.149e-4,
-    6.149e-4,
-    2.800e-4,
-    5.716e-6,
-    5.716e-6,
-    9.205e-4,
+    1.080e-6,
+    1.080e-6,
+    6.424e-6,
+    1.083e-6,
+    1.083e-6,
+    1.119e-6,
 ]
 "ekf.R_diag" = [
     6.250e-4,  # 0.025m**2

@@ -5,7 +5,7 @@
 
 # General parameters
 timer_period = 0.1
-n_runs_per_set = 3
+n_runs_per_set = 2
 target_nodes = ["charuco_detector", "charuco_estimator", "handeye_calibration"]
 
 # Objective function parameters
@@ -18,7 +18,7 @@ target_nodes = ["charuco_detector", "charuco_estimator", "handeye_calibration"]
 ]
 "obj.weights" = [
     0.01,
-    0.05,
+    0.1,
     0.0,
     0.0,
     1.0,
@@ -40,6 +40,7 @@ target_nodes = ["charuco_detector", "charuco_estimator", "handeye_calibration"]
     "charuco_estimator-ekf.R_diag",
     "handeye_calibration-calib.conv_ttol",
     "handeye_calibration-calib.conv_rtol",
+    "handeye_calibration-calib.eng.n_poses",
 ]
 
 
@@ -53,14 +54,13 @@ name = "objective"
 goal = "minimize"
 
 [sweep.parameters]
-"charuco_estimator-ekf.Q_diag.idx_01" = { distribution = "log_uniform_values", min = 1e-6, max = 1e-3 }
-"charuco_estimator-ekf.Q_diag.idx_2" = { distribution = "log_uniform_values", min = 1e-6, max = 1e-3 }
-"charuco_estimator-ekf.Q_diag.idx_34" = { distribution = "log_uniform_values", min = 1e-6, max = 1e-3 }
-"charuco_estimator-ekf.Q_diag.idx_5" = { distribution = "log_uniform_values", min = 1e-6, max = 1e-3 }
+"charuco_estimator-ekf.Q_diag.idx_01" = { distribution = "log_uniform_values", min = 1e-7, max = 1e-4 }
+"charuco_estimator-ekf.Q_diag.idx_2" = { distribution = "log_uniform_values", min = 1e-7, max = 1e-4 }
+"charuco_estimator-ekf.Q_diag.idx_34" = { distribution = "log_uniform_values", min = 1e-7, max = 1e-4 }
+"charuco_estimator-ekf.Q_diag.idx_5" = { distribution = "log_uniform_values", min = 1e-7, max = 1e-4 }
 
-"handeye_calibration-calib.eng.n_poses" = { values = [3, 5, 7, 9] }
-"handeye_calibration-calib.eng.rot_angle" = { min = 0.2, max = 0.5 }
-"handeye_calibration-calib.eng.dist_to_target" = { min = 0.35, max = 0.65 }
+"handeye_calibration-calib.eng.rot_angle" = { min = 0.3, max = 0.5 }
+"handeye_calibration-calib.eng.dist_to_target" = { min = 0.45, max = 0.7 }
 [sweep.parameters."handeye_calibration-calib.eng.calib_method"]
 values = [
     "CALIB_HAND_EYE_TSAI",

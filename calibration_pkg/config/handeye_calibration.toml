@@ -1,13 +1,13 @@
 ### HandEye Calibration Configuration ###
 
-[calibration]  # https://wandb.ai/u1999168-girona/visual_control%7Checalib_sweeps/sweeps/d8ywfeey/runs/phsackzd
+[calibration]  # https://wandb.ai/u1999168-girona/visual_control%7Checalib_sweeps/runs/osie7hd9/overview?nw=nwuseru1999168
 
 # Convergence tolerance parameters
-"calib.conv_ttol" = 0.03
+"calib.conv_ttol" = 0.01
 "calib.conv_rtol" = 0.1
 
 # Calibration engine parameters
-"calib.eng.n_poses" = 9
-"calib.eng.rot_angle" = 0.5
-"calib.eng.dist_to_target" = 0.654
-"calib.eng.calib_method" = "CALIB_HAND_EYE_TSAI"
+"calib.eng.n_poses" = 15
+"calib.eng.rot_angle" = 0.485
+"calib.eng.dist_to_target" = 0.608
+"calib.eng.calib_method" = "CALIB_HAND_EYE_DANIILIDIS"
