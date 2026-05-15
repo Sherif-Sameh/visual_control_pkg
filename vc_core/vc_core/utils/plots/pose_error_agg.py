@@ -44,8 +44,9 @@ def main(
     dir: str, prec: int = 2, pu: Literal["m", "cm", "mm"] = "cm", ru: Literal["rad", "deg"] = "deg"
 ) -> None:
     arrays = load_metric_arrays(directory=dir)
-    mean, std = {}, {}
-    # Compute MAE and its standard deviation
+    abs_mean, abs_std = {}, {}
+    l2_mean, l2_std = {}, {}
+    # Compute the mean and standard deviation of both metrics
     for k, v in arrays.items():
         # Scale each metric appropriately
         if k == "PE (Position)":
@@ -53,14 +54,19 @@ def main(
         elif ru == "deg":
             v = np.rad2deg(v)
         abs_v = np.abs(v)
-        mean[k] = np.mean(abs_v, axis=0)
-        std[k] = np.std(abs_v, axis=0)
+        l2_v = np.linalg.norm(v, axis=1)
+        abs_mean[k] = np.mean(abs_v, axis=0)
+        abs_std[k] = np.std(abs_v, axis=0)
+        l2_mean[k] = np.mean(l2_v)
+        l2_std[k] = np.std(l2_v)
     # Output metric values
     for m in METRICS:
         unit = pu if m == "PE (Position)" else ru
         print(f"\n{m} aggregated over {arrays[m].shape[0]} samples:")
-        print(f"\tMean: {np.round(mean[m], decimals=prec)} {unit}")
-        print(f"\tStd: {np.round(std[m], decimals=prec)} {unit}")
+        print(f"\tAbs. Mean: {np.round(abs_mean[m], decimals=prec)} {unit}")
+        print(f"\tAbs. Std: {np.round(abs_std[m], decimals=prec)} {unit}")
+        print(f"\tL2 Mean: {np.round(l2_mean[m], decimals=prec)} {unit}")
+        print(f"\tL2 Std: {np.round(l2_std[m], decimals=prec)} {unit}")
 
 
 if __name__ == "__main__":
