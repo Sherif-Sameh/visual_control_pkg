@@ -216,6 +216,8 @@ Visualization Manager:
           Value: false
         camera_color_optical_frame:1:
           Value: true
+        camera_color_optical_frame_est:
+          Value: false
         camera_color_optical_frame_gt:
           Value: true
         ee:
@@ -304,6 +306,8 @@ Visualization Manager:
                                 tag36h11:1f:
                                   camera_color_optical_frame:1:
                                     {}
+                              camera_color_optical_frame_est:
+                                {}
                               camera_color_optical_frame_gt:
                                 {}
                           ft_frame:
@@ -332,7 +336,7 @@ Visualization Manager:
       Enabled: true
       Name: MarkerArray
       Namespaces:
-        trajectory_visualizer: true
+        {}
       Topic:
         Depth: 5
         Durability Policy: Volatile
@@ -358,7 +362,7 @@ Visualization Manager:
       Enabled: true
       Name: Marker
       Namespaces:
-        plan_visualizer: true
+        {}
       Topic:
         Depth: 5
         Durability Policy: Volatile
@@ -413,7 +417,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz_default_plugins/Orbit
-      Distance: 1.5861848592758179
+      Distance: 1.5917675495147705
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -431,7 +435,7 @@ Visualization Manager:
       Pitch: 0.4703986942768097
       Target Frame: <Fixed Frame>
       Value: Orbit (rviz)
-      Yaw: 6.153570652008057
+      Yaw: 5.328563690185547
     Saved: ~
 Window Geometry:
   Displays:

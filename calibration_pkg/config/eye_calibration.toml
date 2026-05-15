@@ -12,7 +12,7 @@
 
 # Target pose parameters
 "pose.n_view_sqrt" = 3
-"pose.prop_cut" = 0.25
+"pose.prop_cut" = 0.0
 "pose.range.dist" = [0.25, 0.3]
 "pose.range.elev" = [15.0, -10.0] 
 "pose.range.azim" = [5.0, -5.0]
@@ -25,7 +25,7 @@
 # Model parameters
 "dr.model.res" = 512
 "dr.model.scale" = 0.05
-"dr.model.mesh_scale" = 0.5
+"dr.model.mesh_scale" = 0.25
 "dr.model.n_level" = 5
 "dr.model.log2_hsz" = 14
 "dr.model.mlp_n_layer" = 1
@@ -45,12 +45,12 @@
 "dr.optim.loss.tan_norm" = 5e-4
 "dr.optim.loss.laplacian" = 1e-2
 "dr.optim.lr" = 2e-2
-"dr.optim.sched.T_0" = 150
+"dr.optim.sched.T_0" = 300
 "dr.optim.sched.T_mult" = 1
 "dr.optim.sched.eta_min" = 1e-4
 "dr.optim.n_iter.init" = 50
 "dr.optim.n_iter.text" = 20
-"dr.optim.n_iter.full" = 300
+"dr.optim.n_iter.full" = 600
 
 
 # Model-type and backend specific overrides

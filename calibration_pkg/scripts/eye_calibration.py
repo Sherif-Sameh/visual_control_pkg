@@ -644,6 +644,7 @@ class EyeCalibration(Node):
         labels = ("initial", "interm", "final", "target")
         for arg, label in zip(args, labels):
             arg = arg.permute(0, 3, 1, 2)
+            torch.save(arg[:, 1:].cpu(), f"{path}/{label}.pt")
             save_image(arg[:, 1:], f"{path}/{label}.png", nrow=n_view_sqrt, pad_value=1.0)
         self.get_logger().info(f"Outputs stored at {path}")
 
