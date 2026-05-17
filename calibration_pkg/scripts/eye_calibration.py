@@ -20,7 +20,7 @@ from kaolin.render.camera import Camera
 from numpy.typing import NDArray
 from rcl_interfaces.msg import SetParametersResult
 from rclpy.node import Node
-from rclpy.qos import QoSProfile, ReliabilityPolicy
+from rclpy.qos import DurabilityPolicy, QoSProfile, ReliabilityPolicy
 from scipy.spatial.transform import Rotation as R
 from scipy.stats import trim_mean
 from sensor_msgs.msg import CameraInfo, Image
@@ -118,7 +118,11 @@ class EyeCalibration(Node):
         self._pub_target = self.create_publisher(
             PoseStamped,
             "/eye_calibration/command",
-            QoSProfile(depth=1, reliability=ReliabilityPolicy.RELIABLE),
+            QoSProfile(
+                depth=1,
+                reliability=ReliabilityPolicy.RELIABLE,
+                durability=DurabilityPolicy.TRANSIENT_LOCAL,
+            ),
         )
         self._pub_perr = self.create_publisher(PoseStamped, "/eye_calibration/pose_error", 10)
         self._pub_seg = self.create_publisher(Image, "/eye_calibration/segmentation", 1)

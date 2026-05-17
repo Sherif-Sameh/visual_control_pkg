@@ -35,7 +35,8 @@ HandeyeCalibration::HandeyeCalibration() : Node("handeye_calibration")
 
     // Initialize ROS attributes
     m_pub_target = this->create_publisher<geometry_msgs::msg::PoseStamped>(
-        "/handeye_calibration/command", rclcpp::QoS(rclcpp::KeepLast(1)).reliable());
+        "/handeye_calibration/command",
+        rclcpp::QoS(rclcpp::KeepLast(1)).reliable().transient_local());
     m_pub_error = this->create_publisher<geometry_msgs::msg::PoseStamped>(
         "/handeye_calibration/pose_error", 10);
     m_sub_dtn = this->create_subscription<AprilTagDetectionArray>(
