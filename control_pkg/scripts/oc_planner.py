@@ -11,7 +11,7 @@ from isaac_ros_apriltag_interfaces.msg import AprilTagDetectionArray
 from numpy.typing import NDArray
 from rclpy.duration import Duration
 from rclpy.node import Node
-from rclpy.qos import QoSProfile, ReliabilityPolicy
+from rclpy.qos import DurabilityPolicy, QoSProfile, ReliabilityPolicy
 from scipy.spatial.transform import Rotation as R
 from std_msgs.msg import Float64, Header
 from tf2_ros import Buffer, TransformListener
@@ -78,7 +78,11 @@ class OcPlanner(Node):
             PoseStamped,
             "/pose_reference",
             self.callback_pref,
-            QoSProfile(depth=1, reliability=ReliabilityPolicy.RELIABLE),
+            QoSProfile(
+                depth=1,
+                reliability=ReliabilityPolicy.RELIABLE,
+                durability=DurabilityPolicy.TRANSIENT_LOCAL,
+            ),
         )
         self._sub_cam_twist = self.create_subscription(
             TwistStamped, "/camera_twist", self.callback_cam_twist, 1

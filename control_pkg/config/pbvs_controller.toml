@@ -20,8 +20,8 @@ timeout = 0.5
 ]  # diag(1.0, 1.0, 1.0, 1.0, 1.0, 1.0)
 
 # Robot parameters
-"robot.max_tvel" = 0.5
-"robot.max_rvel" = 0.5
+"robot.max_tvel" = 0.05
+"robot.max_rvel" = 0.05
 "robot.max_vel_sf" = 1.0
 "robot.max_qdot" = [
     2.094395102,  # 120 DPS
