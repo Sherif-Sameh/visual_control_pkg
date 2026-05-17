@@ -19,10 +19,15 @@ BASE_FRAME = "base_link"
 EE_FRAME = "tool0"
 CAM_FRAME = "camera_color_optical_frame"
 TCP_FRAME = "tcp"
-REF_FRAME = "tag36h11:1f"
+MARKER_FRAME = "tag36h11:1f"
+EYE_FRAME = "eye_est"
+REF_FRAME = f"{EYE_FRAME}f"
+EYE_GT_FRAME = "eye_left"
 
-POSE_MK_TGT = "[0.113, -0.071, -0.232, 1.0, 0.0, 0.0, 0.0]"
+EYE_ID = "0"
+POSE_MK_TGT = "[0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0]"
 POSE_GT_TCP = "[0.0, 0.014, 0.087, 0.988, 0.152, 0.0, 0.0]"
+REF_POSE = "[0.12, -0.065, -0.2, 1.0, 0.0, 0.0, 0.0]"
 IMG_CENTER = "[300, 320]"
 
 TAG_FAMILY = "tag36h11"
@@ -34,11 +39,14 @@ POSE_REFERENCE_TOPIC_NAME = "/isaaclab/command"
 PLANNED_TRAJECTORY_TOPIC_NAME = "/oc_planner/trajectory"
 DETECTIONS_FILTERED_TOPIC_NAME = "/apriltag_estimator/detections_filtered"
 DETECTIONS_TOPIC_NAME = "/apriltag_detector/detections"
+POSE_TOPIC_NAME = "/eye_detector/pose"
+POSE_FILTERED_TOPIC_NAME = f"/pose_estimator/{EYE_FRAME}_filtered"
 IMAGE_TOPIC_NAME = "/isaaclab/camera/image_raw"
 DEPTH_TOPIC_NAME = "/isaaclab/camera/depth_raw"
 JOINT_STATES_TOPIC_NAME = "/isaaclab/joint_states"
 JOINT_TRAJECTORY_TOPIC_NAME = "/isaaclab/joint_trajectory_controller/joint_trajectory"
-POSE_ERROR_TOPIC_NAME = "/isaaclab/pose_error"
+TRAJ_POSE_ERROR_TOPIC_NAME = "/isaaclab/pose_error"
+EYE_POSE_ERROR_TOPIC_NAME = "/eye_detector/pose_error"
 RESTART_TOPIC_NAME = "/isaaclab/reset"
 
 
@@ -84,9 +92,8 @@ def declare_arguments() -> list[DeclareLaunchArgument]:
     declared_arguments.append(
         DeclareLaunchArgument(
             "estimator",
-            default_value="apriltag",
-            description="Name of estimator node to launch. Default value is apriltag.",
-            choices=["apriltag", ""],
+            default_value="apriltag,pose",
+            description="Comma separated string of estimator nodes to launch. Default value is 'apriltag,pose'.",
         )
     )
 
@@ -94,9 +101,8 @@ def declare_arguments() -> list[DeclareLaunchArgument]:
     declared_arguments.append(
         DeclareLaunchArgument(
             "detector",
-            default_value="apriltag",
-            description="Name of detector node to launch. Default value is apriltag.",
-            choices=["apriltag", ""],
+            default_value="apriltag,eye",
+            description="Comma separated string of detector nodes to launch. Default value is 'apriltag,eye'.",
         )
     )
     declared_arguments.append(
@@ -107,6 +113,14 @@ def declare_arguments() -> list[DeclareLaunchArgument]:
             choices=["CUDA", "CPU", "PVA"],
         )
     )
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "dr_backend",
+            default_value="cuda",
+            description="Kaolin differentiable rendering backend. Default value is cuda.",
+            choices=["cuda", "nvdiffrast"],
+        )
+    )
 
     # Logging package arguments
     declared_arguments.append(
@@ -114,7 +128,7 @@ def declare_arguments() -> list[DeclareLaunchArgument]:
             "logger",
             default_value="",
             description="Logger to launch. Default value '' is (empty string).",
-            choices=["pbvs", "ibvs", ""],
+            choices=["pbvs", "ibvs", "eyedtc", ""],
         )
     )
     declared_arguments.append(
@@ -169,7 +183,7 @@ def declare_arguments() -> list[DeclareLaunchArgument]:
             "sweep",
             default_value="",
             description="Sweep to launch. Default value '' is (empty string).",
-            choices=["pbvs", "ibvs", ""],
+            choices=["pbvs", "ibvs", "eyedtc", ""],
         )
     )
     declared_arguments.append(
@@ -269,7 +283,7 @@ def _launch_control_pkg() -> IncludeLaunchDescription:
             "ee_frame": EE_FRAME,
             "cam_frame": CAM_FRAME,
             "tag_size": TAG_SIZE,
-            "tag_id": TAG_ID,
+            "tag_id": EYE_ID,
             "tcp_frame": TCP_FRAME,
             "pose_mk_tgt": POSE_MK_TGT,
             "controller": controller,
@@ -277,7 +291,7 @@ def _launch_control_pkg() -> IncludeLaunchDescription:
             "joint_trajectory_topic_name": JOINT_TRAJECTORY_TOPIC_NAME,
             "joint_states_topic_name": JOINT_STATES_TOPIC_NAME,
             "camera_info_topic_name": CAMERA_INFO_TOPIC_NAME,
-            "detections_topic_name": DETECTIONS_FILTERED_TOPIC_NAME,
+            "detections_topic_name": POSE_FILTERED_TOPIC_NAME,
         }.items(),
     )
 
@@ -324,10 +338,12 @@ def _launch_state_estimation_pkg(context: LaunchContext) -> IncludeLaunchDescrip
         ),
         launch_arguments={
             "marker_size": TAG_SIZE,
+            "pose_frame": EYE_FRAME,
             "estimator": estimator,
             "camera_info_topic_name": CAMERA_INFO_TOPIC_NAME,
             "camera_twist_topic_name": f"{controller}_controller/camera_twist",
             "detections_topic_name": DETECTIONS_TOPIC_NAME,
+            "pose_topic_name": POSE_TOPIC_NAME,
             "restart_topic_name": RESTART_TOPIC_NAME,
         }.items(),
     )
@@ -336,6 +352,7 @@ def _launch_state_estimation_pkg(context: LaunchContext) -> IncludeLaunchDescrip
 def _launch_vision_pkg(context: LaunchContext) -> IncludeLaunchDescription:
     detector = LaunchConfiguration("detector").perform(context)
     backends = LaunchConfiguration("backends")
+    dr_backend = LaunchConfiguration("dr_backend")
     controller = LaunchConfiguration("controller").perform(context)
     compose_apriltag = LaunchConfiguration("compose_apriltag").perform(context)
     if controller not in ["pbvs", "ibvs"] or compose_apriltag == "true":
@@ -349,15 +366,21 @@ def _launch_vision_pkg(context: LaunchContext) -> IncludeLaunchDescription:
             "tag_size": TAG_SIZE,
             "tag_family": TAG_FAMILY,
             "backends": backends,
+            "marker_frame": MARKER_FRAME,
+            "eye_gt_frame": EYE_GT_FRAME,
+            "ref_pose": REF_POSE,
+            "dr_backend": dr_backend,
             "detector": detector,
             "image_topic_name": IMAGE_TOPIC_NAME,
             "camera_info_topic_name": CAMERA_INFO_TOPIC_NAME,
+            "camera_twist_topic_name": f"{controller}_controller/camera_twist",
+            "restart_topic_name": RESTART_TOPIC_NAME,
         }.items(),
     )
 
 
 def _launch_logging_pkg(context: LaunchContext) -> IncludeLaunchDescription:
-    logger = LaunchConfiguration("logger")
+    logger = LaunchConfiguration("logger").perform(context)
     n_runs = LaunchConfiguration("n_runs")
     smooth = LaunchConfiguration("smooth")
     console = LaunchConfiguration("console")
@@ -384,7 +407,9 @@ def _launch_logging_pkg(context: LaunchContext) -> IncludeLaunchDescription:
             "logger": logger,
             "joint_states_topic_name": JOINT_STATES_TOPIC_NAME,
             "joint_trajectory_topic_name": JOINT_TRAJECTORY_TOPIC_NAME,
-            "pose_error_topic_name": POSE_ERROR_TOPIC_NAME,
+            "pose_error_topic_name": EYE_POSE_ERROR_TOPIC_NAME
+            if logger == "eyedtc"
+            else TRAJ_POSE_ERROR_TOPIC_NAME,
             "setpoint_error_topic_name": f"/{controller}_controller/pose_error",
             "restart_topic_name": RESTART_TOPIC_NAME,
         }.items(),
@@ -392,7 +417,7 @@ def _launch_logging_pkg(context: LaunchContext) -> IncludeLaunchDescription:
 
 
 def _launch_sweep_pkg(context: LaunchContext) -> IncludeLaunchDescription:
-    sweep = LaunchConfiguration("sweep")
+    sweep = LaunchConfiguration("sweep").perform(context)
     n_runs = LaunchConfiguration("n_runs")
     sweep_id = LaunchConfiguration("sweep_id")
     wandb_group = LaunchConfiguration("wandb_group").perform(context)
@@ -410,7 +435,9 @@ def _launch_sweep_pkg(context: LaunchContext) -> IncludeLaunchDescription:
             "wandb_group": wandb_group,
             "sweep": sweep,
             "joint_states_topic_name": JOINT_STATES_TOPIC_NAME,
-            "pose_error_topic_name": POSE_ERROR_TOPIC_NAME,
+            "pose_error_topic_name": EYE_POSE_ERROR_TOPIC_NAME
+            if sweep == "eyedtc"
+            else TRAJ_POSE_ERROR_TOPIC_NAME,
             "restart_topic_name": RESTART_TOPIC_NAME,
         }.items(),
     )

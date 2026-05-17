@@ -5,13 +5,14 @@ ROS node for performing eye pose detection using differentiable rendering (Kaoli
 """
 
 import logging
+import math
 from typing import Any, Callable
 
 import numpy as np
 import rclpy
 import torch
 from cv_bridge import CvBridge
-from geometry_msgs.msg import PoseStamped, TransformStamped
+from geometry_msgs.msg import PoseStamped, TransformStamped, TwistStamped
 from isaac_ros_apriltag_interfaces.msg import AprilTagDetection, AprilTagDetectionArray
 from kaolin.render.camera import Camera
 from numpy.typing import NDArray
@@ -27,16 +28,18 @@ from torchvision.io import read_image
 
 import vc_core.dr.common as common
 import vc_core.dr.kaolin as vc_kal
+import vc_core.utils.geometry.pose as pose_utils
 from vc_core.segmentation.sam import SAM2LiveVideo, SAMPromptConfig
 from vc_core.utils.ros.tf2 import lookup_transform
 
+torch.set_float32_matmul_precision("high")
 logging.getLogger("kaolin.rep.surface_mesh").setLevel(logging.ERROR)
 
 
 class EyeDetector(Node):
     """ROS node for performing eye pose detection using differentiable rendering (Kaolin)."""
 
-    EYE_ROT_OFFSET = torch.tensor(R.from_quat([1.0, 0.0, 0.0, 0.0]).as_matrix()).cuda()
+    EYE_ROT_OFFSET = torch.tensor(R.from_quat([1.0, 0.0, 0.0, 0.0]).as_matrix()).float().cuda()
 
     def __init__(self):
         super().__init__("eye_detector")
@@ -45,10 +48,12 @@ class EyeDetector(Node):
         self.declare_parameter("frame.marker", rclpy.Parameter.Type.STRING)
         self.declare_parameter("frame.eye_gt", rclpy.Parameter.Type.STRING)
         self.declare_parameter("ref.dist", rclpy.Parameter.Type.DOUBLE)
+        self.declare_parameter("ref.tol", rclpy.Parameter.Type.DOUBLE_ARRAY)
         self.declare_parameter("ref.pose", rclpy.Parameter.Type.DOUBLE_ARRAY)
         self.declare_parameter("sam.variant", rclpy.Parameter.Type.STRING)
         self.declare_parameter("sam.prompt.n_pos", rclpy.Parameter.Type.INTEGER)
         self.declare_parameter("dr.mesh.path", rclpy.Parameter.Type.STRING)
+        self.declare_parameter("dr.mesh.offsets", rclpy.Parameter.Type.STRING)
         self.declare_parameter("dr.mesh.texture", rclpy.Parameter.Type.STRING)
         self.declare_parameter("dr.mesh.scale", rclpy.Parameter.Type.DOUBLE)
         self.declare_parameter("dr.mesh.elev_lim", rclpy.Parameter.Type.DOUBLE_ARRAY)
@@ -75,9 +80,10 @@ class EyeDetector(Node):
             self.get_logger().warn("CUDA is not available. Kaolin cannot run on CPU.")
             rclpy.try_shutdown()
         self._device = torch.device("cuda")
-        self._frame_mk = self.get_parameter("frame.marker")
-        self._frame_eye_gt = self.get_parameter("frame.eye_gt")
+        self._frame_mk = self.get_parameter("frame.marker").value
+        self._frame_eye_gt = self.get_parameter("frame.eye_gt").value
         self._ref_dist = self.get_parameter("ref.dist").value
+        self._ref_tol = self.get_parameter("ref.tol").value
         self._ref_pose = (np.array(ref_pose[:3]), R.from_quat(ref_pose[3:], scalar_first=True))
         self._n_rep = self.get_parameter("dr.model.n_rep").value
         self._size = self.get_parameter("dr.raster.size").value
@@ -87,13 +93,16 @@ class EyeDetector(Node):
         self._reset()
 
         # Initialize ROS attributes
-        self._timer = self.create_timer(0.1, self.callback_timer)
+        self._timer = self.create_timer(0.05, self.callback_timer)
         self._pub_pose = self.create_publisher(AprilTagDetectionArray, "/eye_detector/pose", 1)
         self._pub_perr = self.create_publisher(PoseStamped, "/eye_detector/pose_error", 10)
         self._pub_seg = self.create_publisher(Image, "/eye_detector/segmentation", 1)
         self._sub_img = self.create_subscription(Image, "/image", self.callback_img, 1)
         self._sub_cam_info = self.create_subscription(
             CameraInfo, "/camera_info", self.callback_cam_info, 1
+        )
+        self._sub_cam_twist = self.create_subscription(
+            TwistStamped, "/camera_twist", self.callback_cam_twist, 1
         )
         self._sub_rst = self.create_subscription(
             Empty, "/eye_detector/restart", self.callback_rst, 1
@@ -103,13 +112,13 @@ class EyeDetector(Node):
         self._tf_broadcaster = TransformBroadcaster(self)
         self.add_on_set_parameters_callback(self.callback_params)
 
-    def publish_pose(self) -> None:
+    def publish_pose(self, tvec: NDArray, rmat: NDArray) -> None:
         """Publish the estimated eye wrt camera pose."""
-        tvec = self._pose[0].cpu().numpy()
-        quat = R.from_matrix(self._pose[1].cpu().numpy()).as_quat()
+        quat = R.from_matrix(rmat).as_quat()
         msg = AprilTagDetectionArray()
-        msg.header.stamp = self.get_clock().now().to_msg()
+        msg.header = self._cam_header
         dtn = AprilTagDetection()
+        dtn.id = 0
         dtn.pose.pose.pose.position.x = float(tvec[0])
         dtn.pose.pose.pose.position.y = float(tvec[1])
         dtn.pose.pose.pose.position.z = float(tvec[2])
@@ -139,13 +148,9 @@ class EyeDetector(Node):
         """Publish the estimated eye wrt camera pose error."""
         if transform_gt is None:
             return
-        # extract ground truth pose
-        pos, ori = transform_gt.transform.translation, transform_gt.transform.rotation
-        tvec_gt = np.array([pos.x, pos.y, pos.z])
-        rot_gt = R.from_quat([ori.x, ori.y, ori.z, ori.w])
-        # extract estimated pose
-        tvec = self._pose[0].cpu().numpy()
-        rot = R.from_matrix(self._pose[1].cpu().numpy())
+        # extract ground truth and estimated poses
+        tvec_gt, rot_gt = pose_utils.from_transform_gm(transform_gt.transform)
+        tvec, rot = self._pose[0].cpu().numpy(), R.from_matrix(self._pose[1].cpu().numpy())
         # compute pose error
         tvec_err = tvec - tvec_gt
         quat_err = (rot * rot_gt.inv()).as_quat()
@@ -165,7 +170,6 @@ class EyeDetector(Node):
         """Publish alpha-blended RGB + segmentation mask image."""
         alpha = 0.6
         color = torch.tensor((30.0, 144.0, 255.0)).view(1, 1, 3).div(255).to(self._device)
-        img = img.permute(1, 2, 0)
         mask = mask.unsqueeze(-1)
         seg_img = torch.where(mask, img * (1 - alpha) + mask * color * alpha, img)
         seg_img = seg_img.mul(255).byte().cpu().numpy()
@@ -183,18 +187,18 @@ class EyeDetector(Node):
             transform = lookup_transform(self._cam_header.frame_id, self._frame_mk, self._tf_buffer)
             if transform is None:
                 return
-            pos, ori = transform.transform.translation, transform.transform.rotation
-            tvec = np.array([pos.x, pos.y, pos.z])
-            rot = R.from_quat([ori.x, ori.y, ori.z, ori.w])
+            tvec, rot = pose_utils.from_transform_gm(transform.transform)
             # compose with reference eye wrt marker pose
-            tvec += rot.apply(self._ref_pose[0])
-            rmat = (rot * self._ref_pose[1]).as_matrix()
-            # init pose if camera to eye distance < reference distance
-            if np.linalg.norm(tvec) < self._ref_dist:
+            tvec, rot = pose_utils.pose_mult((tvec, rot), self._ref_pose)
+            rmat = rot.as_matrix()
+            # init pose if stationary and camera to eye distance < reference distance
+            if self._is_stationary and np.linalg.norm(tvec) < self._ref_dist:
                 self._pose = (
-                    torch.tensor(tvec, device=self._device),
-                    torch.tensor(rmat, device=self._device),
+                    torch.tensor(tvec).to(dtype=torch.float32, device=self._device),
+                    torch.tensor(rmat).to(dtype=torch.float32, device=self._device),
                 )
+            # publish indirect eye pose
+            self.publish_pose(tvec, rmat)
         else:
             # extract pose directly
             tvec = self._pose[0].cpu().numpy()
@@ -217,18 +221,18 @@ class EyeDetector(Node):
         # initialize segmentation and pose models
         if not self._sam.point_prompts:
             self._init_seg_mask(img)
-            self._optim.resample_model_params(self._pose[0], self._pose[1][:, -1])
+            tvec, rmat = self._apply_rot_offset(self._pose[0], self._pose[1])
+            self._optim.resample_model_params(tvec, rmat)
             return
         # run segmentation model and pose optimizer
-        img = self._crop_img(img, self._center, self._size)
+        w_h_2 = (msg.width - msg.height) // 2
+        img = img[:, w_h_2 : w_h_2 + msg.height]
         mask = self._sam.segment(img.permute(2, 0, 1), [])
-        self._pose = self._optimize(img, mask)
+        self._pose = self._optimize(img, mask, msg.height)
         # publish everything and prepare for next callback
-        self.publish_pose()
+        self.publish_pose(self._pose[0].cpu().numpy(), self._pose[1].cpu().numpy())
         self.publish_perr(transform_gt)
         self.publish_seg(img, mask)
-        self._center = self._centroid(mask) + self._center - self._size / 2
-        self._optim.resample_model_params(self._pose[0], self._pose[1][:, -1])
 
     def callback_cam_info(self, msg: CameraInfo) -> None:
         self._cam_header = msg.header
@@ -244,6 +248,12 @@ class EyeDetector(Node):
             )
             self._cameras = Camera.cat([camera] * self._n_rep).to(self._device)
             self._sam = self._init_seg(msg.height)
+
+    def callback_cam_twist(self, msg: TwistStamped) -> None:
+        lin, ang = msg.twist.linear, msg.twist.angular
+        v_norm = math.sqrt(lin.x * lin.x + lin.y * lin.y + lin.z * lin.z)
+        w_norm = math.sqrt(ang.x * ang.x + ang.y * ang.y + ang.z * ang.z)
+        self._is_stationary = v_norm < self._ref_tol[0] and w_norm < self._ref_tol[1]
 
     def callback_rst(self, msg: Empty) -> None:
         self._reset()
@@ -261,19 +271,22 @@ class EyeDetector(Node):
         ParamType = rclpy.Parameter.Type
         for param in params:
             if param.name in [
-                "dr.model.scale",
                 "dr.shader.sigma",
                 "dr.shader.boxlen",
-                "dr.optim.loss.tan_norm",
                 "dr.optim.lr",
                 "dr.optim.sched.eta_min",
-            ] and (param.type_ != ParamType.DOUBLE or param.value < 0):
-                failed(f"{param.name} must be double >= 0.")
+            ] and (param.type_ != ParamType.DOUBLE or param.value <= 0):
+                failed(f"{param.name} must be double > 0.")
                 break
+            if param.name == "dr.optim.n_iter" and (
+                param.type_ != ParamType.INTEGER or param.value <= 0
+            ):
+                failed("dr.optim.n_iter must be integer > 0")
             if param.name == "dr.optim.loss" and param.type_ != ParamType.STRING_ARRAY:
                 failed("dr.optim.loss must be string array.")
                 break
         if result.successful:
+            self._n_iter = self.get_parameter("dr.optim.n_iter").value
             self._optim = self._init_optim(model=True, renderer=True, optimizer=True)
             self._reset()
         return result
@@ -295,21 +308,14 @@ class EyeDetector(Node):
         """First-time initialization of segmentation mask and centroid."""
         # sample prompts and segment full image
         H, W, _ = img.shape
-        center = torch.tensor([H // 2, W // 2], dtype=torch.long, device=self._device)
-        img_sam = self._crop_img(img, center, H).permute(2, 0, 1)
+        w_h_2 = (W - H) // 2
+        img_sam = img[:, w_h_2 : w_h_2 + H].permute(2, 0, 1)
         self._sam.sample_points(img_sam)
-        point_prompts, label_prompts = self._sam.point_prompts, self._sam.label_prompts
-        mask = self._sam.segment(img_sam, [0] * len(point_prompts), update_memory=True)
-        # re-init segmentation model with reduced size
-        self._sam = self._init_seg(self._size)
-        # re-init mask with reduced size and offset point prompts
+        mask = self._sam.segment(img_sam, [0] * len(self._sam.point_prompts), update_memory=True)
+        # compute mask centroid for crops
         self._center = self._centroid(mask)
-        offset = self._center - self._size / 2
-        self._sam.point_prompts = [(p[0] - offset[1], p[1] - offset[0]) for p in point_prompts]
-        self._sam.label_prompts = label_prompts
-        self._center[1] += (W - H) // 2
-        img_sam = self._crop_img(img, self._center, self._size).permute(2, 0, 1)
-        self._sam.segment(img_sam, [0] * len(point_prompts), update_memory=True)
+        _, self._center = self._crop_img(img[:, w_h_2 : w_h_2 + H], self._center, self._size)
+        self.get_logger().info(f"New center {self._center}")
 
     def _init_optim(self, **kwargs) -> vc_kal.optim.EyePoseOptimizer:
         """Initialize the DR-based eye pose optimizer."""
@@ -364,9 +370,14 @@ class EyeDetector(Node):
         self._mesh_offset = torch.tensor(
             [0.0, 0.0, mesh.mesh.vertices[..., -1].amax()], device=self._device
         )
-        # ensure that vertex_features is not None
-        n_face = mesh.mesh.vertices.shape[1]
-        mesh.mesh.vertex_features = torch.zeros([self._n_rep, n_face, 0])
+        # ensure that face_features is not None
+        n_face = mesh.mesh.faces.shape[0]
+        mesh.mesh.face_features = torch.zeros([self._n_rep, n_face, 3, 0])
+        # update mesh vertices with calibrated offsets
+        if len(mesh_params["offsets"]) > 0:
+            offsets = torch.load(mesh_params["offsets"], weights_only=False)
+            mesh.mesh.vertices += offsets
+            self.get_logger().info(f"Mesh using vertex offsets from {mesh_params['offsets']}.")
         # update UVs and texture to Kaolin conventions
         mesh.mesh.face_uvs = 1 - mesh.mesh.face_uvs
         if len(mesh_params["texture"]) > 0:
@@ -383,7 +394,7 @@ class EyeDetector(Node):
         model_params = {k: v.value for k, v in self.get_parameters_by_prefix("dr.model").items()}
         model = common.model.EyePoseModel(
             torch.rand(3),
-            torch.rand(3),
+            torch.eye(3),
             torch.tensor(model_params["pos"]),
             torch.tensor(model_params["tan"]),
             n_rep=model_params["n_rep"],
@@ -423,6 +434,7 @@ class EyeDetector(Node):
                 weights=optim_params["loss.weights"],
                 device=self._device,
                 reduction="mean",
+                dim=(1, 2, 3),
                 kwargs=[{}, {"inner_fn_name": optim_params["loss"][1]}],
             )
         )
@@ -430,23 +442,29 @@ class EyeDetector(Node):
     def _init_optim_lr_and_sched(self, optim_params: dict[str, Any]):
         """Initialize the learning rate and LR scheduler config used by the optimzier."""
         lr = optim_params["lr"]
-        lr_sched_cfg = vc_kal.optim.EyePoseTextureOptimizer.LRSchedulerCfg(
+        lr_sched_cfg = vc_kal.optim.EyePoseOptimizer.LRSchedulerCfg(
             cls=CosineAnnealingLR,
             kwargs={"T_max": self._n_iter, "eta_min": optim_params["sched.eta_min"]},
         )
         return lr, lr_sched_cfg
 
-    def _optimize(self, img: Tensor, mask: Tensor) -> tuple[Tensor, Tensor]:
+    def _optimize(self, img: Tensor, mask: Tensor, height: int) -> tuple[Tensor, Tensor]:
         """Run optimization for eye pose parameters."""
-        offset = self._center - self._size / 2
-        self._cameras.intrinsics.x0 -= offset[1]
-        self._cameras.intrinsics.y0 -= offset[0]
-        target = torch.cat([mask.unsqueeze(-1), img], dim=-1)
+        self._cameras.intrinsics.x0 -= self._center[1] - height // 2
+        self._cameras.intrinsics.y0 += self._center[0] - height // 2
+        target = self._get_target(img, mask)
         tvec, rmat = self._optim.optimize(target, n_iter=self._n_iter, cameras=self._cameras)
-        self._cameras.intrinsics.x0 += offset[1]
-        self._cameras.intrinsics.y0 += offset[0]
+        self._cameras.intrinsics.x0 += self._center[1] - height // 2
+        self._cameras.intrinsics.y0 -= self._center[0] - height // 2
         tvec = tvec + rmat @ self._mesh_offset
         return self._apply_rot_offset(tvec, rmat)
+
+    def _get_target(self, img: Tensor, mask: Tensor) -> Tensor:
+        """Get the target image from stored silhouette and RGB images."""
+        silhouette = mask.unsqueeze(-1)
+        target = torch.cat([silhouette, img * silhouette], dim=-1)
+        target, _ = self._crop_img(target, self._center, self._size)
+        return target.unsqueeze(0).expand(self._n_rep, -1, -1, -1)
 
     @staticmethod
     def _centroid(mask: Tensor) -> LongTensor:
@@ -454,14 +472,16 @@ class EyeDetector(Node):
         return mask.nonzero().float().mean(dim=0).long()
 
     @staticmethod
-    def _crop_img(img: Tensor, center: LongTensor, size: int) -> Tensor:
+    def _crop_img(img: Tensor, center: LongTensor, size: int) -> tuple[Tensor, Tensor]:
         """Crop input image at given center to prepare for rendering."""
         H, W = img.shape[-3:-1]
         top = max(int(center[0] - size / 2), 0)
         left = max(int(center[1] - size / 2), 0)
         right = min(left + size, W)
         bottom = min(top + size, H)
-        return img[..., top:bottom, left:right, :]
+        center[0] = (top + bottom) // 2
+        center[1] = (left + right) // 2
+        return img[..., top:bottom, left:right, :], center
 
     def _apply_rot_offset(self, tvec: Tensor, rmat: Tensor) -> tuple[Tensor, Tensor]:
         """Apply the fixed rotation offset between eye wrt camera poses.
@@ -481,6 +501,7 @@ class EyeDetector(Node):
         self._sam = None
         self._center = None
         self._pose = None
+        self._is_stationary = False
 
 
 def main(args=None):

@@ -134,6 +134,13 @@ def declare_arguments() -> list[DeclareLaunchArgument]:
     )
     declared_arguments.append(
         DeclareLaunchArgument(
+            "camera_twist_topic_name",
+            default_value="/camera_twist",
+            description="Camera twist (geometry_msgs/TwistStamped) topic name.",
+        )
+    )
+    declared_arguments.append(
+        DeclareLaunchArgument(
             "restart_topic_name",
             default_value="/eye_detector/restart",
             description="Restart (std_msgs/Empty) topic name. Default is /eye_detector/restart.",
@@ -242,6 +249,7 @@ def _include_eye_detector() -> IncludeLaunchDescription:
 
     image_topic_name = LaunchConfiguration("image_topic_name")
     camera_info_topic_name = LaunchConfiguration("camera_info_topic_name")
+    camera_twist_topic_name = LaunchConfiguration("camera_twist_topic_name")
     restart_topic_name = LaunchConfiguration("restart_topic_name")
 
     return IncludeLaunchDescription(
@@ -257,6 +265,7 @@ def _include_eye_detector() -> IncludeLaunchDescription:
             "dr_backend": dr_backend,
             "image_topic_name": image_topic_name,
             "camera_info_topic_name": camera_info_topic_name,
+            "camera_twist_topic_name": camera_twist_topic_name,
             "restart_topic_name": restart_topic_name,
         }.items(),
     )

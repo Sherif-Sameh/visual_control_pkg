@@ -62,6 +62,13 @@ def declare_arguments() -> list[DeclareLaunchArgument]:
     )
     declared_arguments.append(
         DeclareLaunchArgument(
+            "camera_twist_topic_name",
+            default_value="/camera_twist",
+            description="Camera twist (geometry_msgs/TwistStamped) topic name.",
+        )
+    )
+    declared_arguments.append(
+        DeclareLaunchArgument(
             "restart_topic_name",
             default_value="/eye_detector/restart",
             description="Restart (std_msgs/Empty) topic name. Default is /eye_detector/restart.",
@@ -79,12 +86,16 @@ def launch_setup(context: LaunchContext) -> list[Node]:
     mesh_path = PathJoinSubstitution(
         [FindPackageShare("vision_pkg"), "../../../../logs/eye/eye.obj"]
     )
+    offsets_path = PathJoinSubstitution(
+        [FindPackageShare("vision_pkg"), "../../../../logs/output/vertex_offsets.pt"]
+    )
     texture_path = PathJoinSubstitution(
         [FindPackageShare("vision_pkg"), "../../../../logs/output/texture.png"]
     )
 
     image_topic_name = LaunchConfiguration("image_topic_name")
     camera_info_topic_name = LaunchConfiguration("camera_info_topic_name")
+    camera_twist_topic_name = LaunchConfiguration("camera_twist_topic_name")
     restart_topic_name = LaunchConfiguration("restart_topic_name")
 
     # Load parameters with applied overrides from toml
@@ -105,6 +116,7 @@ def launch_setup(context: LaunchContext) -> list[Node]:
                     "frame.eye_gt": eye_gt_frame,
                     "ref.pose": ref_pose,
                     "dr.mesh.path": mesh_path,
+                    "dr.mesh.offsets": offsets_path,
                     "dr.mesh.texture": texture_path,
                     "dr.raster.backend": backend,
                     **params,
@@ -113,6 +125,7 @@ def launch_setup(context: LaunchContext) -> list[Node]:
             remappings=[
                 ("/image", image_topic_name),
                 ("/camera_info", camera_info_topic_name),
+                ("/camera_twist", camera_twist_topic_name),
                 ("/eye_detector/restart", restart_topic_name),
             ],
         )

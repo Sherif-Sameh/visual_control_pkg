@@ -3,20 +3,21 @@
 [detector]
 
 # Reference pose parameters
-"ref.dist" = 0.5
+"ref.dist" = 0.4
+"ref.tol" = [3e-3, 5e-3]
 
 # SAM2 parameters
 "sam.variant" = "sam2.1-hiera-small"
-"sam.prompt.n_pos" = 3
+"sam.prompt.n_pos" = 4
 
 # Mesh parameters
 "dr.mesh.scale" = 1.0
-"dr.mesh.elev_lim" = [-30.0, 25.0]
+"dr.mesh.elev_lim" = [-25.0, 20.0]
 "dr.mesh.azim_lim" = [-90.0, 90.0]
 
 # Model parameters
-"dr.model.n_rep" = 4
-"dr.model.pos" = [0.005, 0.005, 0.05]
+"dr.model.n_rep" = 1
+"dr.model.pos" = [0.005, 0.005, 0.01]
 "dr.model.tan" = [0.05, 0.05]
 "dr.model.scale" = 0.05
 
@@ -34,25 +35,23 @@
 "dr.optim.loss.tan_norm" = 5e-4
 "dr.optim.lr" = 2e-2
 "dr.optim.sched.eta_min" = 3e-4
-"dr.optim.n_iter" = 20
+"dr.optim.n_iter" = 10
 
 
 # Backend-type-specific overrides
 [overrides-cuda]
-"dr.model.scale" = 0.05
 "dr.shader.sigma" = 3e-5
 "dr.shader.boxlen" = 1e-2
+"dr.optim.lr" = 2.5e-2
+"dr.optim.sched.eta_min" = 1e-5
+"dr.optim.n_iter" = 100
 "dr.optim.loss" = ["l1_loss", "l1_loss"]
-"dr.optim.loss.tan_norm" = 5e-4
-"dr.optim.lr" = 5e-2
-"dr.optim.sched.eta_min" = 3e-4
 
 
 [overrides-nvdiffrast]
-"dr.model.scale" = 0.05
 "dr.shader.sigma" = 3e-5
 "dr.shader.boxlen" = 1e-2
+"dr.optim.lr" = 2.5e-2
+"dr.optim.sched.eta_min" = 1e-5
+"dr.optim.n_iter" = 100
 "dr.optim.loss" = ["l1_loss", "l1_loss"]
-"dr.optim.loss.tan_norm" = 5e-4
-"dr.optim.lr" = 5e-2
-"dr.optim.sched.eta_min" = 3e-4

@@ -110,11 +110,11 @@ class EyePoseModel(nn.Module):
         # resample reference position and orientation
         pos, rot = self._sample_pos_and_rot(pos, rot, pos_sigma, z_tan_range, n_rep)
         # update buffers
-        self.pos_init = pos
-        self.rot_init = rot
+        self.pos_init.copy_(pos)
+        self.rot_init.copy_(rot)
         # reset parameters
-        self.pos_offset = nn.Parameter(torch.zeros_like(self.pos_init))
-        self.rot_tan = nn.Parameter(torch.randn_like(pos) * self.tan_sigma)
+        self.pos_offset.copy_(torch.zeros_like(self.pos_init))
+        self.rot_tan.copy_(torch.randn_like(pos) * self.tan_sigma)
 
     @staticmethod
     @torch.no_grad

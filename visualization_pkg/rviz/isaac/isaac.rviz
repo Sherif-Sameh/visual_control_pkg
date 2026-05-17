@@ -8,6 +8,7 @@ Panels:
         - /RobotModel1/Description Topic1
         - /TF1
         - /TF1/Frames1
+        - /Image2
       Splitter Ratio: 0.5
     Tree Height: 341
   - Class: rviz_common/Selection
@@ -214,12 +215,18 @@ Visualization Manager:
           Value: false
         camera_color_optical_frame:
           Value: false
+        camera_color_optical_frame_est:
+          Value: false
         camera_color_optical_frame_gt:
           Value: true
         ee:
           Value: false
         examination_bed:
           Value: false
+        eye_est:
+          Value: true
+        eye_estf:
+          Value: true
         eye_left:
           Value: true
         eye_right:
@@ -293,6 +300,10 @@ Visualization Manager:
                           flange:
                             tool0:
                               camera_color_optical_frame:
+                                eye_est:
+                                  {}
+                                eye_estf:
+                                  {}
                                 tag36h11:0:
                                   {}
                                 tag36h11:0f:
@@ -301,6 +312,8 @@ Visualization Manager:
                                   {}
                                 tag36h11:1f:
                                   {}
+                              camera_color_optical_frame_est:
+                                {}
                               camera_color_optical_frame_gt:
                                 {}
                           ft_frame:
@@ -349,13 +362,13 @@ Visualization Manager:
         Durability Policy: Volatile
         History Policy: Keep Last
         Reliability Policy: Reliable
-        Value: /tcp_calibration_p3d/segmentation
+        Value: /eye_detector/segmentation
       Value: true
     - Class: rviz_default_plugins/Marker
       Enabled: true
       Name: Marker
       Namespaces:
-        plan_visualizer: true
+        {}
       Topic:
         Depth: 5
         Durability Policy: Volatile
