@@ -113,6 +113,15 @@ class EyePoseOptimizer(Optimizer):
         """
         self._model.resample_params(pos, rot, **kwargs)
 
+    def init_from_pinhole_model(self, uv_centroid: Tensor, K: Tensor) -> None:
+        """Initialize the model's reference position in XY-plane using pinhole model and image centroid.
+
+        Args:
+            uv_centroid: Image coordinates of eye centroid in pixels. Shape is (..., 2).
+            K: Camera intrinsic calibration matrix. Shape is (3, 3).
+        """
+        self._model.init_from_pinhole_model(uv_centroid, K)
+
 
 class EyePoseMeshTextureOptimizer(Optimizer):
     """Optimizer for optimizing an eye mesh's pose, mesh and texture using differentiable rendering (Kaolin).

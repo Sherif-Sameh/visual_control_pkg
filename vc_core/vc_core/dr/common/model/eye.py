@@ -116,6 +116,18 @@ class EyePoseModel(nn.Module):
         self.pos_offset.copy_(torch.zeros_like(self.pos_init))
         self.rot_tan.copy_(torch.randn_like(pos) * self.tan_sigma)
 
+    @torch.no_grad
+    def init_from_pinhole_model(self, uv_centroid: Tensor, K: Tensor) -> None:
+        """Initialize reference position in XY-plane using pinhole model and image centroid.
+
+        Args:
+            uv_centroid: Image coordinates of eye centroid in pixels. Shape is (..., 2).
+            K: Camera intrinsic calibration matrix. Shape is (3, 3).
+        """
+        depth = self.pos_init[:, -1]
+        pos = self._image_to_camera_coordinates(uv_centroid, depth, K)
+        self.pos_init.copy_(pos)
+
     @staticmethod
     @torch.no_grad
     def _sample_pos_and_rot(
@@ -152,6 +164,28 @@ class EyePoseModel(nn.Module):
         tan_s = torch.cat([z_tan_s, torch.zeros_like(z_tan_s[:, :1])], dim=-1)
         rot_s = apply_tangent_rotation(rot, tan_s)
         return pos_s, rot_s
+
+    @staticmethod
+    @torch.no_grad
+    def _image_to_camera_coordinates(uv: Tensor, depth: Tensor, K: Tensor) -> Tensor:
+        """Convert 2D image coordinates into 3D camera coordinates using the pinhole camera model.
+
+        Args:
+            uv: Image coordinates in pixels. Shape is (..., 2).
+            depth: Depth in meters. Shape is (...,).
+            K: Camera intrinsic calibration matrix. Shape is (3, 3).
+
+        Returns:
+            3D camera coordinates (X, Y, Z). Shape is (..., 3).
+        """
+        # extract intrinsics
+        fx, fy = K[0, 0], K[1, 1]
+        cx, cy = K[0, 2], K[1, 2]
+        # compute XY coordinates
+        X = (uv[..., 0] - cx) * depth / fx
+        Y = (uv[..., 1] - cy) * depth / fy
+        Z = depth
+        return torch.stack((X, Y, Z), dim=-1)
 
 
 class EyePoseMeshTextureModel(nn.Module):

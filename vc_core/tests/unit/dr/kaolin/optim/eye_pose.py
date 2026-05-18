@@ -75,17 +75,18 @@ def test_eye_pose_optimizer(
     R, T = look_at_view_transform(distance, elevation, azimuth, device=device)
     T = T + torch.tensor([0.025, -0.025, -0.05], device=device) * distance
     pos, rot = T[0], R[0]
-    pos_sigma, z_tan_range = 0.0, 0.005
-    model = EyePoseModel(pos, rot, pos_sigma, z_tan_range, n_rep=n_rep, scale=0.1)
+    pos_sigma, z_tan_range = 0.0005, 0.005
+    model = EyePoseModel(pos, rot, pos_sigma, z_tan_range, n_rep=n_rep, scale=0.05)
     model = torch.compile(model.to(device=device))
 
     # Setup camera
     img_size = 256
+    focal = 733.0
     cameras = Camera.from_args(
         eye=torch.tensor([10.0, 0.0, 0.0]),
         at=torch.tensor([0.0, 0.0, 0.0]),
         up=torch.tensor([0.0, 1.0, 0.0]),
-        focal_x=733.0,
+        focal_x=focal,
         height=img_size,
         width=img_size,
         dtype=torch.float32,
@@ -126,7 +127,7 @@ def test_eye_pose_optimizer(
     assert target.shape == (n_rep, img_size, img_size, 4)
 
     # Create eye pose optimizer
-    n_iter = 100
+    n_iter = 30
     lr = 0.025
     optim = EyePoseOptimizer(
         mesh,
@@ -134,31 +135,36 @@ def test_eye_pose_optimizer(
         renderer,
         torch.compile(
             build_combined_loss_fn(
-                ["centroid_loss", "l1_loss", "masked_loss"],
-                [slice(1), slice(1), slice(4)],
-                weights=[1e-5, 0.5, 0.5],
+                ["l1_loss", "masked_loss"],
+                [slice(1), slice(4)],
+                weights=[0.5, 1.0],
                 device=device,
                 reduction="mean",
                 dim=(1, 2, 3),
-                kwargs=[
-                    {"size": img_size, "reduce": False, "device": device},
-                    {},
-                    {"inner_fn_name": "l1_loss"},
-                ],
+                kwargs=[{}, {"inner_fn_name": "l1_loss"}],
             )
         ),
+        tan_norm_w=1e-5,
         lr=lr,
         lr_sched_cfg=EyePoseOptimizer.LRSchedulerCfg(
-            CosineAnnealingLR, {"T_max": n_iter, "eta_min": 1e-5}
+            CosineAnnealingLR, {"T_max": n_iter, "eta_min": 1e-3}
         ),
     )
+
+    # Initialize model position from pinhole model
+    uv_centroid = centroid(target[0, :, :, 0], target.shape[0])
+    cam_K = torch.tensor([[focal, 0, img_size / 2], [0, focal, img_size / 2], [0, 0, 1]]).to(
+        dtype=torch.float32, device=device
+    )
+    optim.init_from_pinhole_model(uv_centroid, cam_K)
 
     # Run optimizer for a number of iterations
     logger_first = MemoryLogger(n_log=1)
     logger_all = MemoryLogger(n_log=10)
-    optim.optimize(target, n_iter=1, logger=logger_first, cameras=cameras)
-    start = time.time_ns()
-    T, R = optim.optimize(target, n_iter=n_iter, logger=logger_all, cameras=cameras)
+    with capsys.disabled():
+        optim.optimize(target, n_iter=1, logger=logger_first, cameras=cameras)
+        start = time.time_ns()
+        T, R = optim.optimize(target, n_iter=n_iter, logger=logger_all, cameras=cameras)
     dt = (time.time_ns() - start) / (1e6 * n_iter)
     T_err = torch.linalg.norm(T_gt[0] - T, dim=0)
     R_err = Rotation.from_matrix((R_gt[0] @ R.T).cpu().numpy()).magnitude()
@@ -190,3 +196,8 @@ def test_eye_pose_optimizer(
     axes[3].set_title("Final")
     plt.tight_layout()
     plt.show()
+
+
+def centroid(mask: torch.Tensor, n_rep: int) -> torch.Tensor:
+    """Compute centroid of 2D mask."""
+    return mask.nonzero().float().mean(dim=0).repeat((n_rep, 1))
