@@ -342,6 +342,9 @@ def _build_centroid_loss(
     v_coords = torch.arange(H, device=device).float()
     u_grid, v_grid = torch.meshgrid(u_coords, v_coords, indexing="xy")
     u_grid, v_grid = u_grid.view(1, H, W, 1), v_grid.view(1, H, W, 1)
+    if not kwargs.get("reduce", True):
+        reduction = "none"
+        kwargs.pop("reduce")
     fn = build_loss_fn(inner_fn_name, reduction=reduction, **kwargs)
 
     def centroid(x: Tensor) -> tuple[Tensor, Tensor]:

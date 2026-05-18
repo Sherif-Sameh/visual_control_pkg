@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import time
 from itertools import product
 from pathlib import Path
 
@@ -92,7 +93,7 @@ def test_eye_pose_optimizer(
     cameras = Camera.cat([cameras] * n_rep).to(device=device)
 
     # Create silhouette + ambient color renderer
-    blend_params = BlendParams(sigmainv=1 / 3e-5, boxlen=0.01, knum=10)
+    blend_params = BlendParams(sigmainv=1 / 3e-5, boxlen=5e-3, knum=10)
     raster_settings = RasterizationSettings(image_size=img_size, backend=backend)
     renderer = MeshRenderer(
         rasterizer=MeshRasterizer(cameras=None, raster_settings=raster_settings),
@@ -133,13 +134,17 @@ def test_eye_pose_optimizer(
         renderer,
         torch.compile(
             build_combined_loss_fn(
-                ["l1_loss", "masked_loss"],
-                [slice(1), slice(4)],
-                weights=[0.5, 0.5],
+                ["centroid_loss", "l1_loss", "masked_loss"],
+                [slice(1), slice(1), slice(4)],
+                weights=[1e-5, 0.5, 0.5],
                 device=device,
                 reduction="mean",
                 dim=(1, 2, 3),
-                kwargs=[{}, {"inner_fn_name": "l1_loss"}],
+                kwargs=[
+                    {"size": img_size, "reduce": False, "device": device},
+                    {},
+                    {"inner_fn_name": "l1_loss"},
+                ],
             )
         ),
         lr=lr,
@@ -152,11 +157,13 @@ def test_eye_pose_optimizer(
     logger_first = MemoryLogger(n_log=1)
     logger_all = MemoryLogger(n_log=10)
     optim.optimize(target, n_iter=1, logger=logger_first, cameras=cameras)
+    start = time.time_ns()
     T, R = optim.optimize(target, n_iter=n_iter, logger=logger_all, cameras=cameras)
+    dt = (time.time_ns() - start) / (1e6 * n_iter)
     T_err = torch.linalg.norm(T_gt[0] - T, dim=0)
     R_err = Rotation.from_matrix((R_gt[0] @ R.T).cpu().numpy()).magnitude()
     with capsys.disabled():
-        print(f"\nBackend: {backend}, GT Distance: {distance:.2f}m")
+        print(f"\nBackend: {backend}, GT Distance: {distance:.2f}m, DT: {dt:.2f}ms")
         print(f"\tPosition Error: {T_err}m")
         print(f"\tRotation Error: {np.rad2deg(R_err)}deg")
 
