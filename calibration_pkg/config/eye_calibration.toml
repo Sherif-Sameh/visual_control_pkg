@@ -7,7 +7,7 @@
 
 # SAM2 parameters
 "sam.variant" = "sam2.1-hiera-small"
-"sam.prompt.n_pos" = 3
+"sam.prompt.n_pos" = 4
 "sam.prompt.n_neg" = 8
 
 # Target pose parameters
@@ -54,14 +54,14 @@
 
 
 # Model-type and backend specific overrides
-[overrides-simple-cuda]  # https://wandb.ai/u1999168-girona/visual_control%7Ceyecalib_sweeps/runs/xbh2rhcv?nw=nwuseru1999168
-"dr.shader.sigma" = 9.827e-6
-"dr.shader.boxlen" = 4.844e-4
-"dr.optim.loss.symmetry" = 1.839e-3
-"dr.optim.loss.laplacian" = 3.048e-5
-"dr.optim.lr" = 5.042e-3
-"dr.optim.sched.eta_min" = 1.054e-5
-"dr.optim.loss" = ["mse_loss", "mse_loss"]
+[overrides-simple-cuda]  # https://wandb.ai/u1999168-girona/visual_control%7Ceyecalib_sweeps/runs/g6qt0foh?nw=nwuseru1999168
+"dr.shader.sigma" = 1.418e-5
+"dr.shader.boxlen" = 3.196e-4
+"dr.optim.loss.symmetry" = 3.491e-3
+"dr.optim.loss.laplacian" = 1.312e-4
+"dr.optim.lr" = 4.364e-2
+"dr.optim.sched.eta_min" = 4.792e-5
+"dr.optim.loss" = ["l1_loss", "l1_loss"]
 
 
 [overrides-simple-nvdiffrast]  # https://wandb.ai/u1999168-girona/visual_control%7Ceyecalib_sweeps/runs/qk4dmvtd?nw=nwuseru1999168
@@ -74,43 +74,43 @@
 "dr.optim.loss" = ["mse_loss", "mse_loss"]
 
 
-[overrides-mipmap-cuda]  # https://wandb.ai/u1999168-girona/visual_control%7Ceyecalib_sweeps/runs/3ylaugif?nw=nwuseru1999168
-"dr.shader.sigma" = 5.742e-5
-"dr.shader.boxlen" = 1.798e-3
-"dr.optim.loss.symmetry" = 6.961e-4
-"dr.optim.loss.laplacian" = 1.208e-5
-"dr.optim.lr" = 3.751e-2
-"dr.optim.sched.eta_min" = 7.926e-5
+[overrides-mipmap-cuda]  # https://wandb.ai/u1999168-girona/visual_control%7Ceyecalib_sweeps/runs/kg6zifgr?nw=nwuseru1999168
+"dr.shader.sigma" = 3.769e-5
+"dr.shader.boxlen" = 4.582e-4
+"dr.optim.loss.symmetry" = 2.843e-3
+"dr.optim.loss.laplacian" = 1.432e-5
+"dr.optim.lr" = 3.470e-2
+"dr.optim.sched.eta_min" = 6.060e-5
+"dr.optim.loss" = ["l1_loss", "l1_loss"]
+
+
+[overrides-mipmap-nvdiffrast]  # https://wandb.ai/u1999168-girona/visual_control%7Ceyecalib_sweeps/runs/ej4tyail?nw=nwuseru1999168
+"dr.shader.sigma" = 1.572e-5
+"dr.shader.boxlen" = 1.076e-4
+"dr.optim.loss.symmetry" = 8.600e-3
+"dr.optim.loss.laplacian" = 1.026e-4
+"dr.optim.lr" = 3.282e-2
+"dr.optim.sched.eta_min" = 3.311e-5
 "dr.optim.loss" = ["mse_loss", "mse_loss"]
 
 
-[overrides-mipmap-nvdiffrast]  # https://wandb.ai/u1999168-girona/visual_control%7Ceyecalib_sweeps/runs/pyljj9gc?nw=nwuseru1999168
-"dr.shader.sigma" = 8.256e-5
-"dr.shader.boxlen" = 3.235e-4
-"dr.optim.loss.symmetry" = 1.911e-3
-"dr.optim.loss.laplacian" = 4.307e-4
-"dr.optim.lr" = 3.275e-2
-"dr.optim.sched.eta_min" = 2.355e-5
-"dr.optim.loss" = ["mse_loss", "mse_loss"]
-
-
-[overrides-hashenc-cuda]  # https://wandb.ai/u1999168-girona/visual_control%7Ceyecalib_sweeps/runs/vagm5auf?nw=nwuseru1999168
+[overrides-hashenc-cuda]  # https://wandb.ai/u1999168-girona/visual_control%7Ceyecalib_sweeps/runs/0czcjtxa?nw=nwuseru1999168
 "dr.model.n_level" = 16
-"dr.shader.sigma" = 8.605e-5
-"dr.shader.boxlen" = 2.854e-4
-"dr.optim.loss.symmetry" = 4.474e-3
-"dr.optim.loss.laplacian" = 5.537e-5
-"dr.optim.lr" = 3.308e-2
-"dr.optim.sched.eta_min" = 4.488e-5
+"dr.shader.sigma" = 3.129e-5
+"dr.shader.boxlen" = 1.099e-4
+"dr.optim.loss.symmetry" = 2.346e-3
+"dr.optim.loss.laplacian" = 3.354e-4
+"dr.optim.lr" = 4.957e-2
+"dr.optim.sched.eta_min" = 9.543e-6
 "dr.optim.loss" = ["mse_loss", "mse_loss"]
 
 
-[overrides-hashenc-nvdiffrast]  # https://wandb.ai/u1999168-girona/visual_control%7Ceyecalib_sweeps/runs/d2ueglz6?nw=nwuseru1999168
+[overrides-hashenc-nvdiffrast]  # https://wandb.ai/u1999168-girona/visual_control%7Ceyecalib_sweeps/runs/ul2ohc4z?nw=nwuseru1999168
 "dr.model.n_level" = 16
-"dr.shader.sigma" = 9.440e-5
-"dr.shader.boxlen" = 5.056e-4
-"dr.optim.loss.symmetry" = 3.583e-3
-"dr.optim.loss.laplacian" = 1.340e-5
-"dr.optim.lr" = 2.874e-2
-"dr.optim.sched.eta_min" = 2.222e-5
-"dr.optim.loss" = ["mse_loss", "mse_loss"]
+"dr.shader.sigma" = 9.918e-5
+"dr.shader.boxlen" = 1.287e-4
+"dr.optim.loss.symmetry" = 6.896e-3
+"dr.optim.loss.laplacian" = 1.123e-4
+"dr.optim.lr" = 3.784e-2
+"dr.optim.sched.eta_min" = 2.119e-5
+"dr.optim.loss" = ["l1_loss", "l1_loss"]

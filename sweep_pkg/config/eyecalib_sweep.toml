@@ -5,7 +5,7 @@
 
 # General parameters
 timer_period = 0.1
-n_runs_per_set = 1
+n_runs_per_set = 2
 target_nodes = ["eye_calibration"]
 
 # Objective function parameters
