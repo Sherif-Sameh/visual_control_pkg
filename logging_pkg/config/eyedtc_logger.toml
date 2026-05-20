@@ -27,6 +27,7 @@ target_nodes = ["eye_detector"]
 "wandb.config.project" = "visual_control|eyedtc"
 "wandb.config.params" = [
     "eye_detector-ref.dist",
+    "eye_detector-ref.tol",
     "eye_detector-ref.pose",
     "eye_detector-sam.variant",
     "eye_detector-sam.prompt.n_pos",
@@ -47,5 +48,6 @@ target_nodes = ["eye_detector"]
     "eye_detector-dr.optim.loss.tan_norm",
     "eye_detector-dr.optim.lr",
     "eye_detector-dr.optim.sched.eta_min",
+    "eye_detector-dr.optim.n_iter.init",
     "eye_detector-dr.optim.n_iter",
 ]

@@ -8,7 +8,7 @@
 
 # SAM2 parameters
 "sam.variant" = "sam2.1-hiera-small"
-"sam.prompt.n_pos" = 4
+"sam.prompt.n_pos" = 3
 
 # Mesh parameters
 "dr.mesh.scale" = 1.0
@@ -32,26 +32,41 @@
 # Optimizer parameters
 "dr.optim.loss" = ["l1_loss", "l1_loss"]
 "dr.optim.loss.weights" = [0.5, 0.5]
-"dr.optim.loss.tan_norm" = 5e-4
+"dr.optim.loss.tan_norm" = 1e-5
 "dr.optim.lr" = 2e-2
 "dr.optim.sched.eta_min" = 3e-4
+"dr.optim.n_iter.init" = 200
 "dr.optim.n_iter" = 10
 
 
-# Backend-type-specific overrides
-[overrides-cuda]
-"dr.shader.sigma" = 3e-5
-"dr.shader.boxlen" = 1e-2
-"dr.optim.lr" = 2.5e-2
-"dr.optim.sched.eta_min" = 1e-5
-"dr.optim.n_iter" = 100
+# Backend-type and number of iteration specific overrides
+[overrides-cuda-10]  # https://wandb.ai/u1999168-girona/visual_control%7Ceyedtc_sweeps/sweeps/vxp62mnx/runs/ubgbnqyc?nw=nwuseru1999168
+"dr.shader.sigma" = 6.346e-5
+"dr.shader.boxlen" = 1.257e-3
+"dr.optim.lr" = 1.535e-2
+"dr.optim.sched.eta_min" = 1.395e-4
 "dr.optim.loss" = ["l1_loss", "l1_loss"]
 
 
-[overrides-nvdiffrast]
-"dr.shader.sigma" = 3e-5
-"dr.shader.boxlen" = 1e-2
-"dr.optim.lr" = 2.5e-2
-"dr.optim.sched.eta_min" = 1e-5
-"dr.optim.n_iter" = 100
+[overrides-cuda-20]  # https://wandb.ai/u1999168-girona/visual_control%7Ceyedtc_sweeps/sweeps/yr6tgcal/runs/k51boqoc?nw=nwuseru1999168
+"dr.shader.sigma" = 2.178e-5
+"dr.shader.boxlen" = 4.340e-4
+"dr.optim.lr" = 3.160e-2
+"dr.optim.sched.eta_min" = 3.107e-4
+"dr.optim.loss" = ["l1_loss", "l1_loss"]
+
+
+[overrides-nvdiffrast-10]  # https://wandb.ai/u1999168-girona/visual_control%7Ceyedtc_sweeps/sweeps/vxp62mnx/runs/ubgbnqyc?nw=nwuseru1999168
+"dr.shader.sigma" = 6.346e-5
+"dr.shader.boxlen" = 1.257e-3
+"dr.optim.lr" = 1.535e-2
+"dr.optim.sched.eta_min" = 1.395e-4
+"dr.optim.loss" = ["l1_loss", "l1_loss"]
+
+
+[overrides-nvdiffrast-20]  # https://wandb.ai/u1999168-girona/visual_control%7Ceyedtc_sweeps/sweeps/z6kzi0sx/runs/vjc5tcqm?nw=nwuseru1999168
+"dr.shader.sigma" = 8.718e-5
+"dr.shader.boxlen" = 1.361e-4
+"dr.optim.lr" = 2.715e-2
+"dr.optim.sched.eta_min" = 2.572e-4
 "dr.optim.loss" = ["l1_loss", "l1_loss"]

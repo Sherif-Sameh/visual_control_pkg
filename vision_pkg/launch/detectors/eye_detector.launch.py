@@ -148,6 +148,7 @@ def generate_launch_description() -> LaunchDescription:
 
 
 def _load_params_with_overrides(config: dict[str, Any], backend: str) -> dict[str, Any]:
-    overrides = config[f"overrides-{backend}"]
+    n_iter = config["detector"]["dr.optim.n_iter"]
+    overrides = config[f"overrides-{backend}-{n_iter}"]
     params = config["detector"] | overrides
     return params

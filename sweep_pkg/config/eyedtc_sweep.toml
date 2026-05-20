@@ -5,7 +5,7 @@
 
 # General parameters
 timer_period = 0.1
-n_runs_per_set = 1
+n_runs_per_set = 2
 target_nodes = ["eye_detector"]
 
 # Objective function parameters
@@ -29,6 +29,7 @@ target_nodes = ["eye_detector"]
 "wandb.config.project" = "visual_control|eyedtc_sweeps"
 "wandb.config.params" = [
     "eye_detector-ref.dist",
+    "eye_detector-ref.tol",
     "eye_detector-ref.pose",
     "eye_detector-sam.variant",
     "eye_detector-sam.prompt.n_pos",
@@ -38,10 +39,12 @@ target_nodes = ["eye_detector"]
     "eye_detector-dr.model.n_rep",
     "eye_detector-dr.model.pos",
     "eye_detector-dr.model.tan",
+    "eye_detector-dr.model.scale",
     "eye_detector-dr.shader.knum",
     "eye_detector-dr.raster.size",
     "eye_detector-dr.raster.backend",
-    "eye_detector-dr.optim.loss.weights",
+    "eye_detector-dr.optim.loss.tan_norm",
+    "eye_detector-dr.optim.n_iter.init",
     "eye_detector-dr.optim.n_iter",
 ]
 
@@ -56,15 +59,14 @@ name = "objective"
 goal = "minimize"
 
 [sweep.parameters]
-"eye_detector-dr.model.scale" = { min = 0.025, max = 0.5 }
-"eye_detector-dr.shader.sigma" = { distribution = "log_uniform_values", min = 1e-6, max = 1e-4 }
-"eye_detector-dr.shader.boxlen" = { distribution = "log_uniform_values", min = 5e-3, max = 5e-2 }
-"eye_detector-dr.optim.loss.tan_norm" = { distribution = "log_uniform_values", min = 5e-4, max = 1e-3 }
-"eye_detector-dr.optim.lr" = { distribution = "log_uniform_values", min = 5e-3, max = 0.1 }
-"eye_detector-dr.optim.sched.eta_min" = { distribution = "log_uniform_values", min = 1e-6, max = 1e-4 }
+"eye_detector-dr.shader.sigma" = { distribution = "log_uniform_values", min = 5e-6, max = 1e-4 }
+"eye_detector-dr.shader.boxlen" = { distribution = "log_uniform_values", min = 1e-4, max = 5e-3 }
+"eye_detector-dr.optim.lr" = { distribution = "log_uniform_values", min = 5e-3, max = 5e-2 }
+"eye_detector-dr.optim.sched.eta_min" = { distribution = "log_uniform_values", min = 1e-5, max = 1e-3 }
 [sweep.parameters."eye_detector-dr.optim.loss"]
 values = [
     ["mse_loss", "mse_loss"],
     ["l1_loss", "l1_loss"],
-    ["dice_loss", "mncc_loss"],
+    ["mse_loss", "mncc_loss"],
+    ["l1_loss", "mncc_loss"],
 ]
