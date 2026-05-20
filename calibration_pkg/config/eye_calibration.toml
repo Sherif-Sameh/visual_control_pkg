@@ -64,14 +64,14 @@
 "dr.optim.loss" = ["l1_loss", "l1_loss"]
 
 
-[overrides-simple-nvdiffrast]  # https://wandb.ai/u1999168-girona/visual_control%7Ceyecalib_sweeps/runs/qk4dmvtd?nw=nwuseru1999168
-"dr.shader.sigma" = 3.389e-5
-"dr.shader.boxlen" = 1.297e-4
-"dr.optim.loss.symmetry" = 2.251e-3
-"dr.optim.loss.laplacian" = 5.126e-5
-"dr.optim.lr" = 1.864e-2
-"dr.optim.sched.eta_min" = 9.288e-6
-"dr.optim.loss" = ["mse_loss", "mse_loss"]
+[overrides-simple-nvdiffrast]  # https://wandb.ai/u1999168-girona/visual_control%7Ceyecalib_sweeps/runs/osq9f4mj?nw=nwuseru1999168
+"dr.shader.sigma" = 1.219e-5
+"dr.shader.boxlen" = 3.700e-4
+"dr.optim.loss.symmetry" = 8.220e-4
+"dr.optim.loss.laplacian" = 7.513e-5
+"dr.optim.lr" = 3.109e-2
+"dr.optim.sched.eta_min" = 2.149e-5
+"dr.optim.loss" = ["l1_loss", "l1_loss"]
 
 
 [overrides-mipmap-cuda]  # https://wandb.ai/u1999168-girona/visual_control%7Ceyecalib_sweeps/runs/kg6zifgr?nw=nwuseru1999168
