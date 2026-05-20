@@ -21,11 +21,11 @@ CAM_FRAME = "camera_color_optical_frame"
 TCP_FRAME = "tcp"
 MARKER_FRAME = "tag36h11:1f"
 EYE_FRAME = "eye_est"
-REF_FRAME = f"{EYE_FRAME}f"
 EYE_GT_FRAME = "eye_left"
 
 EYE_ID = "0"
-POSE_MK_TGT = "[0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0]"
+POSE_MK_TGT = "[0.113, -0.071, -0.232, 1.0, 0.0, 0.0, 0.0]"
+POSE_IDENTITY = "[0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0]"
 POSE_GT_TCP = "[0.0, 0.014, 0.087, 0.988, 0.152, 0.0, 0.0]"
 REF_POSE = "[0.14, -0.1, -0.2, 1.0, 0.0, 0.0, 0.0]"
 IMG_CENTER = "[300, 320]"
@@ -229,6 +229,13 @@ def declare_arguments() -> list[DeclareLaunchArgument]:
     # General arguments
     declared_arguments.append(
         DeclareLaunchArgument(
+            "use_marker",
+            default_value="false",
+            description="Use AprilTag marker for navigation instead of eye poses. Default is false.",
+        )
+    )
+    declared_arguments.append(
+        DeclareLaunchArgument(
             "compose_apriltag",
             default_value="true",
             description="Compose both AprilTag detector and estimator into the same node container."
@@ -240,7 +247,7 @@ def declare_arguments() -> list[DeclareLaunchArgument]:
 
 def launch_setup(context) -> list[ComposableNodeContainer | IncludeLaunchDescription]:
     launch = []
-    launch.append(_launch_control_pkg())
+    launch.append(_launch_control_pkg(context))
     launch.append(_launch_calibration_pkg())
     launch.append(_launch_state_estimation_pkg(context))
     launch.append(_launch_vision_pkg(context))
@@ -266,9 +273,10 @@ def generate_launch_description() -> LaunchDescription:
 ##
 
 
-def _launch_control_pkg() -> IncludeLaunchDescription:
+def _launch_control_pkg(context: LaunchContext) -> IncludeLaunchDescription:
     controller = LaunchConfiguration("controller")
     verbose = LaunchConfiguration("verbose")
+    use_marker = LaunchConfiguration("use_marker").perform(context).lower()
 
     return IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
@@ -283,15 +291,17 @@ def _launch_control_pkg() -> IncludeLaunchDescription:
             "ee_frame": EE_FRAME,
             "cam_frame": CAM_FRAME,
             "tag_size": TAG_SIZE,
-            "tag_id": EYE_ID,
+            "tag_id": TAG_ID if use_marker == "true" else EYE_ID,
             "tcp_frame": TCP_FRAME,
-            "pose_mk_tgt": POSE_MK_TGT,
+            "pose_mk_tgt": POSE_MK_TGT if use_marker == "true" else POSE_IDENTITY,
             "controller": controller,
             "pose_reference_topic_name": POSE_REFERENCE_TOPIC_NAME,
             "joint_trajectory_topic_name": JOINT_TRAJECTORY_TOPIC_NAME,
             "joint_states_topic_name": JOINT_STATES_TOPIC_NAME,
             "camera_info_topic_name": CAMERA_INFO_TOPIC_NAME,
-            "detections_topic_name": POSE_FILTERED_TOPIC_NAME,
+            "detections_topic_name": DETECTIONS_FILTERED_TOPIC_NAME
+            if use_marker == "true"
+            else POSE_FILTERED_TOPIC_NAME,
         }.items(),
     )
 
@@ -449,6 +459,7 @@ def _launch_visualization_pkg(context: LaunchContext) -> IncludeLaunchDescriptio
     visualizers = LaunchConfiguration("visualizers").perform(context)
     visualize_raw_tags = LaunchConfiguration("visualize_raw_tags").perform(context)
     controller = LaunchConfiguration("controller").perform(context)
+    use_marker = LaunchConfiguration("use_marker").perform(context).lower()
     if controller not in ["pbvs", "ibvs"]:
         visualizers = visualizers.replace("d", "")
 
@@ -466,7 +477,7 @@ def _launch_visualization_pkg(context: LaunchContext) -> IncludeLaunchDescriptio
             "use_isaac_cell": USE_ISAAC_CELL,
             "target_frames": f"[{BASE_FRAME}]",
             "source_frames": f"[{CAM_FRAME}]",
-            "ref_frame": REF_FRAME,
+            "ref_frame": MARKER_FRAME if use_marker == "true" else f"{EYE_FRAME}f",
             "visualizers": visualizers,
             "planned_trajectory_topic_name": PLANNED_TRAJECTORY_TOPIC_NAME,
             "joint_states_topic_name": "/joint_states",
