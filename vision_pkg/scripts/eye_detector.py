@@ -231,12 +231,10 @@ class EyeDetector(Node):
         # run segmentation model and pose optimizer
         img = img[:, self._w_h_2 : self._w_h_2 + msg.height]
         mask = self._sam.segment(img.permute(2, 0, 1), [])
+        self._pose = self._optimize(img, mask, msg.height)
         if not_init:
-            self._pose = self._optimize(img, mask, msg.height)
             self._n_iter = self.get_parameter("dr.optim.n_iter").value
             self._optim = self._init_optim(optimizer=True)
-        else:
-            self._pose = self._optimize(img, mask, msg.height)
         # publish everything and prepare for next callback
         self.publish_pose(self._pose[0].cpu().numpy(), self._pose[1].cpu().numpy())
         self.publish_perr(transform_gt)

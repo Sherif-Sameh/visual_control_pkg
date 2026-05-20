@@ -36,7 +36,7 @@
 "dr.optim.lr" = 2e-2
 "dr.optim.sched.eta_min" = 3e-4
 "dr.optim.n_iter.init" = 200
-"dr.optim.n_iter" = 10
+"dr.optim.n_iter" = 20
 
 
 # Backend-type and number of iteration specific overrides
