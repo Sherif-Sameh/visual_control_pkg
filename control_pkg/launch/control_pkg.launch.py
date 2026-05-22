@@ -76,6 +76,14 @@ def declare_arguments() -> list[DeclareLaunchArgument]:
     )
     declared_arguments.append(
         DeclareLaunchArgument(
+            "cam_frame_oc",
+            default_value="camera_color_optical_frame",
+            description="Name of the camera frame of the RGB images for the OC planner."
+            " Default value is camera_color_optical_frame.",
+        )
+    )
+    declared_arguments.append(
+        DeclareLaunchArgument(
             "tcp_frame",
             default_value="tcp",
             description="Name of the tcp frame of the robot. Default value is tcp.",
@@ -290,7 +298,7 @@ def _include_pose_controller() -> IncludeLaunchDescription:
 
 def _include_oc_planner(controller: str) -> IncludeLaunchDescription:
     planner_mode = LaunchConfiguration("planner_mode")
-    cam_frame = LaunchConfiguration("cam_frame")
+    cam_frame_oc = LaunchConfiguration("cam_frame_oc")
     tcp_frame = LaunchConfiguration("tcp_frame")
     tag_id = LaunchConfiguration("tag_id")
     pose_mk_tgt = LaunchConfiguration("pose_mk_tgt")
@@ -308,7 +316,7 @@ def _include_oc_planner(controller: str) -> IncludeLaunchDescription:
         ),
         launch_arguments={
             "mode": planner_mode,
-            "cam_frame": cam_frame,
+            "cam_frame": cam_frame_oc,
             "tcp_frame": tcp_frame,
             "tag_id": tag_id,
             "pose_mk_gt": pose_mk_tgt,

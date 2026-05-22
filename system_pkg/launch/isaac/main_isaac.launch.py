@@ -18,6 +18,7 @@ USE_ISAAC_CELL = "true"
 BASE_FRAME = "base_link"
 EE_FRAME = "tool0"
 CAM_FRAME = "camera_color_optical_frame"
+CAM_FRAME_OC = "camera_color_optical_frame_gt"
 TCP_FRAME = "tcp"
 MARKER_FRAME = "tag36h11:1f"
 EYE_FRAME = "eye_est"
@@ -292,6 +293,7 @@ def _launch_control_pkg(context: LaunchContext) -> IncludeLaunchDescription:
             "cam_frame": CAM_FRAME,
             "tag_size": TAG_SIZE,
             "tag_id": TAG_ID if use_marker == "true" else EYE_ID,
+            "cam_frame_oc": CAM_FRAME_OC,
             "tcp_frame": TCP_FRAME,
             "pose_mk_tgt": POSE_MK_TGT if use_marker == "true" else POSE_IDENTITY,
             "controller": controller,
