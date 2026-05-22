@@ -7,7 +7,7 @@ import fire
 import matplotlib.pyplot as plt
 import numpy as np
 
-from common import COLORS, DPI, LABELS, STYLES  # noqa: I001
+from common import DPI, STYLES  # noqa: I001
 from common import read_csv_log, normalize_steps  # noqa: I001
 
 # Enable LaTeX rendering for text
@@ -18,8 +18,16 @@ plt.rcParams["text.latex.preamble"] = r"""\usepackage{bm}
 """
 plt.rcParams.update({"font.size": 12})
 
-FIGSIZE = (10, 3)
+FIGSIZE = (10, 4)
 PE_M_KEYS = ["PE (Position)", "PE (RotVec)"]
+COLORS = {"ideal": "#F1750F", "noisy_2_5": "#D426C2", "noisy_5": "#0E4DAB", "hline": "#66706e"}
+LABELS = {
+    "ideal": r"Ideal",
+    "noisy_2_5": r"Biased ($\varepsilon = 2.5^{\circ}$)",
+    "noisy_5": r"Biased ($\varepsilon = 5^{\circ}$)",
+}
+XLIM = [0, 56]
+XTICKS = np.linspace(XLIM[0], XLIM[1], 5).astype(np.int64)
 
 if TYPE_CHECKING:
     from numpy.typing import NDArray
@@ -28,12 +36,15 @@ if TYPE_CHECKING:
 def plot_position_errors(
     ctrls: list[str], all_metrics: list[dict[str, tuple[NDArray, NDArray]]]
 ) -> None:
+    # constants
+    YMAX = [5.0, 5.0, 21.0]
+    YTICKS = [np.linspace(-y, y, 9).round(2) for y in YMAX]
+
     fig, axes = plt.subplots(1, 3, figsize=FIGSIZE, dpi=DPI)
     axes = axes.flatten()
 
     # plot position errors
     key = PE_M_KEYS[0]
-    max_abs_v = -np.inf
     for ctrl, metrics in zip(ctrls, all_metrics):
         if key not in metrics:
             continue
@@ -48,39 +59,54 @@ def plot_position_errors(
                 alpha=STYLES["alpha"],
                 color=COLORS[ctrl],
             )
-        max_abs_v = max(max_abs_v, np.max(np.abs(values)))
-    min_v, max_v = -max_abs_v, max_abs_v
+            ax.axhline(
+                0.5,
+                linestyle="--",
+                linewidth=STYLES["linewidth"],
+                alpha=0.25,
+                color=COLORS["hline"],
+            )
+            ax.axhline(
+                -0.5,
+                linestyle="--",
+                linewidth=STYLES["linewidth"],
+                alpha=0.25,
+                color=COLORS["hline"],
+            )
 
     # Configure plot
-    fig.supxlabel(r"Time (sec)")
-    fig.supylabel(r"Position Error (cm)")
-    axes[0].legend()
-    for ax, ax_l in zip(axes, ["X", "Y", "Z"]):
+    fig.supxlabel(r"Time [sec]")
+    fig.supylabel(r"Position Error [cm]")
+    axes[0].legend(loc="lower center")
+    for i, (ax, ax_l) in enumerate(zip(axes, ["X", "Y", "Z"])):
         ax.set_title(f"{ax_l}-Axis")
         ax.grid(True)
-        ax.set_xlim([0, 36])
-        ax.set_ylim([round(min_v - 0.1, 2), round(max_v + 0.1, 2)])
-        ax.set_xticks(np.linspace(0, 36, 6).astype(np.int64))
-        ax.set_yticks(np.round(np.linspace(min_v - 0.1, max_v + 0.1, 7), 2))
+        ax.set_xlim(XLIM)
+        ax.set_ylim([-YMAX[i], YMAX[i]])
+        ax.set_xticks(XTICKS)
+        ax.set_yticks(YTICKS[i])
         ax.get_yaxis().offsetText.set_visible(False)  # disable automatic offset
     plt.tight_layout()
 
     # Save plot
     save_path = Path(__file__).parent / "figures"
     save_path.mkdir(parents=True, exist_ok=True)
-    plt.savefig(save_path / "pe_position.png", dpi=DPI)
+    plt.savefig(save_path / "pe_position_prop.png", dpi=DPI)
     plt.show()
 
 
 def plot_rotation_errors(
     ctrls: list[str], all_metrics: list[dict[str, tuple[NDArray, NDArray]]]
 ) -> None:
+    # constants
+    YMAX = [5.0, 5.0, 5.0]
+    YTICKS = [np.linspace(-y, y, 9).round(2) for y in YMAX]
+
     fig, axes = plt.subplots(1, 3, figsize=FIGSIZE, dpi=DPI)
     axes = axes.flatten()
 
     # plot rotation errors
     key = PE_M_KEYS[1]
-    max_abs_v = -np.inf
     for ctrl, metrics in zip(ctrls, all_metrics):
         if key not in metrics:
             continue
@@ -95,31 +121,45 @@ def plot_rotation_errors(
                 alpha=STYLES["alpha"],
                 color=COLORS[ctrl],
             )
-        max_abs_v = max(max_abs_v, np.max(np.abs(values)))
-    min_v, max_v = -max_abs_v, max_abs_v
+            ax.axhline(
+                1.0,
+                linestyle="--",
+                linewidth=STYLES["linewidth"],
+                alpha=0.25,
+                color=COLORS["hline"],
+            )
+            ax.axhline(
+                -1.0,
+                linestyle="--",
+                linewidth=STYLES["linewidth"],
+                alpha=0.25,
+                color=COLORS["hline"],
+            )
 
     # Configure plot
-    fig.supxlabel(r"Time (sec)")
-    fig.supylabel(r"Rotation Error (deg)")
-    axes[0].legend()
-    for ax, ax_l in zip(axes, ["X", "Y", "Z"]):
+    fig.supxlabel(r"Time [sec]")
+    fig.supylabel(r"Rotation Error [deg]")
+    axes[0].legend(loc="lower center")
+    for i, (ax, ax_l) in enumerate(zip(axes, ["X", "Y", "Z"])):
         ax.set_title(f"{ax_l}-Axis")
         ax.grid(True)
-        ax.set_xlim([0, 36])
-        ax.set_ylim([round(min_v - 0.1, 2), round(max_v + 0.1, 2)])
-        ax.set_xticks(np.linspace(0, 36, 6).astype(np.int64))
-        ax.set_yticks(np.round(np.linspace(min_v - 0.1, max_v + 0.1, 7), 2))
+        ax.set_xlim(XLIM)
+        ax.set_ylim([-YMAX[i], YMAX[i]])
+        ax.set_xticks(XTICKS)
+        ax.set_yticks(YTICKS[i])
         ax.get_yaxis().offsetText.set_visible(False)  # disable automatic offset
     plt.tight_layout()
 
     # Save plot
     save_path = Path(__file__).parent / "figures"
     save_path.mkdir(parents=True, exist_ok=True)
-    plt.savefig(save_path / "pe_rotation.png", dpi=DPI)
+    plt.savefig(save_path / "pe_rotation_prop.png", dpi=DPI)
     plt.show()
 
 
-def main(paths: list[str], ctrls: list[str]):
+def main(p_id: str, p_n2_5: str, p_n5: str):
+    paths = [p_id, p_n2_5, p_n5]
+    ctrls = ["ideal", "noisy_2_5", "noisy_5"]
     all_readings = []
     for path in paths:
         readings = read_csv_log(path, filters=["PE"])
