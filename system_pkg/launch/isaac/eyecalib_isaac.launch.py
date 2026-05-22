@@ -23,7 +23,7 @@ MARKER_FRAME = "tag36h11:1f"
 REF_FRAME = MARKER_FRAME
 EYE_GT_FRAME = "eye_left"
 
-PLANNER_MODE = "default"
+PLANNER_MODE = "fast"
 POSE_MK_TGT = "[0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0]"
 REF_POSE = "[0.12, -0.065, -0.2, 1.0, 0.0, 0.0, 0.0]"
 

@@ -21,7 +21,7 @@ CAM_FRAME = "camera_color_optical_frame"
 TCP_FRAME = CAM_FRAME
 REF_FRAME = "charuco:0f"
 
-PLANNER_MODE = "default"
+PLANNER_MODE = "fast"
 POSE_MK_TGT = "[0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0]"
 POSE_GT_HANDEYE = "[0.0, -0.04, 0.15, 0.9884, -0.1521, 0.0, 0.0]"
 

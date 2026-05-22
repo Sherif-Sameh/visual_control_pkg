@@ -17,7 +17,7 @@ target_nodes = ["apriltag_detector", "apriltag_estimator", "pbvs_controller"]
 # CSV logger parameters
 "csv.n_log" = 1
 "csv.n_flush" = 100
-"csv.filter" = [""]
+"csv.filter" = ["JS", "JT", "PE"]
 
 # WandB logger parameters
 "wandb.n_log" = 1
