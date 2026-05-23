@@ -53,7 +53,7 @@ private:
     bool m_pub_pred;
     std::string m_pose_frame;
     std::pair<double, double> m_pose_P_thr;
-    utils::structs::PeriodEMACalculator<double> m_twist_cb_pc;
+    utils::structs::PeriodEMACalculator<double> m_dtn_cb_pc;
 
     // EKF Attributes
     bool m_ekf_init;

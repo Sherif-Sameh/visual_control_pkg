@@ -17,7 +17,7 @@ PoseEstimator::PoseEstimator(const rclcpp::NodeOptions &options) : Node("pose_es
     m_pose_frame = this->get_parameter("pose.frame").as_string();
     m_pose_P_thr.first = this->get_parameter("pose.P_tthr").as_double();
     m_pose_P_thr.second = this->get_parameter("pose.P_rthr").as_double();
-    m_twist_cb_pc.m_period_ema.m_alpha = this->get_parameter("pose.ema_alpha").as_double();
+    m_dtn_cb_pc.m_period_ema.m_alpha = this->get_parameter("pose.ema_alpha").as_double();
     init_ekf();
 
     // Initialize ROS attributes
@@ -73,12 +73,8 @@ void PoseEstimator::make_pose_tf(const std_msgs::msg::Header &header)
 void PoseEstimator::callback_cam_twist(const geometry_msgs::msg::TwistStamped::SharedPtr msg)
 {
     if (!m_ekf_init) return;
-    // Update callback period EMA
-    rclcpp::Time stamp_now = this->get_clock()->now();
-    m_twist_cb_pc.update(stamp_now);
-
     // Update pose through EKF prediction step
-    std::optional<double> dt = m_twist_cb_pc.get();
+    std::optional<double> dt = m_dtn_cb_pc.get();
     if (!dt.has_value()) return;
     Action cam_twist;
     tf2::fromMsg(msg->twist, cam_twist);
@@ -94,6 +90,10 @@ void PoseEstimator::callback_cam_twist(const geometry_msgs::msg::TwistStamped::S
 
 void PoseEstimator::callback_pose(const AprilTagDetectionArray::SharedPtr msg)
 {
+    // Update callback period EMA
+    rclcpp::Time stamp_now = this->get_clock()->now();
+    m_dtn_cb_pc.update(stamp_now);
+
     // Update pose through EKF update step
     Measurement y = utils::geometry::to_mnf_se3<double, true>(msg->detections[0].pose.pose.pose);
     if (m_ekf_init)
