@@ -319,9 +319,9 @@ class EyeDetector(Node):
             self._store_prompts((self._sam.point_prompts, self._sam.label_prompts))
         mask = self._sam.segment(img_sam, [0] * len(self._sam.point_prompts), update_memory=True)
         # compute mask centroid for crops
-        self._center = self._centroid(mask).long()
+        self._center = self._centroid(mask)
         _, self._center = self._crop_img(
-            img[:, self._w_h_2 : self._w_h_2 + H], self._center, self._size
+            img[:, self._w_h_2 : self._w_h_2 + H], self._center.long(), self._size
         )
 
     def _init_seg_prompts(self) -> tuple[list[tuple[int, int]], list[int]]:
@@ -473,12 +473,13 @@ class EyeDetector(Node):
 
     def _optimize(self, img: Tensor, mask: Tensor, height: int) -> tuple[Tensor, Tensor]:
         """Run optimization for eye pose parameters."""
-        uv_centroid = self._centroid(mask).flip(0).repeat(self._n_rep, 1)
+        self._center = self._centroid(mask)
+        uv_centroid = self._center.flip(0).repeat(self._n_rep, 1)
         uv_centroid[:, 0] = -(uv_centroid[:, 0] + self._w_h_2)
         self._optim.init_from_pinhole_model(uv_centroid, self._cam_K)
+        target = self._get_target(img, mask)
         self._cameras.intrinsics.x0 -= self._center[1] - height // 2
         self._cameras.intrinsics.y0 += self._center[0] - height // 2
-        target = self._get_target(img, mask)
         tvec, rmat = self._optim.optimize(target, n_iter=self._n_iter, cameras=self._cameras)
         self._cameras.intrinsics.x0 += self._center[1] - height // 2
         self._cameras.intrinsics.y0 -= self._center[0] - height // 2
@@ -489,7 +490,7 @@ class EyeDetector(Node):
         """Get the target image from stored silhouette and RGB images."""
         silhouette = mask.unsqueeze(-1)
         target = torch.cat([silhouette, img * silhouette], dim=-1)
-        target, _ = self._crop_img(target, self._center, self._size)
+        target, self._center = self._crop_img(target, self._center.long(), self._size)
         return target.unsqueeze(0).expand(self._n_rep, -1, -1, -1)
 
     @staticmethod
