@@ -40,33 +40,33 @@
 
 
 # Backend-type and number of iteration specific overrides
-[overrides-cuda-10]  # https://wandb.ai/u1999168-girona/visual_control%7Ceyedtc_sweeps/sweeps/vxp62mnx/runs/ubgbnqyc?nw=nwuseru1999168
-"dr.shader.sigma" = 6.346e-5
-"dr.shader.boxlen" = 1.257e-3
-"dr.optim.lr" = 1.535e-2
-"dr.optim.sched.eta_min" = 1.395e-4
+[overrides-cuda-10]  # https://wandb.ai/u1999168-girona/visual_control%7Ceyedtc_sweeps/sweeps/uqw960ex/runs/ytwdhp9w?nw=nwuseru1999168
+"dr.shader.sigma" = 5.518e-5
+"dr.shader.boxlen" = 1.492e-3
+"dr.optim.lr" = 1.684e-2
+"dr.optim.sched.eta_min" = 1.240e-4
 "dr.optim.loss" = ["l1_loss", "l1_loss"]
 
 
-[overrides-cuda-20]  # https://wandb.ai/u1999168-girona/visual_control%7Ceyedtc_sweeps/sweeps/yr6tgcal/runs/k51boqoc?nw=nwuseru1999168
-"dr.shader.sigma" = 2.178e-5
-"dr.shader.boxlen" = 4.340e-4
-"dr.optim.lr" = 3.160e-2
-"dr.optim.sched.eta_min" = 3.107e-4
+[overrides-cuda-20]  # https://wandb.ai/u1999168-girona/visual_control%7Ceyedtc_sweeps/sweeps/hefpjxxh/runs/ebqv1czf?nw=nwuseru1999168
+"dr.shader.sigma" = 2.396e-5
+"dr.shader.boxlen" = 2.388e-4
+"dr.optim.lr" = 1.634e-2
+"dr.optim.sched.eta_min" = 2.261e-5
 "dr.optim.loss" = ["l1_loss", "l1_loss"]
 
 
-[overrides-nvdiffrast-10]  # https://wandb.ai/u1999168-girona/visual_control%7Ceyedtc_sweeps/sweeps/vxp62mnx/runs/ubgbnqyc?nw=nwuseru1999168
-"dr.shader.sigma" = 6.346e-5
-"dr.shader.boxlen" = 1.257e-3
-"dr.optim.lr" = 1.535e-2
-"dr.optim.sched.eta_min" = 1.395e-4
+[overrides-nvdiffrast-10]  # https://wandb.ai/u1999168-girona/visual_control%7Ceyedtc_sweeps/sweeps/uqw960ex/runs/ytwdhp9w?nw=nwuseru1999168
+"dr.shader.sigma" = 5.518e-5
+"dr.shader.boxlen" = 1.492e-3
+"dr.optim.lr" = 1.684e-2
+"dr.optim.sched.eta_min" = 1.240e-4
 "dr.optim.loss" = ["l1_loss", "l1_loss"]
 
 
 [overrides-nvdiffrast-20]  # https://wandb.ai/u1999168-girona/visual_control%7Ceyedtc_sweeps/sweeps/z6kzi0sx/runs/vjc5tcqm?nw=nwuseru1999168
-"dr.shader.sigma" = 8.718e-5
-"dr.shader.boxlen" = 1.361e-4
-"dr.optim.lr" = 2.715e-2
-"dr.optim.sched.eta_min" = 2.572e-4
+"dr.shader.sigma" = 2.396e-5
+"dr.shader.boxlen" = 2.388e-4
+"dr.optim.lr" = 1.634e-2
+"dr.optim.sched.eta_min" = 2.261e-5
 "dr.optim.loss" = ["l1_loss", "l1_loss"]
